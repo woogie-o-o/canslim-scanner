@@ -17,13 +17,18 @@ jobs:
           username: ubuntu
           key: ${{ secrets.E2_SSH_KEY }}
           script: |
-            echo "=== DIAGNOSTICS ==="
-            echo "1. Current path:" && pwd
-            echo "2. Listing current directory:" && ls -la
-            echo "3. Listing home directory:" && ls -la ~
-            echo "4. Listing /home/ubuntu:" && ls -la /home/ubuntu
-            echo "5. Finding deploy.sh on the server:"
-            find ~ -name "deploy.sh" 2>/dev/null || true
-            find /home/ubuntu -name "deploy.sh" 2>/dev/null || true
+            echo "=== COMPREHENSIVE DIAGNOSTICS ==="
+            echo "1. List files in ~/apps:"
+            ls -la ~/apps || echo "~/apps not found"
 
+            echo "2. Find all Git repositories on the server:"
+            find /home/ubuntu -maxdepth 4 -name ".git" 2>/dev/null || true
 
+            echo "3. Check running Python/Gunicorn/Scanner processes:"
+            ps aux | grep -E "python|gunicorn|scanner" | grep -v grep || true
+
+            echo "4. Check systemd service status for scanner:"
+            sudo systemctl status scanner --no-pager -l || true
+
+            echo "5. Check other potential systemd services:"
+            sudo systemctl list-units --type=service | grep -E "scanner|quant|api|bot" || true
