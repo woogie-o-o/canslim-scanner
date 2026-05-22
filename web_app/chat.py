@@ -40,7 +40,7 @@ except Exception as e:
 _DB_PATH = os.path.join(os.path.dirname(__file__), "..", "chat.db")
 _db_lock = threading.Lock()
 
-_ADMIN_PW = os.environ.get("CHAT_ADMIN_PW", "admin1234")
+_ADMIN_PW = os.environ.get("CHAT_ADMIN_PW", "admin1234").strip()
 
 _ADJ = [
     "급등노리는",
