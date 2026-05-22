@@ -578,6 +578,8 @@ function selectSector(btn, sector) {
   runScan();
 }
 
+let _isWarming = false;
+
 async function runScan() {
   const btn = document.getElementById('btn-scan');
   if (btn) { btn.disabled = true; }
@@ -591,6 +593,8 @@ async function runScan() {
     if (currentSector) p.set('sector', currentSector);
 
     const res    = await fetch(`/api/scan?${p}`);
+    _isWarming = res.headers.get('X-Warming-In-Progress') === 'true';
+    
     let payload;
     try {
       payload = await res.json();
@@ -721,10 +725,16 @@ function renderStockTable(stocks) {
   setStatHTML('stat-strong', `${strong}<span class="unit">개</span>`);
 
   if (filtered.length === 0) {
-    const emptyMsg = _currentFilter === 'watchlist'
+    let emptyMsg = _currentFilter === 'watchlist'
       ? '워치리스트가 비어있습니다. 표의 ☆ 버튼으로 추가하세요.'
       : '필터 조건에 맞는 종목이 없습니다.';
-    tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(_currentFilter === 'all' ? '결과 없음' : emptyMsg)}</td></tr>`;
+      
+    if (_isWarming) {
+      emptyMsg = '서버에서 한국 주식 데이터를 수집 및 분석 중입니다. (서버 최초 가동 시 약 3~5분 소요)';
+    }
+
+    const finalMsg = _isWarming ? emptyMsg : (_currentFilter === 'all' ? '결과 없음' : emptyMsg);
+    tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(finalMsg)}</td></tr>`;
     return;
   }
 
