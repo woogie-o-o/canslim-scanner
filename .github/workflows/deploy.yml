@@ -18,4 +18,7 @@ jobs:
           key: ${{ secrets.E2_SSH_KEY }}
           script: |
             cd ~/apps/canslim-quant-scanner
+            git fetch origin main
+            git reset --hard origin/main
             ./deploy.sh
+
