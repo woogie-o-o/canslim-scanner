@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>(.)(.)분석기 — 설정</title>
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: 60px 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* TopBar */
+.topbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  z-index: 100;
+}
+.topbar-logo {
+  font-size: 18px; font-weight: 800; letter-spacing: -0.5px;
+  color: var(--text-primary); white-space: nowrap;
+}
+.topbar-logo span { color: var(--brand); }
+.topbar-logo a { color: inherit; text-decoration: none; }
+
+.topbar-right {
+  margin-left: auto;
+  display: flex; align-items: center; gap: 12px;
+}
+.btn-back {
+  height: 34px; padding: 0 16px;
+  background: var(--secondary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  text-decoration: none;
+}
+.btn-back:hover { background: var(--muted); }
+
+/* Content */
+.settings-content {
+  overflow-y: auto;
+  padding: 32px;
+}
+.settings-container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.settings-title {
+  font-size: 24px; font-weight: 700;
+  margin-bottom: 8px;
+}
+.settings-desc {
+  font-size: 14px; color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+/* Status Cards */
+.status-row {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+.status-card {
+  flex: 1; min-width: 140px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow-card);
+}
+.status-card-label {
+  font-size: 12px; font-weight: 500;
+  color: var(--text-tertiary); margin-bottom: 8px;
+}
+.status-dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; margin-right: 6px;
+}
+.status-dot.on  { background: var(--success); }
+.status-dot.off { background: var(--text-disabled); }
+.status-text {
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center;
+}
+.status-mode {
+  font-size: 11px; color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* Group */
+.settings-group {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.group-header {
+  padding: 18px 20px;
+  font-size: 15px; font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* Fields */
+.field-row {
+  display: flex; align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--surface-subtle);
+  gap: 16px;
+}
+.field-row:last-child { border-bottom: none; }
+.field-label {
+  width: 160px; flex-shrink: 0;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+}
+.field-input {
+  flex: 1; height: 36px; padding: 0 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--input-background);
+  color: var(--text-primary);
+  font-size: 13px; font-family: 'SF Mono', 'Consolas', monospace;
+  outline: none;
+  transition: border-color var(--duration-normal) var(--ease-default);
+}
+.field-input:focus { border-color: var(--brand); background: var(--card); }
+.field-input::placeholder { color: var(--text-disabled); }
+
+/* Toggle */
+.toggle-wrap {
+  flex: 1; display: flex; align-items: center; gap: 10px;
+}
+.toggle {
+  position: relative; width: 44px; height: 24px;
+  background: var(--switch-background);
+  border-radius: 12px; cursor: pointer;
+  transition: background var(--duration-normal) var(--ease-default);
+  border: none; padding: 0;
+}
+.toggle.active { background: var(--brand); }
+.toggle-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px;
+  background: #fff; border-radius: 50%;
+  transition: transform var(--duration-normal) var(--ease-default);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+.toggle.active .toggle-knob { transform: translateX(20px); }
+.toggle-label {
+  font-size: 13px; color: var(--text-secondary); font-weight: 500;
+}
+
+/* Buttons */
+.settings-actions {
+  display: flex; gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px; padding-bottom: 40px;
+}
+.btn-save {
+  height: 40px; padding: 0 28px;
+  background: var(--brand); color: #fff;
+  border: none; border-radius: var(--radius);
+  font-size: 14px; font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--duration-normal);
+}
+.btn-save:hover { opacity: 0.88; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-reset {
+  height: 40px; padding: 0 20px;
+  background: var(--secondary); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.btn-reset:hover { background: var(--muted); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 32px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  padding: 12px 24px; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500; color: #fff;
+  box-shadow: var(--shadow-elevated);
+  opacity: 0; transition: all var(--duration-moderate) var(--ease-out);
+  z-index: 9999; pointer-events: none;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+.toast.success { background: var(--success); }
+.toast.error   { background: var(--destructive); }
+
+/* Eye toggle */
+.field-input-wrap {
+  flex: 1; position: relative;
+}
+.field-input-wrap .field-input { width: 100%; padding-right: 36px; }
+.btn-eye {
+  position: absolute; right: 8px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); padding: 4px;
+  display: flex; align-items: center;
+}
+.btn-eye:hover { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <header class="topbar">
+    <div class="topbar-logo"><a href="/">(.)(.) <span>분석기</span></a></div>
+    <div class="topbar-right">
+      <a href="/" class="btn-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        스캐너로 돌아가기
+      </a>
+    </div>
+  </header>
+
+  <main class="settings-content">
+    <div class="settings-container">
+
+      <h1 class="settings-title">설정</h1>
+      <p class="settings-desc">API 키와 토큰을 설정하면 실시간 시세, 알림, 공시 조회 등의 기능을 사용할 수 있어요.</p>
+
+      <!-- Status -->
+      <div class="status-row" id="status-row"></div>
+
+      <!-- Settings Groups -->
+      <form id="settings-form"></form>
+
+      <div class="settings-actions">
+        <button type="button" class="btn-reset" onclick="resetForm()">초기화</button>
+        <button type="button" class="btn-save" id="btn-save" onclick="saveSettings()">저장</button>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const SCHEMA = {{ schema | tojson }};
+let originalData = {};
+
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const json = await res.json();
+    originalData = json.values || {};
+    renderStatus(json.status || {});
+    renderForm(json.values_masked || {});
+  } catch (e) {
+    showToast('설정을 불러오지 못했어요.', 'error');
+  }
+}
+
+function renderStatus(status) {
+  const row = document.getElementById('status-row');
+  row.innerHTML = Object.entries(status).map(([name, info]) => `
+    <div class="status-card">
+      <div class="status-card-label">${name}</div>
+      <div class="status-text">
+        <span class="status-dot ${info.connected ? 'on' : 'off'}"></span>
+        ${info.connected ? '연결됨' : '미설정'}
+      </div>
+      ${info.mode ? `<div class="status-mode">${info.mode}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function renderForm(masked) {
+  const form = document.getElementById('settings-form');
+  form.innerHTML = '';
+
+  for (const [group, fields] of Object.entries(SCHEMA)) {
+    let html = `<div class="settings-group"><div class="group-header">${group}</div>`;
+
+    for (const f of fields) {
+      const val = masked[f.key] || '';
+      if (f.type === 'toggle') {
+        const isOn = (originalData[f.key] || 'false').toLowerCase() === 'true' ||
+                     (originalData[f.key] || '') === '1';
+        html += `
+          <div class="field-row">
+            <div class="field-label">${f.label}</div>
+            <div class="toggle-wrap">
+              <button type="button" class="toggle ${isOn ? 'active' : ''}"
+                      data-key="${f.key}" onclick="toggleSwitch(this)">
+                <div class="toggle-knob"></div>
+              </button>
+              <span class="toggle-label">${isOn ? '모의투자' : '실전투자'}</span>
+            </div>
+          </div>`;
+      } else {
+        const inputType = f.type === 'password' ? 'password' : 'text';
+        html += `
+          <div class="field-row">
+            <div class="field-label">${f.label}</div>
+            <div class="field-input-wrap">
+              <input class="field-input" type="${inputType}"
+                     data-key="${f.key}" data-original-type="${inputType}"
+                     value="${val}" placeholder="입력하세요"
+                     onfocus="clearMask(this)" />
+              ${f.type === 'password' ? `
+                <button type="button" class="btn-eye" onclick="toggleEye(this)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>` : ''}
+            </div>
+          </div>`;
+      }
+    }
+    html += '</div>';
+    form.innerHTML += html;
+  }
+}
+
+function clearMask(el) {
+  const key = el.dataset.key;
+  const val = el.value;
+  // 마스킹된 값(****포함)이면 비워서 새로 입력하도록
+  if (val.includes('*')) {
+    el.value = '';
+    el.placeholder = '새 값을 입력하세요 (빈칸이면 기존값 유지)';
+  }
+}
+
+function toggleSwitch(btn) {
+  btn.classList.toggle('active');
+  const label = btn.nextElementSibling;
+  label.textContent = btn.classList.contains('active') ? '모의투자' : '실전투자';
+}
+
+function toggleEye(btn) {
+  const input = btn.parentElement.querySelector('.field-input');
+  if (input.type === 'password') {
+    input.type = 'text';
+  } else {
+    input.type = 'password';
+  }
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+
+  const data = {};
+
+  // Toggle values
+  document.querySelectorAll('.toggle[data-key]').forEach(el => {
+    data[el.dataset.key] = el.classList.contains('active') ? 'true' : 'false';
+  });
+
+  // Input values
+  document.querySelectorAll('.field-input[data-key]').forEach(el => {
+    const val = el.value.trim();
+    // 마스킹된 값이거나 비어있으면 기존값 유지
+    if (val && !val.includes('*')) {
+      data[el.dataset.key] = val;
+    }
+  });
+
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+    if (json.ok) {
+      showToast('설정이 저장되었어요!', 'success');
+      await loadSettings();  // 새로 로드하여 상태 갱신
+    } else {
+      showToast('저장 실패: ' + (json.error || ''), 'error');
+    }
+  } catch (e) {
+    showToast('저장 중 오류가 발생했어요.', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '저장';
+  }
+}
+
+function resetForm() {
+  if (confirm('모든 설정을 초기화할까요? 저장된 값이 모두 삭제됩니다.')) {
+    fetch('/api/settings', {
+      method: 'DELETE',
+    }).then(() => {
+      showToast('설정이 초기화되었어요.', 'success');
+      loadSettings();
+    });
+  }
+}
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  setTimeout(() => { t.classList.remove('show'); }, 2500);
+}
+
+loadSettings();
+</script>
+</body>
+</html>

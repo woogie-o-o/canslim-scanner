@@ -1,0 +1,41 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - FLASK_HOST=0.0.0.0
+      - FLASK_DEBUG=0
+      - DISABLE_KR_WARMUP=${DISABLE_KR_WARMUP:-0}
+      - SCAN_WORKERS=${SCAN_WORKERS:-4}
+      # Data APIs
+      - DART_API_KEY=${DART_API_KEY:-}
+      - FINNHUB_API_KEY=${FINNHUB_API_KEY:-}
+      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID:-}
+      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET:-}
+      # AI comment
+      - AI_COMMENT_PROVIDER=${AI_COMMENT_PROVIDER:-openai}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GROK_API_KEY=${GROK_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # Telegram
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - app-data:/app/data
+      - yfinance-cache:/app/.yfinance-cache
+      - scan-cache:/app/web_app/cache_v19
+    restart: on-failure:5
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  app-data:
+  yfinance-cache:
+  scan-cache:

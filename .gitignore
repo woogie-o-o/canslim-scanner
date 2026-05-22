@@ -1,0 +1,102 @@
+# === 시크릿/개인정보 ===
+.env
+.env.local
+.env.*.local
+.kis_token_cache.json
+config.json
+config.local.json
+config.*.local.json
+*.token
+*_secret*
+.quant_nexus_ui.json
+swing_scan/state/
+
+# === 데이터베이스/개인 데이터 ===
+*.sqlite3
+*.db
+portfolio.sqlite3
+watchlist.db
+*.pkl
+naver_*_cache.pkl
+naver_target_cache.pkl
+# 개인 스캔 이력
+web_app/snapshots/
+
+# === 캐시 ===
+.yfinance-cache/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+cache_v19/
+cache_dartlab/
+backtest/cache/
+backtest/reports/
+.deps-installed.marker
+
+# === 로그 ===
+*.log
+quant_nexus_v20.log
+sca_debug.log
+
+# === 작업 파일 (개인 메모/캡처) ===
+_*.py
+_*.txt
+_*.json
+_*.png
+!__init__.py
+_pemco_caps/
+_pdf_pages/
+_renderer_test.png
+*.webp
+*.jpg
+MYH*.jpg
+ROADMAP_*.md
+HTS_*.md
+NH_*.txt
+나무증권_*.md
+kkirikkiri-report-*.md
+scalping_backtest_trades.csv
+
+# === 임시 도구/외부 벤더 ===
+tools/
+vendor/
+.swing_scanner.pid
+data/
+*.parquet
+
+# === Claude/AI 도구 부속 ===
+.claude/
+.omc/
+.pumasi/
+.kkirikkiri/
+
+# === IDE/OS ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Python 빌드 산출물 ===
+build/
+dist/
+*.egg-info/
+.eggs/
+.tox/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# === 가상환경 ===
+venv/
+.venv/
+env/
+.env/
+
+# === Node (혹시 모를) ===
+node_modules/
+package-lock.json

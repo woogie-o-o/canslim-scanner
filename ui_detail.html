@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>삼성전자 005930 — 상세분석</title>
+<style>
+:root {
+  --brand: #721FE5;
+  --primary: #030213;
+  --background: #ffffff;
+  --card: #ffffff;
+  --surface-page: #FAFAFA;
+  --surface-subtle: #F4F4F6;
+  --surface-muted: #E8E6E1;
+  --brand-tint: #F0E8FF;
+  --alert-badge: #FF4444;
+  --text-primary: #3C3C3C;
+  --text-secondary: #6A6A6A;
+  --text-tertiary: #7A7A7A;
+  --text-disabled: #9B9B9B;
+  --icon-default: #4A5568;
+  --border: rgba(0,0,0,0.09);
+  --destructive: #D4183D;
+  --success: #22A355;
+  --warning: #D97706;
+  --info: #3B82F6;
+  --radius: 0.625rem;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-elevated: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-modal: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  background: var(--surface-page);
+  font-family: -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--surface-page);
+}
+
+/* TopBar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: 60px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 8px 0 4px;
+  box-shadow: var(--shadow-card);
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--icon-default);
+  flex-shrink: 0;
+}
+
+.icon-btn:hover { background: var(--surface-subtle); }
+
+.topbar-center {
+  flex: 1;
+  text-align: center;
+}
+
+.topbar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  line-height: 1.2;
+}
+
+.topbar-sub {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* Scroll content */
+.scroll-content {
+  padding-bottom: 32px;
+}
+
+/* Hero Card */
+.hero-wrap {
+  padding: 20px 24px 0;
+}
+
+.hero-card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--shadow-elevated);
+  border: 1px solid var(--border);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.hero-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hero-sector {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--brand-tint);
+  color: var(--brand);
+}
+
+.hero-main {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.hero-score {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.hero-unit {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.hero-grade-dot {
+  width: 5px;
+  height: 5px;
+  background: var(--surface-muted);
+  border-radius: 50%;
+  margin: 0 4px;
+  align-self: center;
+}
+
+.hero-grade {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--brand);
+  align-self: center;
+}
+
+.hero-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.hero-change {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.hero-change-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.hero-watermark {
+  position: absolute;
+  right: -8px;
+  bottom: -8px;
+  opacity: 0.05;
+  pointer-events: none;
+}
+
+/* Tab nav */
+.tab-nav {
+  display: flex;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  margin-top: 20px;
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+}
+
+.tab-btn {
+  flex: 1;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: inherit;
+  min-height: 44px;
+}
+
+.tab-btn.active {
+  color: var(--brand);
+  border-bottom-color: var(--brand);
+}
+
+/* Tab panels */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Common card */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+}
+
+/* CAN SLIM tab */
+.canslim-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 24px 0;
+}
+
+.cs-item {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+}
+
+.cs-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cs-badge {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cs-name {
+  flex: 1;
+}
+
+.cs-name-en {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cs-name-ko {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+.cs-score {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.score-high { color: var(--success); }
+.score-mid  { color: var(--warning); }
+.score-low  { color: var(--destructive); }
+
+.cs-bar-wrap {
+  height: 6px;
+  background: var(--surface-subtle);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.cs-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.cs-bar-fill.score-high { background: var(--success); }
+.cs-bar-fill.score-mid  { background: var(--warning); }
+.cs-bar-fill.score-low  { background: var(--destructive); }
+
+.cs-summary {
+  margin: 12px 24px 0;
+  background: var(--brand-tint);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  border: 1px solid rgba(114,31,229,0.12);
+}
+
+.cs-summary-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand);
+  text-align: center;
+}
+
+/* 4-axis tab */
+.axis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 20px 24px 0;
+}
+
+.axis-card {
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  padding: 14px;
+}
+
+.axis-label-en {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.axis-label-ko {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  margin-bottom: 8px;
+}
+
+.axis-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.axis-score-num {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.axis-score-unit {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.axis-meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* Radar chart */
+.radar-wrap {
+  padding: 20px 24px 0;
+}
+
+.radar-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* DartLab tab */
+.dartlab-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px 0;
+}
+
+.dartlab-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.dartlab-card-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dartlab-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.dartlab-card-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: var(--surface-subtle);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+.data-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.data-row:last-child { border-bottom: none; }
+
+.data-label {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  flex: 1;
+}
+
+.data-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-right: 8px;
+}
+
+.data-change {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.data-change.pos { color: var(--success); }
+.data-change.neg { color: var(--destructive); }
+.data-change.neutral { color: var(--text-tertiary); }
+
+.check-icon {
+  color: var(--success);
+  font-size: 13px;
+  margin-right: 4px;
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <!-- TopBar -->
+  <header class="topbar">
+    <button class="icon-btn" onclick="history.back()" aria-label="뒤로가기">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <div class="topbar-center">
+      <span class="topbar-title">삼성전자</span>
+      <span class="topbar-sub">005930</span>
+    </div>
+    <button class="icon-btn" aria-label="관심 종목 추가" id="bookmarkBtn" onclick="toggleBookmark(this)">
+      <svg id="bookmarkIcon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      </svg>
+    </button>
+  </header>
+
+  <div class="scroll-content">
+    <!-- Hero Card -->
+    <div class="hero-wrap">
+      <div class="hero-card">
+        <div class="hero-top">
+          <span class="hero-label">종합점수</span>
+          <span class="hero-sector">반도체</span>
+        </div>
+        <div class="hero-main">
+          <span class="hero-score">87</span>
+          <span class="hero-unit">점</span>
+          <span class="hero-grade-dot"></span>
+          <span class="hero-grade">A등급</span>
+        </div>
+        <div class="hero-bottom">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="18 15 12 9 6 15"/>
+          </svg>
+          <span class="hero-change">+3.2%</span>
+          <span class="hero-change-label">전주 대비</span>
+        </div>
+        <!-- Watermark chart icon -->
+        <svg class="hero-watermark" width="140" height="100" viewBox="0 0 140 100" fill="none">
+          <polyline points="10,80 30,55 50,65 70,30 90,45 110,20 130,35" stroke="#721FE5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <line x1="10" y1="90" x2="130" y2="90" stroke="#721FE5" stroke-width="2"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Tab nav -->
+    <nav class="tab-nav" role="tablist" aria-label="분석 탭">
+      <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="tab-canslim" id="btn-canslim" onclick="switchTab('canslim')">CAN SLIM</button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-4axis" id="btn-4axis" onclick="switchTab('4axis')">4축 분석</button>
+      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-dart" id="btn-dart" onclick="switchTab('dart')">DartLab</button>
+    </nav>
+
+    <!-- CAN SLIM Tab -->
+    <div class="tab-panel active" id="tab-canslim" role="tabpanel" aria-labelledby="btn-canslim">
+      <div class="canslim-list" id="canslimsItems"></div>
+      <div class="cs-summary">
+        <div class="cs-summary-text">평균점수 74점 &nbsp;·&nbsp; 7항목 중 5항목 양호</div>
+      </div>
+      <div style="height:24px;"></div>
+    </div>
+
+    <!-- 4-axis Tab -->
+    <div class="tab-panel" id="tab-4axis" role="tabpanel" aria-labelledby="btn-4axis">
+      <div class="axis-grid">
+        <div class="axis-card">
+          <div class="axis-label-en">Growth</div>
+          <div class="axis-label-ko">성장성</div>
+          <div class="axis-score-row">
+            <span class="axis-score-num">75</span>
+            <span class="axis-score-unit">점</span>
+          </div>
+          <div class="axis-meta">+12% YoY</div>
+        </div>
+        <div class="axis-card">
+          <div class="axis-label-en">Profitability</div>
+          <div class="axis-label-ko">수익성</div>
+          <div class="axis-score-row">
+            <span class="axis-score-num">88</span>
+            <span class="axis-score-unit">점</span>
+          </div>
+          <div class="axis-meta">ROE 24%</div>
+        </div>
+        <div class="axis-card">
+          <div class="axis-label-en">Stability</div>
+          <div class="axis-label-ko">재무안정</div>
+          <div class="axis-score-row">
+            <span class="axis-score-num">82</span>
+            <span class="axis-score-unit">점</span>
+          </div>
+          <div class="axis-meta">부채비율 35%</div>
+        </div>
+        <div class="axis-card">
+          <div class="axis-label-en">Momentum</div>
+          <div class="axis-label-ko">시장모멘텀</div>
+          <div class="axis-score-row">
+            <span class="axis-score-num">65</span>
+            <span class="axis-score-unit">점</span>
+          </div>
+          <div class="axis-meta">RS 67</div>
+        </div>
+      </div>
+
+      <!-- Radar chart -->
+      <div class="radar-wrap">
+        <div class="radar-card">
+          <svg width="300" height="300" viewBox="0 0 300 300" role="img" aria-label="4축 레이더 차트">
+            <!-- Grid lines (3 levels) -->
+            <!-- Outermost (100%) -->
+            <polygon points="150,50 250,150 150,250 50,150" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/>
+            <!-- Middle (67%) -->
+            <polygon points="150,83 217,150 150,217 83,150" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/>
+            <!-- Inner (33%) -->
+            <polygon points="150,117 183,150 150,183 117,150" fill="none" stroke="var(--border)" stroke-width="1" stroke-dasharray="4,3"/>
+            <!-- Axis lines -->
+            <line x1="150" y1="50" x2="150" y2="250" stroke="var(--border)" stroke-width="1"/>
+            <line x1="50" y1="150" x2="250" y2="150" stroke="var(--border)" stroke-width="1"/>
+
+            <!-- Data polygon
+              성장성(상단):  75/100 → 150, 50 + (150-50)*(1-0.75) = 150,75
+              수익성(우측):  88/100 → 250 - (250-150)*(1-0.88) = 238, 150
+              재무안정(하단): 82/100 → 150, 250 - (250-150)*(1-0.82) = 150,232
+              시장모멘텀(좌): 65/100 → 50 + (150-50)*(1-0.65) = 85, 150
+            -->
+            <polygon
+              points="150,75 238,150 150,232 85,150"
+              fill="rgba(114,31,229,0.15)"
+              stroke="#721FE5"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+
+            <!-- Dots at vertices -->
+            <circle cx="150" cy="75"  r="5" fill="#721FE5"/>
+            <circle cx="238" cy="150" r="5" fill="#721FE5"/>
+            <circle cx="150" cy="232" r="5" fill="#721FE5"/>
+            <circle cx="85"  cy="150" r="5" fill="#721FE5"/>
+
+            <!-- Labels -->
+            <text x="150" y="38" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-secondary)" font-family="-apple-system, system-ui, sans-serif">성장성</text>
+            <text x="150" y="26" text-anchor="middle" font-size="13" font-weight="700" fill="var(--text-primary)" font-family="-apple-system, system-ui, sans-serif">75</text>
+
+            <text x="268" y="145" text-anchor="start" font-size="12" font-weight="600" fill="var(--text-secondary)" font-family="-apple-system, system-ui, sans-serif">수익성</text>
+            <text x="268" y="159" text-anchor="start" font-size="13" font-weight="700" fill="var(--text-primary)" font-family="-apple-system, system-ui, sans-serif">88</text>
+
+            <text x="150" y="268" text-anchor="middle" font-size="12" font-weight="600" fill="var(--text-secondary)" font-family="-apple-system, system-ui, sans-serif">재무안정</text>
+            <text x="150" y="282" text-anchor="middle" font-size="13" font-weight="700" fill="var(--text-primary)" font-family="-apple-system, system-ui, sans-serif">82</text>
+
+            <text x="32" y="145" text-anchor="end" font-size="12" font-weight="600" fill="var(--text-secondary)" font-family="-apple-system, system-ui, sans-serif">모멘텀</text>
+            <text x="32" y="159" text-anchor="end" font-size="13" font-weight="700" fill="var(--text-primary)" font-family="-apple-system, system-ui, sans-serif">65</text>
+          </svg>
+        </div>
+      </div>
+      <div style="height:24px;"></div>
+    </div>
+
+    <!-- DartLab Tab -->
+    <div class="tab-panel" id="tab-dart" role="tabpanel" aria-labelledby="btn-dart">
+      <div class="dartlab-sections">
+
+        <!-- 손익계산서 -->
+        <div class="dartlab-card">
+          <div class="dartlab-card-header">
+            <span class="dartlab-card-title">손익계산서</span>
+            <span class="dartlab-card-badge">IS</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">매출액</span>
+            <span class="data-value">28.5조</span>
+            <span class="data-change pos">YoY +8.2% ↑</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">영업이익</span>
+            <span class="data-value">3.8조</span>
+            <span class="data-change pos">YoY +22.1% ↑</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">순이익</span>
+            <span class="data-value">2.9조</span>
+            <span class="data-change pos">YoY +15.4% ↑</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">영업이익률</span>
+            <span class="data-value">13.3%</span>
+            <span class="data-change neutral">—</span>
+          </div>
+        </div>
+
+        <!-- 재무상태표 -->
+        <div class="dartlab-card">
+          <div class="dartlab-card-header">
+            <span class="dartlab-card-title">재무상태표</span>
+            <span class="dartlab-card-badge">BS</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">자산총계</span>
+            <span class="data-value">450.7조</span>
+            <span class="data-change neutral"></span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">부채총계</span>
+            <span class="data-value">156.3조</span>
+            <span class="data-change neutral"></span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">자본총계</span>
+            <span class="data-value">294.4조</span>
+            <span class="data-change neutral"></span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">부채비율</span>
+            <span class="data-value">53.1%</span>
+            <span class="data-change pos">안정</span>
+          </div>
+        </div>
+
+        <!-- 현금흐름표 -->
+        <div class="dartlab-card">
+          <div class="dartlab-card-header">
+            <span class="dartlab-card-title">현금흐름표</span>
+            <span class="dartlab-card-badge">CF</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">영업CF</span>
+            <span class="data-value">+5.2조</span>
+            <span class="data-change pos">✅ 양호</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">투자CF</span>
+            <span class="data-value">-8.1조</span>
+            <span class="data-change neutral">—</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">재무CF</span>
+            <span class="data-value">+1.3조</span>
+            <span class="data-change neutral">—</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label">FCF</span>
+            <span class="data-value">-2.9조</span>
+            <span class="data-change neg">주의</span>
+          </div>
+        </div>
+
+      </div>
+      <div style="height:24px;"></div>
+    </div>
+
+  </div><!-- end scroll-content -->
+</div><!-- end shell -->
+
+<script>
+// CAN SLIM data
+const canslimData = [
+  { letter:'C', nameEn:'Current Earnings', nameKo:'현재 실적', score:72 },
+  { letter:'A', nameEn:'Annual Earnings',  nameKo:'연간 실적', score:85 },
+  { letter:'N', nameEn:'New Products/Highs', nameKo:'신성장', score:60 },
+  { letter:'S', nameEn:'Supply & Demand',  nameKo:'수급',    score:78 },
+  { letter:'L', nameEn:'Leader or Laggard', nameKo:'리더주', score:88 },
+  { letter:'I', nameEn:'Institutional Sponsorship', nameKo:'기관', score:65 },
+  { letter:'M', nameEn:'Market Direction', nameKo:'시장',   score:73 },
+];
+
+function scoreClass(s) {
+  if (s >= 80) return 'score-high';
+  if (s >= 60) return 'score-mid';
+  return 'score-low';
+}
+
+function renderCanslim() {
+  const container = document.getElementById('canslimsItems');
+  canslimData.forEach(item => {
+    const cls = scoreClass(item.score);
+    const el = document.createElement('div');
+    el.className = 'cs-item';
+    el.innerHTML = `
+      <div class="cs-header">
+        <div class="cs-badge">${item.letter}</div>
+        <div class="cs-name">
+          <div class="cs-name-en">${item.nameEn}</div>
+          <div class="cs-name-ko">${item.nameKo}</div>
+        </div>
+        <span class="cs-score ${cls}">${item.score}점</span>
+      </div>
+      <div class="cs-bar-wrap">
+        <div class="cs-bar-fill ${cls}" style="width:${item.score}%"></div>
+      </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+function switchTab(tab) {
+  // Update buttons
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.remove('active');
+    btn.setAttribute('aria-selected', 'false');
+  });
+  document.getElementById('btn-' + tab).classList.add('active');
+  document.getElementById('btn-' + tab).setAttribute('aria-selected', 'true');
+
+  // Update panels
+  document.querySelectorAll('.tab-panel').forEach(panel => {
+    panel.classList.remove('active');
+  });
+  const panelId = tab === 'canslim' ? 'tab-canslim' : tab === '4axis' ? 'tab-4axis' : 'tab-dart';
+  document.getElementById(panelId).classList.add('active');
+}
+
+function toggleBookmark(btn) {
+  const icon = document.getElementById('bookmarkIcon');
+  const filled = icon.getAttribute('fill') === '#721FE5';
+  icon.setAttribute('fill', filled ? 'none' : '#721FE5');
+  icon.setAttribute('stroke', filled ? 'currentColor' : '#721FE5');
+  btn.setAttribute('aria-label', filled ? '관심 종목 추가' : '관심 종목 해제');
+}
+
+renderCanslim();
+</script>
+</body>
+</html>

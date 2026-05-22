@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>종목 비교</title>
+<link rel="stylesheet" href="/static/theme.css">
+<style>
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-primary);
+  font-family: -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+}
+.compare-shell {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 24px;
+}
+.compare-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.compare-title {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+}
+.compare-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.compare-back {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  text-decoration: none;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+.compare-empty {
+  padding: 40px 24px;
+  text-align: center;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text-tertiary);
+}
+.compare-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.compare-card-header {
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-name {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.compare-ticker {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.compare-signal {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 10px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.compare-body {
+  padding: 16px 18px 18px;
+}
+.compare-chart {
+  margin-bottom: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--surface-subtle);
+}
+.compare-chart img {
+  width: 100%;
+  display: block;
+}
+.compare-chart-empty {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+.compare-metrics {
+  display: grid;
+  gap: 8px;
+}
+.compare-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-page);
+}
+.compare-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.compare-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: right;
+}
+.compare-oneliner {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--brand);
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+@media (max-width: 720px) {
+  .compare-shell { padding: 16px; }
+  .compare-topbar { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .compare-grid { grid-template-columns: 1fr; gap: 16px; }
+}
+@media (max-width: 480px) {
+  .compare-shell { padding: 10px; }
+  .compare-title { font-size: 18px; }
+}
+
+/* ── 3D Flip Card (interactive.js) ────────────────────────── */
+.ix-flip-card {
+  perspective: 1000px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
+}
+.ix-flip-inner {
+  position: relative;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-style: preserve-3d;
+}
+.ix-flip-card.flipped .ix-flip-inner {
+  transform: rotateY(180deg);
+}
+.ix-flip-front,
+.ix-flip-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+.ix-flip-front {
+  position: relative;
+}
+.ix-flip-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+.ix-flip-back .compare-metrics {
+  padding: 0 18px;
+}
+.ix-flip-back .compare-oneliner {
+  margin: 12px 18px 0;
+}
+.ix-flip-hint {
+  text-align: center;
+  padding: 8px 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+.ix-flip-card:hover .ix-flip-inner {
+  box-shadow: var(--shadow-hover);
+}
+@supports not (backface-visibility: hidden) {
+  .ix-flip-card.flipped .ix-flip-front { display: none; }
+  .ix-flip-card.flipped .ix-flip-back { position: static; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ix-flip-inner { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="compare-shell">
+  <div class="compare-topbar">
+    <div>
+      <div class="compare-title">종목 비교</div>
+      <div class="compare-sub">2~4개 종목의 4축 차트와 핵심 지표를 나란히 비교합니다.</div>
+    </div>
+    <a class="compare-back" href="javascript:history.back()">스캐너로 돌아가기</a>
+  </div>
+  <div id="compare-grid" class="compare-grid">
+    <div class="compare-empty">비교할 종목을 불러오는 중입니다.</div>
+  </div>
+</div>
+<script>
+const COMPARE_TICKERS = {{ tickers|tojson }};
+const COMPARE_MARKET = {{ market|tojson }};
+</script>
+<script src="/static/app.js"></script>
+<script src="/static/interactive.js" defer></script>
+</body>
+</html>
