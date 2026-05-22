@@ -33,14 +33,7 @@ from config_manager import (
     apply_to_environ, get_masked, get_connection_status,
 )
 
-logging.basicConfig(
-    level=logging.INFO, 
-    format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[
-        logging.FileHandler("server_debug.log", encoding="utf-8"),
-        logging.StreamHandler()
-    ]
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 # 앱 시작 시 저장된 설정을 환경변수에 반영
 apply_to_environ()
@@ -52,18 +45,6 @@ app = Flask(
     template_folder="templates",
     static_folder="static",
 )
-
-@app.route("/api/server-logs")
-def api_server_logs():
-    try:
-        if not os.path.exists("server_debug.log"):
-            return "Log file not created yet."
-        with open("server_debug.log", "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        return Response("".join(lines[-300:]), mimetype="text/plain; charset=utf-8")
-    except Exception as e:
-        return str(e), 500
-
 
 def _render_deployment() -> bool:
     return bool((os.environ.get("RENDER") or "").strip())
@@ -429,16 +410,11 @@ def index():
 
 @app.route("/healthz")
 def healthz():
-    return "OK"
-
-@app.route("/api/debug-logs")
-def debug_logs():
-    try:
-        import subprocess
-        res = subprocess.run(["/bin/journalctl", "-u", "canslim-scanner", "-n", "500", "--no-pager"], capture_output=True, text=True)
-        return Response(res.stdout + "\n" + res.stderr, mimetype="text/plain; charset=utf-8")
-    except Exception as e:
-        return str(e), 500
+    return jsonify({
+        "ok": True,
+        "service": "canslim-quant-scanner",
+        "render": _render_deployment(),
+    })
 
 @app.route("/detail/<ticker>")
 def detail(ticker: str):
