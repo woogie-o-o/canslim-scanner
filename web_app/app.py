@@ -411,12 +411,16 @@ def index():
 
 @app.route("/healthz")
 def healthz():
-    return jsonify({
-        "ok": True,
-        "service": "canslim-quant-scanner",
-        "render": _render_deployment(),
-    })
+    return "OK"
 
+@app.route("/api/debug-logs")
+def debug_logs():
+    try:
+        import subprocess
+        res = subprocess.run(["journalctl", "-u", "canslim-scanner", "-n", "300", "--no-pager"], capture_output=True, text=True)
+        return Response(res.stdout + "\n" + res.stderr, mimetype="text/plain; charset=utf-8")
+    except Exception as e:
+        return str(e), 500
 
 @app.route("/detail/<ticker>")
 def detail(ticker: str):
