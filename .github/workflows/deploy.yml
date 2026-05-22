@@ -17,8 +17,13 @@ jobs:
           username: ubuntu
           key: ${{ secrets.E2_SSH_KEY }}
           script: |
-            cd ~/apps/canslim-quant-scanner
-            git fetch origin main
-            git reset --hard origin/main
-            ./deploy.sh
+            echo "=== DIAGNOSTICS ==="
+            echo "1. Current path:" && pwd
+            echo "2. Listing current directory:" && ls -la
+            echo "3. Listing home directory:" && ls -la ~
+            echo "4. Listing /home/ubuntu:" && ls -la /home/ubuntu
+            echo "5. Finding deploy.sh on the server:"
+            find ~ -name "deploy.sh" 2>/dev/null || true
+            find /home/ubuntu -name "deploy.sh" 2>/dev/null || true
+
 
