@@ -1,4 +1,3 @@
-from __future__ import annotations
 """Tests for deeptech story correction gate."""
 import pytest
 from quant_nexus_v20 import _is_deeptech_story

@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 _compute_entry_status_v2() — 백테스트 증거기반 v2 단위 테스트.
 

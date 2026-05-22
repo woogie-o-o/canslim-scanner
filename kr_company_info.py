@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 KR_COMPANY_INFO — 한국 주식 회사 소개 (팝업용)
 각 종목의 주요 사업·제품을 한 줄로 요약한다.

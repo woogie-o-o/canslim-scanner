@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 US_COMPANY_INFO — 미국 주식 한국어 회사 소개 (팝업용)
 각 종목의 주요 사업·제품을 한 줄로 요약한다.

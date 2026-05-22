@@ -1,5 +1,5 @@
 /**
- * app.js — (.)(.)분석기 웹 프론트엔드
+ * app.js — 종목분석기 웹 프론트엔드
  * scanner.html (데스크탑 테이블) / detail.html 공용 스크립트
  */
 
@@ -3590,7 +3590,7 @@ function generateShareCard() {
     <div style="background:linear-gradient(135deg,#3182F6,#1B64DA);padding:20px 20px 16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">(.)(.) 분석기</div>
+          <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">종목 분석기</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">${mkt} · ${dateStr}</div>
         </div>
         <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:6px 12px;">

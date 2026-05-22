@@ -1,4 +1,3 @@
-from __future__ import annotations
 #!/usr/bin/env python3
 """extract_fields.py — HTML/JS/CSS에서 UI 필드와 스타일 토큰을 추출한다.
 

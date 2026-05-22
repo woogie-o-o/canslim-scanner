@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 _compute_entry_status() 추출 함수 — 행동 잠금(behavior lock) 테스트.
 

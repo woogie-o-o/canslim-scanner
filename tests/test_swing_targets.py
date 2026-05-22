@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 스윙 손절/목표가 백테스트
 =========================

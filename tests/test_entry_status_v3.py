@@ -1,4 +1,3 @@
-from __future__ import annotations
 """EntryStatus v3 — 월가 패널 P0 6항목 검증."""
 import os
 import sys

@@ -1,4 +1,3 @@
-from __future__ import annotations
 # -*- coding: utf-8 -*-
 """
 한 줄 혼잣말 (haiku) 라이브러리.

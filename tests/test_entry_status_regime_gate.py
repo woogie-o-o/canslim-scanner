@@ -1,4 +1,3 @@
-from __future__ import annotations
 """
 EntryStatus MeanRev 과열 페널티 — regime-gate 회귀 테스트.
 

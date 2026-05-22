@@ -1,5 +1,4 @@
-from __future__ import annotations
-"""
+﻿"""
 engine_adapter.py — quant_nexus_v20.py 엔진을 tkinter 없이 사용하는 어댑터
 Flask 웹앱이 이 클래스를 통해 스캔 기능을 호출한다.
 """

@@ -1,4 +1,3 @@
-from __future__ import annotations
 # -*- coding: utf-8 -*-
 """Realtime anonymous chat backed by SQLite.
 
