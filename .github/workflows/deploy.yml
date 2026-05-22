@@ -1,169 +1,169 @@
 name: Deploy to Oracle E2
 
 on:
-  push:
-    branches:
-      - main
+    push:
+        branches:
+            - main
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+    deploy:
+        runs-on: ubuntu-latest
 
-    steps:
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: 168.110.117.10
-          username: ubuntu
-          key: ${{ secrets.E2_SSH_KEY }}
-          script: |
-            echo "=== REPOSITORY DETECTION & DEPLOYMENT ==="
-            REPO_DIR=""
-            for dir in /home/ubuntu/canslim-quant-scanner /home/ubuntu/apps/canslim-quant-scanner /home/ubuntu/quant-scanner; do
-              if [ -d "$dir/.git" ]; then
-                REPO_DIR="$dir"
-                break
-              fi
-            done
-            if [ -z "$REPO_DIR" ]; then
-              REPO_DIR=$(find /home/ubuntu -maxdepth 4 -name ".git" 2>/dev/null | head -n 1 | sed 's/\/\.git$//')
-            fi
+        steps:
+            - name: Deploy over SSH
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: 168.110.117.10
+                  username: ubuntu
+                  key: ${{ secrets.E2_SSH_KEY }}
+                  script: |
+                      echo "=== REPOSITORY DETECTION & DEPLOYMENT ==="
+                      REPO_DIR=""
+                      for dir in /home/ubuntu/canslim-quant-scanner /home/ubuntu/apps/canslim-quant-scanner /home/ubuntu/quant-scanner; do
+                        if [ -d "$dir/.git" ]; then
+                          REPO_DIR="$dir"
+                          break
+                        fi
+                      done
+                      if [ -z "$REPO_DIR" ]; then
+                        REPO_DIR=$(find /home/ubuntu -maxdepth 4 -name ".git" 2>/dev/null | head -n 1 | sed 's/\/\.git$//')
+                      fi
 
-            if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR" ]; then
-              echo "Found repo at: $REPO_DIR"
-              cd "$REPO_DIR"
-              
-              echo "=== DEPLOYING CODE ==="
-              git fetch origin main
-              git reset --hard origin/main
-              
-              if [ -f "requirements.txt" ]; then
-                echo "Installing dependencies..."
-                if [ -d "venv" ]; then
-                  source venv/bin/activate
-                  pip install -r requirements.txt
-                elif [ -d ".venv" ]; then
-                  source .venv/bin/activate
-                  pip install -r requirements.txt
-                else
-                  pip3 install -r requirements.txt || true
-                fi
-              fi
-            else
-              echo "ERROR: Could not locate git repository under /home/ubuntu!"
-              exit 1
-            fi
+                      if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR" ]; then
+                        echo "Found repo at: $REPO_DIR"
+                        cd "$REPO_DIR"
+                        
+                        echo "=== DEPLOYING CODE ==="
+                        git fetch origin main
+                        git reset --hard origin/main
+                        
+                        if [ -f "requirements.txt" ]; then
+                          echo "Installing dependencies..."
+                          if [ -d "venv" ]; then
+                            source venv/bin/activate
+                            pip install -r requirements.txt
+                          elif [ -d ".venv" ]; then
+                            source .venv/bin/activate
+                            pip install -r requirements.txt
+                          else
+                            pip3 install -r requirements.txt || true
+                          fi
+                        fi
+                      else
+                        echo "ERROR: Could not locate git repository under /home/ubuntu!"
+                        exit 1
+                      fi
 
-            sed 's/^            //' << 'EOF' | sudo python3 -
-            import re
-            import os
-            import sys
-            import subprocess
+                      sed 's/^            //' << 'EOF' | sudo python3 -
+                      import re
+                      import os
+                      import sys
+                      import subprocess
 
-            config_path = "/etc/nginx/sites-enabled/default"
-            if not os.path.exists(config_path):
-                import glob
-                files = glob.glob("/etc/nginx/sites-enabled/*")
-                if files:
-                    config_path = files[0]
-                else:
-                    print("No active nginx configurations found in sites-enabled.")
-                    sys.exit(0)
+                      config_path = "/etc/nginx/sites-enabled/default"
+                      if not os.path.exists(config_path):
+                          import glob
+                          files = glob.glob("/etc/nginx/sites-enabled/*")
+                          if files:
+                              config_path = files[0]
+                          else:
+                              print("No active nginx configurations found in sites-enabled.")
+                              sys.exit(0)
 
-            print(f"Reading nginx config from: {config_path}")
-            with open(config_path, 'r') as f:
-                content = f.read()
+                      print(f"Reading nginx config from: {config_path}")
+                      with open(config_path, 'r') as f:
+                          content = f.read()
 
-            if "/socket.io/" in content or "Upgrade $http_upgrade" in content:
-                print("WebSocket proxy configuration is already present in Nginx config.")
-                sys.exit(0)
+                      if "/socket.io/" in content or "Upgrade $http_upgrade" in content:
+                          print("WebSocket proxy configuration is already present in Nginx config.")
+                          sys.exit(0)
 
-            match_loc = re.search(r'location\s+/\s+\{([^}]+)\}', content)
-            if not match_loc:
-                print("Could not find 'location /' block.")
-                sys.exit(0)
+                      match_loc = re.search(r'location\s+/\s+\{([^}]+)\}', content)
+                      if not match_loc:
+                          print("Could not find 'location /' block.")
+                          sys.exit(0)
 
-            loc_body = match_loc.group(1)
-            match_pp = re.search(r'proxy_pass\s+([^;]+);', loc_body)
-            if not match_pp:
-                print("Could not find proxy_pass inside 'location /'.")
-                sys.exit(0)
+                      loc_body = match_loc.group(1)
+                      match_pp = re.search(r'proxy_pass\s+([^;]+);', loc_body)
+                      if not match_pp:
+                          print("Could not find proxy_pass inside 'location /'.")
+                          sys.exit(0)
 
-            upstream = match_pp.group(1).strip()
-            print(f"Found upstream proxy_pass target: {upstream}")
+                      upstream = match_pp.group(1).strip()
+                      print(f"Found upstream proxy_pass target: {upstream}")
 
-            upstream_base = upstream.rstrip('/')
-            socket_io_block = f"""
-                location /socket.io/ {{
-                    proxy_pass {upstream_base}/socket.io/;
-                    proxy_http_version 1.1;
-                    proxy_set_header Upgrade $http_upgrade;
-                    proxy_set_header Connection "upgrade";
-                    proxy_set_header Host $host;
-                    proxy_set_header X-Real-IP $remote_addr;
-                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto $scheme;
-                    proxy_cache_bypass $http_upgrade;
-                }}
-            """
+                      upstream_base = upstream.rstrip('/')
+                      socket_io_block = f"""
+                          location /socket.io/ {{
+                              proxy_pass {upstream_base}/socket.io/;
+                              proxy_http_version 1.1;
+                              proxy_set_header Upgrade $http_upgrade;
+                              proxy_set_header Connection "upgrade";
+                              proxy_set_header Host $host;
+                              proxy_set_header X-Real-IP $remote_addr;
+                              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                              proxy_set_header X-Forwarded-Proto $scheme;
+                              proxy_cache_bypass $http_upgrade;
+                          }}
+                      """
 
-            location_slash_end = match_loc.end()
-            new_content = content[:location_slash_end] + "\n" + socket_io_block + content[location_slash_end:]
+                      location_slash_end = match_loc.end()
+                      new_content = content[:location_slash_end] + "\n" + socket_io_block + content[location_slash_end:]
 
-            backup_path = config_path + ".bak"
-            with open(backup_path, 'w') as f:
-                f.write(content)
-            print(f"Backup created at: {backup_path}")
+                      backup_path = config_path + ".bak"
+                      with open(backup_path, 'w') as f:
+                          f.write(content)
+                      print(f"Backup created at: {backup_path}")
 
-            temp_new_path = "/tmp/nginx_new_config"
-            with open(temp_new_path, 'w') as f:
-                f.write(new_content)
+                      temp_new_path = "/tmp/nginx_new_config"
+                      with open(temp_new_path, 'w') as f:
+                          f.write(new_content)
 
-            print("Applying new configuration...")
-            subprocess.run(["cp", temp_new_path, config_path], check=True)
+                      print("Applying new configuration...")
+                      subprocess.run(["cp", temp_new_path, config_path], check=True)
 
-            test_res = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
-            if test_res.returncode == 0:
-                print("Nginx configuration test passed! Reloading Nginx...")
-                subprocess.run(["systemctl", "reload", "nginx"], check=True)
-                print("Nginx successfully reloaded!")
-            else:
-                print("Nginx configuration test FAILED!")
-                print(test_res.stderr)
-                print("Reverting to backup...")
-                subprocess.run(["cp", backup_path, config_path], check=True)
-                print("Successfully reverted Nginx configuration.")
-                sys.exit(1)
-            EOF
+                      test_res = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
+                      if test_res.returncode == 0:
+                          print("Nginx configuration test passed! Reloading Nginx...")
+                          subprocess.run(["systemctl", "reload", "nginx"], check=True)
+                          print("Nginx successfully reloaded!")
+                      else:
+                          print("Nginx configuration test FAILED!")
+                          print(test_res.stderr)
+                          print("Reverting to backup...")
+                          subprocess.run(["cp", backup_path, config_path], check=True)
+                          print("Successfully reverted Nginx configuration.")
+                          sys.exit(1)
+                      EOF
 
-            echo "=== RESTARTING SYSTEMD SERVICE ==="
-            SVC_NAME=""
-            for svc in scanner canslim-quant-scanner canslim quant-scanner webapp app; do
-              if systemctl is-active --quiet "$svc" || systemctl is-enabled --quiet "$svc" 2>/dev/null; then
-                SVC_NAME="$svc"
-                echo "Found active/enabled service: $SVC_NAME"
-                break
-              fi
-            done
-            
-            if [ -z "$SVC_NAME" ]; then
-              SVC_PATH=$(find /etc/systemd/system/ -maxdepth 2 -name "*.service" -not -name "snap.*" 2>/dev/null | while read svc; do
-                if grep -qiE "gunicorn|app|wsgi|scanner" "$svc"; then
-                  echo "$svc"
-                  break
-                fi
-              done)
-              if [ -n "$SVC_PATH" ]; then
-                SVC_NAME=$(basename "$SVC_PATH")
-                echo "Found service from file: $SVC_NAME"
-              fi
-            fi
+                      echo "=== RESTARTING SYSTEMD SERVICE ==="
+                      SVC_NAME=""
+                      for svc in scanner canslim-quant-scanner canslim quant-scanner webapp app; do
+                        if systemctl is-active --quiet "$svc" || systemctl is-enabled --quiet "$svc" 2>/dev/null; then
+                          SVC_NAME="$svc"
+                          echo "Found active/enabled service: $SVC_NAME"
+                          break
+                        fi
+                      done
 
-            if [ -n "$SVC_NAME" ]; then
-              echo "Restarting service $SVC_NAME..."
-              sudo systemctl restart "$SVC_NAME"
-              sudo systemctl status "$SVC_NAME" --no-pager -l
-            else
-              echo "WARNING: Could not determine service name, attempting fallback restart..."
-              sudo systemctl restart scanner || sudo systemctl restart canslim || echo "No service restarted"
-            fi
+                      if [ -z "$SVC_NAME" ]; then
+                        SVC_PATH=$(find /etc/systemd/system/ -maxdepth 2 -name "*.service" -not -name "snap.*" 2>/dev/null | while read svc; do
+                          if grep -qiE "gunicorn|app|wsgi|scanner" "$svc"; then
+                            echo "$svc"
+                            break
+                          fi
+                        done)
+                        if [ -n "$SVC_PATH" ]; then
+                          SVC_NAME=$(basename "$SVC_PATH")
+                          echo "Found service from file: $SVC_NAME"
+                        fi
+                      fi
+
+                      if [ -n "$SVC_NAME" ]; then
+                        echo "Restarting service $SVC_NAME..."
+                        sudo systemctl restart "$SVC_NAME"
+                        sudo systemctl status "$SVC_NAME" --no-pager -l
+                      else
+                        echo "WARNING: Could not determine service name, attempting fallback restart..."
+                        sudo systemctl restart scanner || sudo systemctl restart canslim || echo "No service restarted"
+                      fi

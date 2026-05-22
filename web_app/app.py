@@ -417,7 +417,7 @@ def healthz():
 def debug_logs():
     try:
         import subprocess
-        res = subprocess.run(["journalctl", "-u", "canslim-scanner", "-n", "300", "--no-pager"], capture_output=True, text=True)
+        res = subprocess.run(["/bin/journalctl", "-u", "canslim-scanner", "-n", "500", "--no-pager"], capture_output=True, text=True)
         return Response(res.stdout + "\n" + res.stderr, mimetype="text/plain; charset=utf-8")
     except Exception as e:
         return str(e), 500
