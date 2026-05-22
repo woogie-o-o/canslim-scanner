@@ -54,88 +54,87 @@ jobs:
               exit 1
             fi
 
-            echo "=== AUTO-CONFIGURING NGINX WEBSOCKETS ==="
-            sudo python3 - << 'EOF'
-import re
-import os
-import sys
-import subprocess
+            sed 's/^            //' << 'EOF' | sudo python3 -
+            import re
+            import os
+            import sys
+            import subprocess
 
-config_path = "/etc/nginx/sites-enabled/default"
-if not os.path.exists(config_path):
-    import glob
-    files = glob.glob("/etc/nginx/sites-enabled/*")
-    if files:
-        config_path = files[0]
-    else:
-        print("No active nginx configurations found in sites-enabled.")
-        sys.exit(0)
+            config_path = "/etc/nginx/sites-enabled/default"
+            if not os.path.exists(config_path):
+                import glob
+                files = glob.glob("/etc/nginx/sites-enabled/*")
+                if files:
+                    config_path = files[0]
+                else:
+                    print("No active nginx configurations found in sites-enabled.")
+                    sys.exit(0)
 
-print(f"Reading nginx config from: {config_path}")
-with open(config_path, 'r') as f:
-    content = f.read()
+            print(f"Reading nginx config from: {config_path}")
+            with open(config_path, 'r') as f:
+                content = f.read()
 
-if "/socket.io/" in content or "Upgrade $http_upgrade" in content:
-    print("WebSocket proxy configuration is already present in Nginx config.")
-    sys.exit(0)
+            if "/socket.io/" in content or "Upgrade $http_upgrade" in content:
+                print("WebSocket proxy configuration is already present in Nginx config.")
+                sys.exit(0)
 
-match_loc = re.search(r'location\s+/\s+\{([^}]+)\}', content)
-if not match_loc:
-    print("Could not find 'location /' block.")
-    sys.exit(0)
+            match_loc = re.search(r'location\s+/\s+\{([^}]+)\}', content)
+            if not match_loc:
+                print("Could not find 'location /' block.")
+                sys.exit(0)
 
-loc_body = match_loc.group(1)
-match_pp = re.search(r'proxy_pass\s+([^;]+);', loc_body)
-if not match_pp:
-    print("Could not find proxy_pass inside 'location /'.")
-    sys.exit(0)
+            loc_body = match_loc.group(1)
+            match_pp = re.search(r'proxy_pass\s+([^;]+);', loc_body)
+            if not match_pp:
+                print("Could not find proxy_pass inside 'location /'.")
+                sys.exit(0)
 
-upstream = match_pp.group(1).strip()
-print(f"Found upstream proxy_pass target: {upstream}")
+            upstream = match_pp.group(1).strip()
+            print(f"Found upstream proxy_pass target: {upstream}")
 
-upstream_base = upstream.rstrip('/')
-socket_io_block = f"""
-    location /socket.io/ {{
-        proxy_pass {upstream_base}/socket.io/;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }}
-"""
+            upstream_base = upstream.rstrip('/')
+            socket_io_block = f"""
+                location /socket.io/ {{
+                    proxy_pass {upstream_base}/socket.io/;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection "upgrade";
+                    proxy_set_header Host $host;
+                    proxy_set_header X-Real-IP $remote_addr;
+                    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto $scheme;
+                    proxy_cache_bypass $http_upgrade;
+                }}
+            """
 
-location_slash_end = match_loc.end()
-new_content = content[:location_slash_end] + "\n" + socket_io_block + content[location_slash_end:]
+            location_slash_end = match_loc.end()
+            new_content = content[:location_slash_end] + "\n" + socket_io_block + content[location_slash_end:]
 
-backup_path = config_path + ".bak"
-with open(backup_path, 'w') as f:
-    f.write(content)
-print(f"Backup created at: {backup_path}")
+            backup_path = config_path + ".bak"
+            with open(backup_path, 'w') as f:
+                f.write(content)
+            print(f"Backup created at: {backup_path}")
 
-temp_new_path = "/tmp/nginx_new_config"
-with open(temp_new_path, 'w') as f:
-    f.write(new_content)
+            temp_new_path = "/tmp/nginx_new_config"
+            with open(temp_new_path, 'w') as f:
+                f.write(new_content)
 
-print("Applying new configuration...")
-subprocess.run(["cp", temp_new_path, config_path], check=True)
+            print("Applying new configuration...")
+            subprocess.run(["cp", temp_new_path, config_path], check=True)
 
-test_res = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
-if test_res.returncode == 0:
-    print("Nginx configuration test passed! Reloading Nginx...")
-    subprocess.run(["systemctl", "reload", "nginx"], check=True)
-    print("Nginx successfully reloaded!")
-else:
-    print("Nginx configuration test FAILED!")
-    print(test_res.stderr)
-    print("Reverting to backup...")
-    subprocess.run(["cp", backup_path, config_path], check=True)
-    print("Successfully reverted Nginx configuration.")
-    sys.exit(1)
-EOF
+            test_res = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
+            if test_res.returncode == 0:
+                print("Nginx configuration test passed! Reloading Nginx...")
+                subprocess.run(["systemctl", "reload", "nginx"], check=True)
+                print("Nginx successfully reloaded!")
+            else:
+                print("Nginx configuration test FAILED!")
+                print(test_res.stderr)
+                print("Reverting to backup...")
+                subprocess.run(["cp", backup_path, config_path], check=True)
+                print("Successfully reverted Nginx configuration.")
+                sys.exit(1)
+            EOF
 
             echo "=== RESTARTING SYSTEMD SERVICE ==="
             SVC_NAME=""
