@@ -11015,8 +11015,8 @@ class QuantNexusApp:
                                        "MDB","MNDY","MSFT","NOW","NTNX","ORCL","PATH","PLTR",
                                        "RBRK","SNOW","SOUN","TEAM","TEM","WDAY"],
 
-                # AI 인프라·데이터센터
-                "AI Infrastructure":  ["AMT","ANET","APLD","CLSK","CLS","COHR","CORZ","CRDO","CRWV",
+                # AI 인프라·데이터센터·광통신 (AAOI 데이터센터 옵티컬 포함)
+                "AI Infrastructure":  ["AAOI","AMT","ANET","APLD","CLSK","CLS","COHR","CORZ","CRDO","CRWV",
                                        "CSCO","DELL","DLR","EQIX","GLW","HPE","IONQ","IREN","IRM",
                                        "LITE","NBIS","NTAP","PSTG","QBTS","RGTI","SMCI","STX",
                                        "VRT","WDC","WULF"],
@@ -11026,9 +11026,10 @@ class QuantNexusApp:
                                        "OKTA","PANW","QLYS","RPD","S","TENB","VRNS","ZS"],
 
                 # SaaS·소프트웨어 고성장
-                "SaaS & Software":    ["ADBE","APP","BILL","CRM","DOCU","DUOL","GLOB","GTLB",
-                                       "HUBS","MGNI","MNDY","NOW","PCTY","RAMP",
-                                       "SHOP","TWLO","TTD","VEEV","ZM"],
+                "SaaS & Software":    ["ADBE","ADSK","ANSS","APP","BILL","CDNS","CRM","CTSH","DOCU","DUOL",
+                                       "EPAM","FFIV","GLOB","GTLB","HUBS","JKHY","MGNI","MNDY","NOW",
+                                       "PCOR","PCTY","PTC","RAMP","RNG","SHOP","SNPS","TRMB","TWLO",
+                                       "TTD","TYL","VEEV","ZBRA","ZM"],
             },
 
             # ── 2. AI 반도체 ──────────────────────────────────────────────
@@ -11037,8 +11038,8 @@ class QuantNexusApp:
                 "AI GPU & HBM Core":  ["ALAB","AMD","ARM","AVGO","INTC","KLAC","LRCX",
                                        "MRVL","MU","NVDA","TSM"],
 
-                # 팹리스·아날로그·전력반도체
-                "Fabless & Analog":   ["ADI","AMBA","CRUS","DIOD","LSCC","MCHP","MPWR",
+                # 팹리스·아날로그·전력반도체 (indie Semi 차량용 SoC 포함)
+                "Fabless & Analog":   ["ADI","AMBA","CRUS","DIOD","INDI","LSCC","MCHP","MPWR",
                                        "NXPI","ON","POET","POWI","QCOM","QRVO","SLAB","SITM",
                                        "STM","SWKS","TXN","WOLF"],
 
@@ -11053,8 +11054,8 @@ class QuantNexusApp:
 
             # ── 3. 핀테크 & 금융 ──────────────────────────────────────────
             "💰 Finance & Fintech": {
-                # 크립토·블록체인 (비트코인 ETF 승인 후 기관 자금 유입)
-                "Crypto & Blockchain":["BITF","BTBT","BTDR","CIFR","CLSK","COIN",
+                # 크립토·블록체인 (BTC ETF + ETH 트레저리 BMNR 포함)
+                "Crypto & Blockchain":["BITF","BMNR","BTBT","BTDR","CIFR","CLSK","COIN",
                                        "CORZ","CRCL","HOOD","HUT","IREN","MARA","MSTR","RIOT","SOLS","WULF"],
 
                 # 핀테크·결제·BNPL
@@ -11067,47 +11068,52 @@ class QuantNexusApp:
                                        "NDAQ","SPGI","TRI","VRSK"],
 
                 # 월가 대형 은행·투자은행
-                "Mega Banks & IB":    ["BAC","BK","C","CFG","GS","JPM","KEY","MS",
-                                       "PNC","RF","SCHW","STT","TFC","USB","WFC"],
+                "Mega Banks & IB":    ["BAC","BK","BMO","C","CFG","CMA","EWBC","FITB","GS","HBAN","HSBC",
+                                       "JPM","KEY","MS","MTB","NTRS","PB","PNC","PNFP","RF","RY","SCHW",
+                                       "SNV","STT","TD","TFC","USB","WAL","WFC","ZION"],
 
                 # 대안자산·PE·자산운용
                 "Alt Assets & PE":    ["AMG","APO","ARES","BAM","BEN","BLK","BX",
                                        "CG","IVZ","KKR","LPLA","OWL","RJF","TROW"],
 
-                # 보험
-                "Insurance":          ["AFL","AIG","ALL","BRK-B","CB","EQH","GL",
-                                       "HIG","MET","MFC","PGR","PRU","SLF","TRV"],
+                # 보험·보험중개 (브로커 포함 — Russell 1000 핵심)
+                "Insurance":          ["ACGL","AFL","AIG","AJG","ALL","AON","BRK-B","BRO","CB","CINF",
+                                       "EG","EQH","ERIE","GL","HIG","MET","MFC","MMC","PGR","PRU",
+                                       "RNR","SLF","TRV","WRB","WTW"],
             },
 
             # ── 4. 산업 & 방산 ────────────────────────────────────────────
             "🏭 Industrial & Defense": {
                 # 항공우주·방산 (지정학 리스크 고조, 국방예산 급증)
                 "Aerospace & Defense":["ACHR","ASTS","AXON","BA","BAH","BWXT","CACI","CW",
-                                       "GD","HII","HWM","JOBY","KTOS","LDOS","LHX","LMT",
+                                       "GD","GE","HII","HWM","JOBY","KTOS","LDOS","LHX","LMT",
                                        "LPTH","LUNR","NOC","PL","RKLB","RTX","SAIC","TDG","TXT"],
 
                 # 전력 인프라·그리드 (AI 데이터센터 전력 수요 폭증)
                 "Power Grid & Infra": ["AYI","EME","ETN","GEV","GNRC","HON","HUBB",
                                        "MYR","NVT","POWL","PRIM","PWR","VRT","WIRE"],
 
-                # 산업 복합기업·자동화
-                "Industrials":        ["AME","CAT","CARR","CGNX","CMI","DE","DOV",
-                                       "FLR","FTV","GEV","HON","IR","ITW","J","MMM","MOD","OTIS",
-                                       "PH","QXO","ROK","ROP","TT"],
+                # 산업 복합기업·자동화·기계·환경서비스 (Russell 1000 보강)
+                "Industrials":        ["ALLE","ALSN","AME","AOS","CAT","CARR","CGNX","CMI","DE","DOV",
+                                       "FAST","FLR","FTV","GEV","GFL","GGG","GWW","HEI","HON","IR",
+                                       "ITW","J","LKQ","MAS","MMM","MOD","OTIS","PCAR","PH","PNR",
+                                       "POOL","QXO","ROK","ROP","RSG","SNA","SWK","TT","TTC","URI",
+                                       "WAB","WCN","WM"],
 
-                # 물류·운송
-                "Transportation":     ["AAL","CHRW","CSX","DAL","FDX","JBHT","LUV","LYFT",
-                                       "NSC","ODFL","SAIA","UAL","UBER","UNP","UPS","XPO"],
+                # 물류·운송·해운 (ZIM 고배당 컨테이너선 포함)
+                "Transportation":     ["AAL","CHRW","CSX","DAL","FDX","JBHT","JBLU","LUV","LYFT",
+                                       "NSC","ODFL","SAIA","UAL","UBER","UNP","UPS","XPO","ZIM"],
             },
 
             # ── 5. 에너지 ────────────────────────────────────────────────
             "⚡ Energy": {
-                # 오일·가스 메이저
-                "Oil & Gas Majors":   ["APA","BKR","COP","CVX","DVN","EOG","FANG","HES",
-                                       "MPC","MRO","OXY","PR","PSX","SLB","SM","VLO","XOM"],
+                # 오일·가스 메이저·E&P (Russell 1000 + 브라질·셰일 보강)
+                "Oil & Gas Majors":   ["APA","AR","BKR","CHK","CIVI","COP","CRGY","CTRA","CVX","DVN",
+                                       "EC","EOG","EQT","FANG","HES","MPC","MRO","MTDR","OXY","PBR",
+                                       "PR","PSX","RRC","SLB","SM","TPL","VLO","XOM"],
 
                 # 미드스트림·파이프라인 (안정적 배당, 리쇼어링 수혜)
-                "Midstream & Pipeline":["ET","KMI","LNG","MPLX","OKE","PAA","TRGP","WMB"],
+                "Midstream & Pipeline":["ENB","ET","KMI","LNG","MPLX","OKE","PAA","PBA","TRGP","TRP","VG","WMB"],
 
                 # 클린에너지·태양광·풍력
                 "Clean Energy":       ["ARRY","BE","ENPH","FCEL","FLNC","FSLR","GEV",
@@ -11117,16 +11123,17 @@ class QuantNexusApp:
                 "Nuclear & Uranium":  ["BWXT","BWX","CCJ","CEG","DNN","LEU","NNE","OKLO",
                                        "SMR","TLN","UEC","UUUU","VST"],
 
-                # 유틸리티
-                "Utilities":          ["AEP","AWK","D","DUK","ED","ETR","EXC","NEE",
-                                       "NRG","PPL","SO","SRE","WEC","XEL"],
+                # 유틸리티 (Russell 1000 전면 보강)
+                "Utilities":          ["AEE","AEP","AES","ATO","AWK","CMS","CNP","D","DTE","DUK","ED",
+                                       "EIX","ES","ETR","EVRG","EXC","FE","LNT","NEE","NI","NRG",
+                                       "PCG","PEG","PNW","PPL","SO","SRE","WEC","WTRG","XEL"],
             },
 
             # ── 6. 헬스케어 & 바이오 ──────────────────────────────────────
             "🧬 Healthcare & Biotech": {
                 # 빅파마 (비만치료제·ADC·면역항암 메가트렌드)
                 "Big Pharma":         ["ABBV","AMGN","AZN","BMY","GILD","GSK","JNJ",
-                                       "LLY","MRK","NVO","NVS","PFE","REGN","SNY","VRTX"],
+                                       "LLY","MRK","NVO","NVS","PFE","REGN","SAVA","SNY","VRTX"],
 
                 # GLP-1·비만치료제 (2024~2026 최대 주도 테마)
                 "GLP-1 & Obesity":    ["ALT","AMGN","CGON","GPCR","LNTH","LLY",
@@ -11137,48 +11144,56 @@ class QuantNexusApp:
                                        "DCPH","EDIT","ILMN","IMVT","INCY","INSM","KRYS","KYMR","MRNA",
                                        "NTLA","RCUS","RVMD"],
 
-                # 의료기기·수술로봇·진단
-                "Medical Devices":    ["ABT","ALGN","AXNX","BSX","CDNA","DXCM","DHR","EW",
-                                       "EXAS","HOLX","IDXX","ISRG","LH","MDT","NTRA","NVCR","SYK",
-                                       "TMDX","TMO","ZBH"],
+                # 의료기기·수술로봇·진단·라이프사이언스 (Russell 1000 보강)
+                "Medical Devices":    ["A","ABT","ALGN","AXNX","BAX","BDX","BSX","CAH","CDNA","DXCM",
+                                       "DHR","EW","EXAS","GEHC","HOLX","HSIC","IDXX","ISRG","LH","MDT",
+                                       "MTD","NTRA","NVCR","PEN","PODD","RMD","RVTY","STE","SYK","TFX",
+                                       "TMDX","TMO","WAT","ZBH","ZTS"],
 
-                # 헬스케어 서비스·PBM·보험
-                "Healthcare Services":["CI","CNC","COR","CVS","DVA","ELV","HCA","HIMS",
-                                       "HUM","MCK","MOH","OSCR","THC","UHS","UNH"],
+                # 헬스케어 서비스·PBM·CRO·CDMO·정신건강 (Acadia 행동건강 포함)
+                "Healthcare Services":["ACHC","CI","CNC","COR","CTLT","CVS","DVA","ELV","HCA","HIMS",
+                                       "HUM","IQV","MCK","MOH","OSCR","THC","UHS","UNH"],
             },
 
             # ── 7. 소비재 & 리테일 ────────────────────────────────────────
             "🛍️ Consumer & Retail": {
                 # 이커머스·여행·예약
-                "E-commerce & Travel":["ABNB","AMZN","BKNG","CHWY","CPNG","EBAY","ETSY",
-                                       "EXPE","GRAB","MELI","PDD","SE","SHOP","W"],
+                "E-commerce & Travel":["ABNB","AMZN","BABA","BIDU","BKNG","CHWY","CPNG","DASH",
+                                       "EBAY","ETSY","EXPE","GRAB","JD","MELI","PDD","SE","SHOP","W"],
 
-                # 대형 리테일·디스카운트
-                "Retail Giants":      ["AEO","BJ","BURL","COST","DG","DLTR","FIVE",
-                                       "GME","GPS","HD","KR","KSS","LOW","OLLI","ROST","TGT",
-                                       "TJX","TSCO","WMT"],
+                # 대형 리테일·디스카운트·전문점
+                "Retail Giants":      ["AEO","ANF","BBWI","BBY","BJ","BURL","COST","DG","DKS","DLTR",
+                                       "FIVE","FND","GME","GPS","HD","KR","KSS","LOW","OLLI","RH",
+                                       "ROST","TGT","TJX","TSCO","URBN","WMT","WSM"],
 
                 # 레스토랑
                 "Restaurants":        ["BROS","CAVA","CMG","DNUT","DPZ","DRI","MCD","QSR","SBUX",
                                        "SHAK","TXRH","WING","YUM"],
 
-                # 자동차·EV
-                "Auto & EV":          ["AEVA","APTV","F","GM","HMC","LAZR","LCID","LEA","LI","NIO",
+                # 자동차·EV (중고차 플랫폼 Carvana 포함)
+                "Auto & EV":          ["AEVA","APTV","CVNA","F","GM","HMC","LAZR","LCID","LEA","LI","NIO",
                                        "ON","OUST","RIVN","STLA","TM","TSLA","VC","XPEV"],
 
-                # 럭셔리·스포츠웨어·뷰티
-                "Luxury & Apparel":   ["CPRI","EL","LULU","MOV","NKE","ONON","PTON",
-                                       "PVH","RL","SKX","TPR","ULTA","VFC"],
+                # 럭셔리·스포츠웨어·뷰티 (e.l.f. 인디뷰티 포함)
+                "Luxury & Apparel":   ["BIRK","CPRI","CROX","EL","ELF","GIL","LULU","MOV","NKE","ONON","PTON",
+                                       "PVH","RL","SKX","TPR","TPX","ULTA","VFC"],
+
+                # 호텔·카지노·크루즈 (여행 리오프닝 + 일본·마카오 카지노 재개)
+                "Hotels & Gaming":    ["BYD","CCL","CZR","H","HLT","LVS","MAR","MGM","NCLH","PENN",
+                                       "RCL","WYNN"],
             },
 
             # ── 8. 소비자 필수재 & 식음료 (신규) ─────────────────────────────
             "🥤 Consumer Staples": {
                 # 음료·주류 (경기방어 + 글로벌 브랜드)
-                "Beverages & Spirits":["BUD","CELH","DEO","KO","MNST","PEP","SAM","STZ","TAP"],
+                "Beverages & Spirits":["BUD","CCEP","CELH","DEO","KDP","KO","MNST","PEP","SAM","STZ","TAP"],
 
-                # 식품·생활용품 (인플레이션 헤지)
-                "Food & Household":   ["CAG","CHD","CL","CLX","CPB","GIS","HSY","K",
-                                       "KHC","KMB","KVUE","MDLZ","MKC","PG","SJM","TSN","WBA"],
+                # 식품·생활용품·식품유통 (Beyond Meat 식물성단백 포함)
+                "Food & Household":   ["BYND","CAG","CHD","CL","CLX","CPB","GIS","HSY","K","KHC","KMB",
+                                       "KVUE","MDLZ","MKC","PG","SJM","SYY","TSN","WBA"],
+
+                # 칸나비스 (대마초 합법화·연방 재분류 모멘텀, 레딧 인기)
+                "Cannabis":           ["ACB","CGC","SNDL","TLRY"],
 
                 # 비료·농업·식량 (식량안보 테마)
                 "Agriculture & Agri": ["ADM","BG","CF","CTVA","FMC","MOS","NTR","SMG"],
@@ -11191,11 +11206,11 @@ class QuantNexusApp:
                                        "PINS","PUBM","RDDT","RUM","SNAP","TTD","ZD"],
 
                 # 게임·e스포츠
-                "Gaming":             ["DKNG","EA","MSFT","NTES","PLTK","RBLX","TTWO","U"],
+                "Gaming":             ["DKNG","EA","MSFT","NTES","PLTK","RBLX","TCEHY","TTWO","U"],
 
-                # 스트리밍·콘텐츠
-                "Streaming & Content":["AMC","CHTR","CNK","DIS","FUBO","IMAX","LYV",
-                                       "NFLX","ROKU","SONY","SPOT","WBD"],
+                # 스트리밍·콘텐츠·미디어 (전통 미디어 보강)
+                "Streaming & Content":["AMC","CHTR","CNK","DIS","FOX","FOXA","FUBO","IMAX","LYV",
+                                       "NFLX","NWSA","PARA","ROKU","SIRI","SONY","SPOT","WBD"],
             },
 
             # ── 10. 부동산 ───────────────────────────────────────────────
@@ -11210,9 +11225,12 @@ class QuantNexusApp:
                 "Residential REITs":  ["AMH","AVB","CPT","ELS","EQR","ESS","INVH",
                                        "MAA","SUI","UDR"],
 
-                # 리테일·상업 REIT
-                "Retail & Office":    ["ADC","BXP","FRT","KIM","NNN","O","REG",
+                # 리테일·상업·호텔 REIT
+                "Retail & Office":    ["ADC","ARE","BXP","FRT","HST","KIM","KRC","NNN","O","REG",
                                        "SPG","VICI","VNO","WPC"],
+
+                # 헬스케어 REIT (시니어 하우징·바이오·헬스케어 인프라)
+                "Healthcare REITs":   ["DOC","MPW","OHI","VTR","WELL"],
 
                 # 주택건설·모기지
                 "Homebuilders":       ["CVCO","DHI","KBH","LEN","MHO","MTH","NVR","OPEN",
@@ -11221,9 +11239,12 @@ class QuantNexusApp:
 
             # ── 11. 소재 & 원자재 ─────────────────────────────────────────
             "🧪 Materials & Commodities": {
-                # 특수·산업화학
-                "Chemicals":          ["ALB","APD","CC","CE","DD","DOW","ECL","EMN",
-                                       "LIN","LYB","OLN","PPG","SHW","TROX"],
+                # 특수·산업화학·향료
+                "Chemicals":          ["ALB","APD","ASH","AVNT","CC","CE","CRH","DD","DOW","ECL","EMN",
+                                       "FUL","HUN","IFF","LIN","LYB","OLN","PPG","RPM","SHW","TROX"],
+
+                # 건자재·골재 (건설·인프라 직접 수혜)
+                "Construction Materials":["EXP","MLM","VMC"],
 
                 # 패키징·용기 (리쇼어링·이커머스 수혜)
                 "Packaging":          ["ATR","BALL","CCK","IP","PKG","SEE","SON"],
@@ -11368,8 +11389,8 @@ class QuantNexusApp:
                                        "361390.KQ","102120.KQ",   # 모빌린트(엣지AI), 어보브반도체(MCU)
                                        "123860.KQ"],               # 아나패스(Display IC)
 
-                # 장비·소재 — 노광·식각·세정·CVD + 포토레지스트·CMP
-                "반도체장비·소재":    [                                       "005290.KQ","014680.KS",
+                # 장비·소재 — 노광·식각·세정·CVD + 포토레지스트·CMP + 테스트소켓 (오킨스전자)
+                "반도체장비·소재":    [                                       "005290.KQ","014680.KS","322310.KQ",
                                        "036540.KQ","036810.KQ",
                                        "036930.KQ","178920.KS",
                                        "281820.KS","357780.KQ",
@@ -11394,25 +11415,27 @@ class QuantNexusApp:
 
             # ── 2. AI 인프라 ─────────────────────────────────────────────
             "🤖 AI 인프라": {
-                # AI 클라우드·데이터센터·엔터프라이즈 AI
+                # AI 클라우드·데이터센터·엔터프라이즈 AI·전자결제
                 "AI플랫폼·클라우드":  [                                       "012510.KS","018260.KS",
                                        "022100.KS","035420.KS",
                                        "035720.KS","053800.KQ",
                                        "304100.KQ",
                                        "030520.KQ","402030.KQ",
-                                       "315640.KQ"],  # 한글과컴퓨터(AI오피스SW), 코난테크놀로지(AI자연어), 딥노이드(AI의료영상)
+                                       "315640.KQ","035600.KQ","035890.KQ"],  # 한글과컴퓨터, 코난테크놀로지, 딥노이드, KG이니시스(PG결제), 서희건설
 
-                # 온디바이스AI·엣지AI 핵심 부품 + AI 가전·전장
+                # 온디바이스AI·엣지AI 핵심 부품 + AI 가전·전장 + FPCB·OLED 소재
                 "온디바이스AI":       [                                       "052710.KQ","054450.KQ",
                                        "323280.KQ","377480.KQ",
                                        "405100.KQ","432720.KQ",
                                        "066570.KS","011070.KS",
-                                       "034220.KS"],              # LG전자(AI가전·전장), LG이노텍, LG디스플레이(OLED)
+                                       "034220.KS","090460.KQ","213420.KQ",
+                                       "049070.KQ","248070.KQ"],  # LG전자, LG이노텍, LG디스플레이, 비에이치(FPCB), 덕산네오룩스(OLED소재), 인탑스(모바일·로봇), 솔루엠(전자부품)
 
-                # 5G·광통신·AI 네트워크 인프라
+                # 5G·광통신·AI 네트워크 인프라 (KMW RF필터 포함)
                 "통신·광네트워크":    [                                       "010170.KQ","017670.KS",
                                        "030200.KS","032640.KS",
-                                       "084730.KQ","187790.KQ","056360.KQ","122990.KQ"],  # 뷰웍스(머신비전), 대한광통신, 코위버(WDM), 와이솔(RF필터)
+                                       "084730.KQ","187790.KQ","056360.KQ","122990.KQ",
+                                       "032500.KQ"],              # 뷰웍스, 대한광통신, 코위버, 와이솔, KMW(5G RF필터)
             },
 
             # ── 3. 전력 인프라 ───────────────────────────────────────────
@@ -11439,7 +11462,8 @@ class QuantNexusApp:
                 "신재생·ESS":         [                                       "009830.KS","096770.KS",
                                        "112610.KS","322000.KS",
                                        "336260.KS","373220.KS",
-                                       "456040.KS","475150.KS"],  # 두산퓨얼셀(수소), 씨에스윈드(풍력)
+                                       "456040.KS","475150.KS",
+                                       "100090.KQ"],  # 두산퓨얼셀(수소), 씨에스윈드(풍력), SK오션플랜트(해상풍력)
 
                 # EV충전 인프라·수소모빌리티
                 "EV충전·수소모빌리티":[                                       "120110.KS","234300.KQ",
@@ -11473,11 +11497,12 @@ class QuantNexusApp:
                                        "042660.KS","097230.KS",
                                        "329180.KS","439260.KS"],  # 대한조선, HJ중공업
 
-                # 선박 엔진·기자재·서비스
+                # 선박 엔진·기자재·서비스 + LNG보냉재 + 중형조선
                 "조선 기자재":        [                                       "009070.KS","017960.KS",
                                        "071970.KS","077970.KS",
                                        "082740.KS","443060.KS",
-                                       "073010.KQ","006370.KS"],  # 한국카본(조선소재), HD현대마린엔진, 케이에스피(선박축계), 대한조선(중형조선)
+                                       "073010.KQ","006370.KS",
+                                       "033500.KS","010620.KS"],  # 동성화인텍(LNG보냉재 대장주), 현대미포조선(MR탱커·PC선)
 
                 # 컨테이너·벌크·LNG 해운
                 "해운·물류":          [                                       "000120.KS","005880.KS",
@@ -11490,13 +11515,13 @@ class QuantNexusApp:
                 "배터리 셀":          [                                       "006400.KS","096770.KS",
                                        "247540.KQ","373220.KS"],  # SK이노베이션(SK온), 에코프로비엠
 
-                # 양극재·음극재·전해질·분리막
+                # 양극재·음극재·전해질·분리막 + 전지박 (솔루스첨단소재)
                 "배터리 소재":        [                                       "003670.KS","005070.KS",
                                        "051910.KS","066970.KS",
                                        "086520.KQ","278280.KQ",
                                        "361610.KS","450080.KS",
                                        "042940.KQ","005420.KS","008730.KS",
-                                       "093370.KS","348370.KQ"],  # SK아이이테크놀로지(분리막), 포스코퓨처엠, 상신이디피(2차전지부품), 코스모화학, 율촌화학(파우치필름), 후성(LiPF6전해질), 엔켐(배터리전해액)
+                                       "093370.KS","348370.KQ","336370.KS"],  # 솔루스첨단소재(동박·전지박), 엔켐(전해액)
 
                 # 배터리 장비·리사이클
                 "배터리 장비·리사이클":[                                       "137400.KQ","259630.KQ",
@@ -11506,7 +11531,7 @@ class QuantNexusApp:
 
             # ── 7. 바이오·헬스케어 ───────────────────────────────────────
             "🧬 바이오·헬스케어": {
-                # 항체·ADC·이중항체·GLP-1 신약 개발
+                # 항체·ADC·이중항체·GLP-1 신약 개발 + 셀트리온제약·광동제약
                 "바이오 신약":        [                                       "000100.KS","028300.KQ",
                                        "068270.KS","141080.KQ",
                                        "196170.KQ","207940.KS",
@@ -11517,7 +11542,8 @@ class QuantNexusApp:
                                        "302440.KQ","048530.KQ","039200.KQ","174900.KQ",
                                        "397030.KQ","085660.KQ","195940.KQ","048410.KQ",
                                        "950200.KQ","389030.KQ",
-                                       "003850.KS","170900.KS","365550.KQ"],  # 이뮨온시아·인투셀·오스코텍·앱클론·에이프릴바이오·차바이오텍·HK이노엔·현대바이오·파멥신·지니너스, 보령(카나브), 동아에스티, 오가노이드사이언스
+                                       "003850.KS","170900.KS","365550.KQ",
+                                       "068760.KQ","009290.KS"],  # 셀트리온제약, 광동제약(비타500·헛개차)
 
                 # 위탁생산(CMO)·위탁개발생산(CDMO)
                 "CMO·CDMO":           [                                       "006280.KS","053030.KQ",
@@ -11531,11 +11557,11 @@ class QuantNexusApp:
                                        "128940.KS","214370.KQ",
                                        "263720.KQ"],              # 제넥신, 유한양행, 디앤디파마텍(GLP-1 신약)
 
-                # 의료기기·미용기기·체외진단
+                # 의료기기·미용기기·체외진단 + 필러·에스테틱 (휴메딕스)
                 "의료기기·디지털헬스":[                                       "039840.KQ","041830.KQ",
                                        "059090.KQ","145020.KQ",
                                        "145720.KS","214150.KQ",
-                                       "137310.KS","064550.KQ"],  # 인바디, 에스디바이오센서(체외진단), 바이오니아(진단키트)
+                                       "137310.KS","064550.KQ","200670.KQ"],  # 인바디, 에스디바이오센서, 바이오니아, 휴메딕스(HA필러·에스테틱)
             },
 
             # ── 8. 로봇·자동화 ───────────────────────────────────────────
@@ -11552,36 +11578,41 @@ class QuantNexusApp:
                                        "277810.KQ","389500.KQ",
                                        "455900.KQ","459510.KQ"],  # 티로보틱스, 한라캐스트
 
-                # 자율주행·전장
+                # 자율주행·전장 (한온시스템·HL만도·에스엘 차량 핵심부품 보강)
                 "자율주행·전장":      [                                       "000270.KS","005380.KS",
                                        "009150.KS","011070.KS",
                                        "012330.KS","307950.KS","051360.KQ",
-                                       "161390.KS",
-                                       "267270.KS","014620.KS"],  # 삼성전기(전장MLCC), LG이노텍(전장카메라), 토비스, 한국타이어, HD현대건설기계, 성우하이텍(차체부품)
+                                       "161390.KS","018880.KS","204320.KS","005850.KS","075180.KS",
+                                       "267270.KS","014620.KS"],  # 한온시스템(공조), HL만도(ADAS), 에스엘(헤드램프), 새론오토모티브(브레이크)
             },
 
             # ── 9. K-소비재 ──────────────────────────────────────────────
             "🛍️ K-소비재": {
-                # K-뷰티 — 인디 브랜드·글로벌 OEM
+                # K-뷰티·K-패션·K-건기식 — 인디 브랜드·글로벌 OEM·ODM
                 "K-뷰티":             [                                       "003350.KS","051900.KS",
                                        "090430.KS","192820.KS",
                                        "237880.KQ","278470.KS",
                                        "352480.KQ","483650.KS",
                                        "161890.KS","002790.KS","950140.KS","241710.KQ","123690.KS",
-                                       "257720.KQ","018290.KQ","439090.KQ"],  # 한국콜마·아모레G·잉글우드랩·코스메카코리아, 한국화장품, 실리콘투(K뷰티B2B이커머스), 브이티(리들샷마스크), 마녀공장(비건뷰티)
+                                       "257720.KQ","018290.KQ","439090.KQ",
+                                       "383220.KS","020000.KS","093050.KS",
+                                       "200130.KQ","194700.KQ"],  # F&F, 한섬(패션 대장), LF(닥스·헤지스), 콜마비앤에이치·노바렉스(건기식 ODM)
 
                 # K-푸드·음료 — 글로벌 K-컬처 확산 직접 수혜
                 "K-푸드·음료":        [                                       "003230.KS","004370.KS",
                                        "005180.KS","007310.KS",
+                                       "033780.KS",
                                        "097950.KS","271560.KS",
                                        "280360.KS","475560.KS",
-                                       "005740.KS","339770.KS"],  # 롯데웰푸드, 더본코리아, 크라운해태홀딩스, 교촌에프앤비
+                                       "005740.KS","339770.KS",
+                                       "005440.KS","049770.KS","003960.KS"],  # KT&G, 현대그린푸드, 동원F&B, 사조대림
 
-                # 면세·여행·항공
+                # 면세·여행·항공·LCC
                 "면세·여행":          [                                       "003490.KS","008770.KS",
                                        "039130.KS","079160.KS",
                                        "023530.KS","004170.KS","282330.KS",
-                                       "035250.KS","114090.KS"],  # 하나투어, CJ CGV, 롯데쇼핑·신세계·BGF리테일, 강원랜드·GKL(카지노)
+                                       "035250.KS","114090.KS",
+                                       "020560.KS","089590.KS","272450.KQ"],  # 아시아나항공, 제주항공, 진에어(LCC)
             },
 
             # ── 10. 금융·밸류업 ──────────────────────────────────────────
@@ -11710,10 +11741,11 @@ class QuantNexusApp:
                                        "004140.KS","009180.KS",
                                        "267250.KS"],              # 동방(항만하역)
 
-                # 유통·이커머스·대형마트
+                # 유통·이커머스·대형마트·편의점지주·가격비교
                 "유통·이커머스":      [                                       "005300.KS","007070.KS",
                                        "015020.KS","035080.KQ",
-                                       "069960.KS"],              # 인터파크홀딩스
+                                       "069960.KS",
+                                       "139480.KS","027410.KS","119860.KQ"],  # 이마트, BGF(편의점지주), 다나와(가격비교)
             },
 
             # ── 19. 스마트팜·애그테크 ────────────────────────────────────────
