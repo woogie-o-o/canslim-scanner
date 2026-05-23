@@ -19,6 +19,41 @@ os.makedirs(_SNAP_DIR, exist_ok=True)
 _MAX_LOOKBACK_DAYS = 14
 
 
+def _grade_from_score(score) -> str | None:
+    """종합점수 → 등급 S/A/B/C. 숫자가 아니면 None. 컷은 프론트 _stockGrade와 정합."""
+    if score is None:
+        return None
+    try:
+        n = float(score)
+    except (TypeError, ValueError):
+        return None
+    if n >= 75:
+        return "S"
+    if n >= 60:
+        return "A"
+    if n >= 45:
+        return "B"
+    return "C"
+
+
+def load_timeline(ticker: str, market: str) -> list[dict]:
+    """오늘 포함 직전 14 달력일의 등급·진입 이력. 날짜 오름차순."""
+    today = date.today()
+    out: list[dict] = []
+    for back in range(_MAX_LOOKBACK_DAYS - 1, -1, -1):
+        d = today - timedelta(days=back)
+        snap = _load(market, d)
+        rec = snap.get(ticker) if snap else None
+        if rec:
+            grade = _grade_from_score(rec.get("score"))
+            entry = rec.get("entry")
+        else:
+            grade = None
+            entry = None
+        out.append({"date": d.isoformat(), "grade": grade, "entry": entry})
+    return out
+
+
 def _snap_path(market: str, day: date) -> str:
     return os.path.join(_SNAP_DIR, f"scanner_{market}_{day.isoformat()}.json")
 
@@ -103,6 +138,7 @@ def save_snapshot(results: list[dict], market: str) -> None:
         r["Ticker"]: {
             "score": round(float(r.get("TotalScore", 0) or 0), 1),
             "rank": i + 1,
+            "entry": r.get("EntryStatus"),
         }
         for i, r in enumerate(sorted_by_score)
         if r.get("Ticker")

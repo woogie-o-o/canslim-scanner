@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light">
-<title>종목분석기 — 종목 스캐너</title>
+<title>(.)(.)분석기 — 종목 스캐너</title>
 <link rel="stylesheet" href="/static/theme.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1098,6 +1098,21 @@ td.score-col {
 .grade-badge.grade-B { color: #fff; background: #16A34A; }
 .grade-badge.grade-C { color: #fff; background: #9CA3AF; }
 
+.history-strip { display: flex; flex-direction: column; gap: 4px; }
+.history-row { display: flex; gap: 3px; }
+.history-cell { flex: 1; height: 16px; border-radius: 3px; min-width: 6px; }
+.history-cell-empty { background: var(--surface-page); border: 1px solid rgba(0,0,0,0.08); }
+.history-cell.grade-S { background: #7C3AED; }
+.history-cell.grade-A { background: #2563EB; }
+.history-cell.grade-B { background: #16A34A; }
+.history-cell.grade-C { background: #9CA3AF; }
+.history-cell.entry-green { background: #16A34A; }
+.history-cell.entry-yellow { background: #EAB308; }
+.history-cell.entry-red { background: #DC2626; }
+.history-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+.history-empty-msg { font-size: 12px; color: var(--text-tertiary); }
+@media (max-width: 640px) { .history-cell { height: 12px; min-width: 4px; } }
+
 /* Story stock chip — quality grade scale not applicable */
 .story-chip {
   display: inline-flex;
@@ -1965,11 +1980,11 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   <!-- TopBar -->
   <header class="topbar">
     <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="메뉴">☰</button>
-    <div class="topbar-logo">종목 <span>분석기</span></div>
+    <div class="topbar-logo">(.)(.) <span>분석기</span></div>
     <div class="topbar-controls">
       <div class="btn-seg-group" id="market-btn-group">
-        <button class="btn-seg active" data-val="KR" onclick="onMarketChange('KR')">🇰🇷 한국</button>
-        <button class="btn-seg" data-val="US" onclick="onMarketChange('US')">🇺🇸 미국</button>
+        <button class="btn-seg active" data-val="US" onclick="onMarketChange('US')">🇺🇸 미국</button>
+        <button class="btn-seg" data-val="KR" onclick="onMarketChange('KR')">🇰🇷 한국</button>
       </div>
       <div class="search-box">
         <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2187,6 +2202,13 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
           <div id="dp-quadrant"></div>
         </div>
 
+        <!-- 시그널 이력 타임라인 -->
+        <div id="dp-history-card" class="dp-metrics-card" style="display:none; padding:14px 16px;">
+          <div style="font-size:11px;color:var(--text-tertiary);font-weight:600;margin-bottom:8px;">시그널 이력</div>
+          <div id="dp-history-strip"></div>
+          <div class="history-axis"><span id="dp-history-start"></span><span id="dp-history-end"></span></div>
+        </div>
+
         <div class="dp-metrics-card">
           <div class="dp-metric-row">
             <span class="dp-metric-label">현재가</span>
@@ -2361,7 +2383,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 #chat-toggle {
   position: fixed; bottom: 24px; right: 24px; z-index: 9000;
   width: 56px; height: 56px; border-radius: 50%;
-  background: var(--brand, #3182F6); color: #fff; border: none;
+  background: var(--accent, #3b82f6); color: #fff; border: none;
   font-size: 24px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.25);
   display: flex; align-items: center; justify-content: center;
   transition: transform .15s;
@@ -2369,21 +2391,20 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 #chat-toggle:hover { transform: scale(1.1); }
 #chat-toggle .badge {
   position: absolute; top: -2px; right: -2px;
-  background: var(--alert-badge, #F04452); color: #fff; font-size: 11px; font-weight: 700;
+  background: #ef4444; color: #fff; font-size: 11px; font-weight: 700;
   min-width: 20px; height: 20px; border-radius: 10px;
   display: none; align-items: center; justify-content: center; padding: 0 5px;
 }
 #chat-panel {
   position: fixed; bottom: 92px; right: 24px; z-index: 9001;
   width: 380px; max-height: 520px; border-radius: 16px;
-  background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
-  box-shadow: var(--shadow-modal, 0 12px 32px rgba(0,0,0,.12));
+  background: var(--surface-card, #fff); border: 1px solid var(--border, #e5e7eb);
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
   display: none; flex-direction: column; overflow: hidden;
-  color: var(--card-foreground, #191F28);
 }
 #chat-panel.open { display: flex; }
 #chat-header {
-  padding: 14px 16px; background: var(--brand, #3182F6); color: #fff;
+  padding: 14px 16px; background: var(--accent, #3b82f6); color: #fff;
   display: flex; align-items: center; justify-content: space-between;
   font-weight: 700; font-size: 15px;
 }
@@ -2393,29 +2414,25 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   max-height: 380px; min-height: 200px;
   display: flex; flex-direction: column; gap: 6px;
   font-size: 13px; line-height: 1.5;
-  color: var(--text-primary, #191F28);
 }
-#chat-messages .sys { color: var(--text-tertiary, #8B95A1); font-size: 11px; text-align: center; }
-#chat-messages .msg { word-break: break-word; color: var(--text-primary, #191F28); }
-#chat-messages .msg .nick { font-weight: 700; margin-right: 6px; color: var(--text-secondary, #4E5968); }
-#chat-messages .msg .nick.me { color: var(--brand, #3182F6); }
-#chat-messages .msg .time { font-size: 10px; color: var(--text-tertiary, #8B95A1); margin-left: 6px; }
+#chat-messages .sys { color: var(--text-tertiary, #9ca3af); font-size: 11px; text-align: center; }
+#chat-messages .msg { word-break: break-word; }
+#chat-messages .msg .nick { font-weight: 700; margin-right: 6px; }
+#chat-messages .msg .nick.me { color: var(--accent, #3b82f6); }
+#chat-messages .msg .time { font-size: 10px; color: var(--text-tertiary, #9ca3af); margin-left: 6px; }
 #chat-input-wrap {
   display: flex; border-top: 1px solid var(--border, #e5e7eb); padding: 8px 10px; gap: 8px;
-  background: var(--card, #fff);
 }
 #chat-input {
-  flex: 1; border: 1px solid var(--border, #E5E8EB); border-radius: 8px;
+  flex: 1; border: 1px solid var(--border, #ddd); border-radius: 8px;
   padding: 8px 12px; font-size: 13px; outline: none;
-  background: var(--input-background, #F2F3F6); color: var(--text-primary, #191F28);
+  background: var(--surface-page, #f9fafb); color: var(--text-primary);
 }
-#chat-input:focus { border-color: var(--brand, #3182F6); box-shadow: 0 0 0 2px var(--ring, rgba(49,130,246,.3)); }
+#chat-input:focus { border-color: var(--accent, #3b82f6); }
 #chat-send {
-  background: var(--brand, #3182F6); color: #fff; border: none;
+  background: var(--accent, #3b82f6); color: #fff; border: none;
   border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; font-size: 13px;
-  transition: background .15s;
 }
-#chat-send:hover { filter: brightness(1.1); }
 #chat-admin-btn {
   background: none; border: none; cursor: pointer; font-size: 14px;
   opacity: .7; transition: opacity .15s; padding: 0 0 0 8px; line-height: 1;
@@ -2423,13 +2440,13 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 #chat-admin-btn:hover { opacity: 1; }
 #chat-admin-bar {
   display: none; padding: 6px 10px; gap: 6px; border-bottom: 1px solid var(--border, #e5e7eb);
-  background: var(--surface-subtle, #F2F3F6); align-items: center;
+  background: var(--surface-page, #f9fafb); align-items: center;
 }
 #chat-admin-bar.open { display: flex; }
 #chat-admin-bar input {
-  flex: 1; border: 1px solid var(--border, #E5E8EB); border-radius: 6px;
+  flex: 1; border: 1px solid var(--border, #ddd); border-radius: 6px;
   padding: 5px 8px; font-size: 12px; outline: none;
-  background: var(--card, #fff); color: var(--text-primary, #191F28);
+  background: var(--surface-card, #fff); color: var(--text-primary);
 }
 #chat-admin-bar button {
   background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 4px;
@@ -2440,14 +2457,10 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   background: none; border: none; cursor: pointer; font-size: 11px;
   opacity: .5; padding: 0 2px; color: var(--text-tertiary);
 }
-.msg .admin-actions button:hover { opacity: 1; color: var(--destructive, #F04452); }
+.msg .admin-actions button:hover { opacity: 1; color: #ef4444; }
 #chat-messages .announce {
-  background: var(--brand-tint, #E8F3FF); color: var(--brand, #3182F6); padding: 6px 10px; border-radius: 8px;
+  background: #fef3c7; color: #92400e; padding: 6px 10px; border-radius: 8px;
   font-size: 12px; font-weight: 600; text-align: center;
-}
-/* Dark mode overrides for announce */
-.dark #chat-messages .announce {
-  background: rgba(69, 147, 252, 0.15); color: #6AAFFF;
 }
 @media (max-width: 480px) {
   #chat-panel { width: calc(100vw - 24px); right: 12px; bottom: 84px; }

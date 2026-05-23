@@ -1,10 +1,10 @@
 /**
- * app.js — 종목분석기 웹 프론트엔드
+ * app.js — (.)(.)분석기 웹 프론트엔드
  * scanner.html (데스크탑 테이블) / detail.html 공용 스크립트
  */
 
 // ── 상태 ─────────────────────────────────────────────────────────────────
-let currentMarket   = 'KR';
+let currentMarket   = 'US';
 let currentStrategy = 'BALANCED';
 let currentSector   = '';   // '' = 전체
 let allStocks       = [];   // 마지막 스캔 결과 캐시
@@ -578,8 +578,6 @@ function selectSector(btn, sector) {
   runScan();
 }
 
-let _isWarming = false;
-
 async function runScan() {
   const btn = document.getElementById('btn-scan');
   if (btn) { btn.disabled = true; }
@@ -593,8 +591,6 @@ async function runScan() {
     if (currentSector) p.set('sector', currentSector);
 
     const res    = await fetch(`/api/scan?${p}`);
-    _isWarming = res.headers.get('X-Warming-In-Progress') === 'true';
-    
     let payload;
     try {
       payload = await res.json();
@@ -725,16 +721,10 @@ function renderStockTable(stocks) {
   setStatHTML('stat-strong', `${strong}<span class="unit">개</span>`);
 
   if (filtered.length === 0) {
-    let emptyMsg = _currentFilter === 'watchlist'
+    const emptyMsg = _currentFilter === 'watchlist'
       ? '워치리스트가 비어있습니다. 표의 ☆ 버튼으로 추가하세요.'
       : '필터 조건에 맞는 종목이 없습니다.';
-      
-    if (_isWarming) {
-      emptyMsg = '서버에서 한국 주식 데이터를 수집 및 분석 중입니다. (서버 최초 가동 시 약 3~5분 소요)';
-    }
-
-    const finalMsg = _isWarming ? emptyMsg : (_currentFilter === 'all' ? '결과 없음' : emptyMsg);
-    tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(finalMsg)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(_currentFilter === 'all' ? '결과 없음' : emptyMsg)}</td></tr>`;
     return;
   }
 
@@ -1629,6 +1619,7 @@ async function openDetail(ticker) {
   loadDpFourAxis(ticker);
   _loadAqSignal(ticker, seq);
   loadConsensus(ticker, 'dp-consensus-card', 'dpcons');
+  loadSignalHistory(ticker, currentMarket);
 
   try {
     const p   = new URLSearchParams({ market: currentMarket, strategy: currentStrategy });
@@ -3012,6 +3003,56 @@ async function loadAgentQuant(ticker) {
   }
 }
 
+// ── 시그널 이력 타임라인 ─────────────────────────────────────────────
+
+// 진입 상태 → 색 클래스 매핑
+function _entryColorClass(entry) {
+  if (entry === 'STRONG' || entry === 'GREEN') return 'entry-green';
+  if (entry === 'NEUTRAL' || entry === 'YELLOW') return 'entry-yellow';
+  if (entry === 'AVOID' || entry === 'RED') return 'entry-red';
+  return 'history-cell-empty';
+}
+
+function loadSignalHistory(ticker, market) {
+  var card = document.getElementById('dp-history-card');
+  fetch('/api/signal-history/' + encodeURIComponent(ticker) + '?market=' + encodeURIComponent(market))
+    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+    .then(function (d) { _renderSignalHistory(d.timeline || []); })
+    .catch(function () { if (card) card.style.display = 'none'; });
+}
+
+function _renderSignalHistory(items) {
+  var card = document.getElementById('dp-history-card');
+  var strip = document.getElementById('dp-history-strip');
+  var startEl = document.getElementById('dp-history-start');
+  var endEl = document.getElementById('dp-history-end');
+  if (!card || !strip) return;
+  card.style.display = '';
+  var hasData = items.some(function (it) { return it.grade || it.entry; });
+  if (!items.length || !hasData) {
+    strip.className = '';
+    strip.innerHTML = '<div class="history-empty-msg">이력 데이터가 아직 없어요</div>';
+    if (startEl) startEl.textContent = '';
+    if (endEl) endEl.textContent = '';
+    return;
+  }
+  var gradeRow = '', entryRow = '';
+  items.forEach(function (it) {
+    var gCls = it.grade ? 'grade-' + it.grade : 'history-cell-empty';
+    var eCls = _entryColorClass(it.entry);
+    var entryLabel = _ENTRY_LABEL[it.entry] || '-';
+    var tip = esc(it.date + ' · ' + (it.grade || '-') + '등급 · ' + entryLabel);
+    gradeRow += '<div class="history-cell ' + gCls + '" title="' + tip + '"></div>';
+    entryRow += '<div class="history-cell ' + eCls + '" title="' + tip + '"></div>';
+  });
+  strip.className = 'history-strip';
+  strip.innerHTML = '<div class="history-row">' + gradeRow + '</div>' +
+                    '<div class="history-row">' + entryRow + '</div>';
+  function md(iso) { var p = iso.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
+  if (startEl) startEl.textContent = esc(md(items[0].date));
+  if (endEl) endEl.textContent = esc(md(items[items.length - 1].date));
+}
+
 // ── 증권사 컨센서스 상세 로딩 ─────────────────────────────────────────
 
 async function loadConsensus(ticker, wrapId = 'consensus-wrap', prefix = 'cons') {
@@ -3600,7 +3641,7 @@ function generateShareCard() {
     <div style="background:linear-gradient(135deg,#3182F6,#1B64DA);padding:20px 20px 16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">종목 분석기</div>
+          <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">(.)(.) 분석기</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">${mkt} · ${dateStr}</div>
         </div>
         <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:6px 12px;">

@@ -1,5 +1,5 @@
 """
-app.py — 종목분석기 Flask 웹 서버
+app.py — (.)(.)분석기 Flask 웹 서버
 engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더링한다.
 
 실행: python web_app/app.py
@@ -45,6 +45,7 @@ app = Flask(
     template_folder="templates",
     static_folder="static",
 )
+
 
 def _render_deployment() -> bool:
     return bool((os.environ.get("RENDER") or "").strip())
@@ -415,6 +416,7 @@ def healthz():
         "service": "canslim-quant-scanner",
         "render": _render_deployment(),
     })
+
 
 @app.route("/detail/<ticker>")
 def detail(ticker: str):
@@ -1341,6 +1343,20 @@ def api_score_history(ticker: str):
                 "rank": entry.get("rank"),
             })
     return jsonify({"ticker": ticker, "market": market, "points": points})
+
+
+@app.route("/api/signal-history/<ticker>")
+def api_signal_history(ticker):
+    market = request.args.get("market")
+    if market not in ("KR", "US"):
+        return jsonify({"error": "market must be KR or US"}), 400
+    try:
+        import history
+        timeline = history.load_timeline(ticker, market)
+    except Exception as e:
+        logging.warning("signal-history failed (%s): %s", ticker, e)
+        return jsonify({"ticker": ticker, "market": market, "timeline": []}), 500
+    return jsonify({"ticker": ticker, "market": market, "timeline": timeline})
 
 
 @app.route("/api/deep-analysis/<ticker>")

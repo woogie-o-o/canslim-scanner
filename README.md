@@ -1,6 +1,6 @@
 <div align="center">
 
-# 종목 분석기
+# (.)(.) 분석기
 
 **CAN SLIM + Quant Factor + Entry Timing**
 
