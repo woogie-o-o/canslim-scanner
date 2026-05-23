@@ -216,7 +216,10 @@ def get_summary(stock_code: str) -> Dict[str, Any]:
         return {"available": False, "error": "DART_API_KEY 미설정"}
     code = stock_code.split(".")[0].zfill(6)
     try:
-        d = _get("company.json", {"stock_code": code})
+        corp = get_corp_code(code)
+        if not corp:
+            return {"available": False, "error": "corp_code 조회 실패"}
+        d = _get("company.json", {"corp_code": corp})
         if d.get("status") == "000":
             return {"available": True, "data": d}
         return {"available": False, "error": d.get("message", "API 오류")}
