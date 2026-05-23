@@ -2852,10 +2852,9 @@ function _renderDartNews(container, data) {
         </div>
       </div>`;
     }
-    html += '</div></div>';
+    html += '</div>';
   }
 
-  // DART 공시 목록
   if (data.dart_available && filings.length > 0) {
     html += '<div class="dn-filing-card"><div class="dn-filing-header"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>최근 공시</div>';
     for (const f of filings) {
@@ -3170,11 +3169,20 @@ function _renderSignalHistory(items) {
     entryRow += '<div class="history-cell ' + eCls + '" title="' + tip + '"></div>';
   });
   strip.className = 'history-strip';
-  strip.innerHTML = '<div class="history-row">' + gradeRow + '</div>' +
-                    '<div class="history-row">' + entryRow + '</div>';
+  strip.innerHTML = '<div class="history-row-wrap"><span class="history-row-label" title="종합 등급 (S/A/B/C)">등급</span><div class="history-row" style="flex:1;">' + gradeRow + '</div></div><div class="history-row-wrap" style="margin-top:4px;"><span class="history-row-label" title="진입 타이밍 (진입적기/눌림대기/부적합)">진입</span><div class="history-row" style="flex:1;">' + entryRow + '</div></div>';
   function md(iso) { var p = iso.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
   if (startEl) startEl.textContent = esc(md(items[0].date));
   if (endEl) endEl.textContent = esc(md(items[items.length - 1].date));
+}
+
+// 범례 토글 (버튼 클릭)
+function toggleHistoryLegend() {
+  var leg = document.getElementById('dp-history-legend');
+  var btn = document.getElementById('dp-history-legend-btn');
+  if (!leg) return;
+  var isOpen = leg.style.display !== 'none';
+  leg.style.display = isOpen ? 'none' : '';
+  if (btn) btn.textContent = isOpen ? '범례 보기 ▾' : '범례 닫기 ▴';
 }
 
 // ── 증권사 컨센서스 상세 로딩 ─────────────────────────────────────────
