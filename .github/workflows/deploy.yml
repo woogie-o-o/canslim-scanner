@@ -163,6 +163,8 @@ jobs:
                         echo "Restarting service $SVC_NAME..."
                         sudo systemctl restart "$SVC_NAME"
                         sudo systemctl status "$SVC_NAME" --no-pager -l
+                        echo "=== DUMPING LOGS TO STATIC FOLDER ==="
+                        sudo journalctl -u "$SVC_NAME" -n 500 --no-pager > "$REPO_DIR/web_app/static/crash_log.txt" || true
                       else
                         echo "WARNING: Could not determine service name, attempting fallback restart..."
                         sudo systemctl restart scanner || sudo systemctl restart canslim || echo "No service restarted"
