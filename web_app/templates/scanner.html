@@ -440,12 +440,18 @@ html, body {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
+.stock-table-wrap::-webkit-scrollbar { height: 6px; }
+.stock-table-wrap::-webkit-scrollbar-track { background: transparent; }
+.stock-table-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
 table.stock-table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 1000px; /* 모든 컬럼이 브라우저가 작아져도 짤리지 않고 스크롤되도록 최소 너비 보장 */
 }
 
 .stock-table thead tr {
