@@ -1146,7 +1146,7 @@ def api_dart_news(ticker: str):
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
-                        stock_name = s["data"].get("corp_name", "")
+                        stock_name = s["data"].get("stock_name") or s["data"].get("corp_name", "")
                 except Exception:
                     pass
             if stock_name:
