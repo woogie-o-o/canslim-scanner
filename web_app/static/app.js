@@ -3086,9 +3086,25 @@ function _renderConsensusData(wrap, data, prefix = 'cons') {
     badge.style.display = 'none';
   }
 
-  if (s.low)  setText(`${prefix}-low`,  fmtPrice(s.low));
+  if (s.low) {
+    setText(`${prefix}-low`, fmtPrice(s.low));
+    const lowEl = document.getElementById(`${prefix}-low`);
+    if (lowEl && lowEl.parentElement) lowEl.parentElement.style.display = '';
+  } else {
+    const lowEl = document.getElementById(`${prefix}-low`);
+    if (lowEl && lowEl.parentElement) lowEl.parentElement.style.display = 'none';
+  }
+
   if (s.mean) setText(`${prefix}-mean`, fmtPrice(s.mean));
-  if (s.high) setText(`${prefix}-high`, fmtPrice(s.high));
+
+  if (s.high) {
+    setText(`${prefix}-high`, fmtPrice(s.high));
+    const highEl = document.getElementById(`${prefix}-high`);
+    if (highEl && highEl.parentElement) highEl.parentElement.style.display = '';
+  } else {
+    const highEl = document.getElementById(`${prefix}-high`);
+    if (highEl && highEl.parentElement) highEl.parentElement.style.display = 'none';
+  }
 
   const countWrap = document.getElementById(`${prefix}-count-wrap`);
   if (countWrap && s.count) {
