@@ -1183,6 +1183,16 @@ def api_dart_news(ticker: str):
                 pass
             if not stock_name:
                 try:
+                    from quant_nexus_v20 import QuantNexusApp
+                    stock_name = (
+                        QuantNexusApp.KR_NAMES.get(f"{code}.KS")
+                        or QuantNexusApp.KR_NAMES.get(f"{code}.KQ")
+                        or ""
+                    )
+                except Exception:
+                    pass
+            if not stock_name:
+                try:
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
