@@ -61,6 +61,9 @@ pip install -r requirements.txt
 echo "==> Creating local environment file if missing"
 if [[ ! -f .env ]]; then
   cat > .env <<'EOF'
+DART_API_KEY=
+NAVER_CLIENT_ID=
+NAVER_CLIENT_SECRET=
 FINNHUB_API_KEY=
 EOF
   echo "Created .env. Fill in API keys before using live data sources."

@@ -12,10 +12,15 @@ jobs:
         steps:
             - name: Deploy over SSH
               uses: appleboy/ssh-action@v1.0.3
+              env:
+                  DART_API_KEY: ${{ secrets.DART_API_KEY }}
+                  NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+                  NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
               with:
                   host: 168.110.117.10
                   username: ubuntu
                   key: ${{ secrets.E2_SSH_KEY }}
+                  envs: DART_API_KEY,NAVER_CLIENT_ID,NAVER_CLIENT_SECRET
                   script: |
                       echo "=== REPOSITORY DETECTION & DEPLOYMENT ==="
                       REPO_DIR=""
@@ -37,6 +42,39 @@ jobs:
                         git remote set-url origin https://github.com/woogie-o-o/canslim-scanner.git
                         git fetch origin main
                         git reset --hard origin/main
+
+                        echo "=== APPLYING RUNTIME API KEY DEFAULTS ==="
+                        python3 -c "import textwrap; exec(textwrap.dedent('''
+                        import os
+                        from pathlib import Path
+
+                        keys = ('DART_API_KEY', 'NAVER_CLIENT_ID', 'NAVER_CLIENT_SECRET')
+                        path = Path('.env')
+                        values = {}
+                        if path.exists():
+                            for line in path.read_text(encoding='utf-8').splitlines():
+                                stripped = line.strip()
+                                if not stripped or stripped.startswith('#') or '=' not in line:
+                                    continue
+                                key, value = line.split('=', 1)
+                                values[key.strip()] = value.strip()
+
+                        changed = False
+                        for key in keys:
+                            value = (os.environ.get(key) or '').strip()
+                            if value and values.get(key) != value:
+                                values[key] = value
+                                changed = True
+
+                        if changed:
+                            ordered = [k for k in keys if values.get(k)]
+                            ordered += sorted(k for k in values if k not in keys and values.get(k))
+                            body = '\\n'.join(f'{k}={values[k]}' for k in ordered) + '\\n'
+                            path.write_text(body, encoding='utf-8')
+                            print('Runtime API key defaults updated.')
+                        else:
+                            print('No runtime API key defaults changed.')
+                        '''))"
                         
                         if [ -f "requirements.txt" ]; then
                           echo "Installing dependencies..."
