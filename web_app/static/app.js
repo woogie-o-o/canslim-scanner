@@ -1711,6 +1711,7 @@ function _clearPanelDetail() {
   if (cc) cc.style.display = 'none';
   const ec = document.getElementById('dp-earnings-card');
   if (ec) ec.style.display = 'none';
+  switchDpTab('canslim');
 }
 
 function _populatePanelDetail(d, skipFourAxis) {
@@ -1843,9 +1844,6 @@ function _populatePanelDetail(d, skipFourAxis) {
 
   // 투자자 동향 카드
   _renderInvestorCard(d);
-
-  // CAN SLIM 탭으로 초기화
-  switchDpTab('canslim');
 
   // 1008-풀 한줄평 포스터 (4축 차트 위 상단)
   const haikuEl = document.getElementById('dp-fa-haiku');
