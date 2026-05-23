@@ -52,7 +52,16 @@ def _is_subject(title: str, query: str) -> bool:
     norm_q = _WS_RE.sub("", query)
     if not norm_q:
         return False
-    return norm_q in _WS_RE.sub("", title)
+    title_norm = _WS_RE.sub("", title)
+    if norm_q in title_norm:
+        return True
+        
+    # '지주', '홀딩스' 등이 생략된 채 보도되는 헤드라인 대응 (예: 우리금융지주 -> 우리금융)
+    flex_q = norm_q.replace("지주", "").replace("홀딩스", "")
+    if len(flex_q) >= 2 and flex_q in title_norm:
+        return True
+        
+    return False
 
 
 def _is_relevant(title: str, desc: str, query: str) -> bool:
