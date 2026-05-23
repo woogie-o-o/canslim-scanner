@@ -1613,7 +1613,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 /* ── Responsive: Mobile Sidebar Toggle ─────────────────────── */
 .mobile-menu-btn {
   display: none;
-  width: 36px; height: 36px;
+  width: 44px; height: 44px;
   border: none; border-radius: 8px;
   background: var(--surface-subtle);
   color: var(--text-secondary);
@@ -1621,7 +1621,9 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   cursor: pointer;
   align-items: center; justify-content: center;
   flex-shrink: 0;
+  transition: background var(--duration-fast), transform var(--duration-fast);
 }
+.mobile-menu-btn:active { background: var(--brand-tint); transform: scale(0.98); }
 .sidebar-backdrop {
   display: none;
   position: fixed;
@@ -1651,7 +1653,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     max-width: 100vw;
   }
 
-  .mobile-menu-btn { display: flex; }
+  .mobile-menu-btn { display: flex; width: 44px; height: 44px; }
 
   .topbar {
     padding: 0 12px;
@@ -1660,9 +1662,21 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .topbar-logo { font-size: 15px; margin-right: 4px; }
   .topbar-controls { gap: 6px; }
   .search-box { max-width: none; flex: 1; min-width: 0; }
-  .search-input { height: 32px; font-size: 14px; }
+  .search-input {
+    height: 44px;
+    font-size: 16px;
+    padding-left: 38px;
+    border-radius: 14px;
+  }
+  .search-icon { left: 12px; }
   #btn-export, #btn-share, .topbar-date, a[href="/settings"] { display: none; }
-  .btn-scan { height: 32px; padding: 0 12px; font-size: 12px; }
+  .btn-scan {
+    min-width: 44px;
+    height: 44px;
+    padding: 0 14px;
+    font-size: 13px;
+    border-radius: 14px;
+  }
 
   .macro-strip {
     padding: 0 12px;
@@ -1676,10 +1690,10 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     padding: 8px 12px;
     height: auto;
     flex-wrap: wrap;
-    gap: 6px 0;
+    gap: 10px 0;
   }
   .stat-item { padding: 0 10px 0 0; margin-right: 10px; }
-  .stat-label { font-size: 11px; }
+  .stat-label { font-size: 12px; }
   .stat-value { font-size: 14px; }
   .filter-chips {
     width: 100%;
@@ -1687,9 +1701,12 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     flex-wrap: nowrap;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    padding: 4px 0;
+    padding: 6px 0;
+    gap: 8px;
   }
   .filter-chips::-webkit-scrollbar { display: none; }
+  .chip { min-height: 44px; padding: 0 14px; font-size: 13px; }
+  .chip:active { opacity: 0.7; transform: scale(0.96); transition: transform 0.1s, opacity 0.1s; }
 
   .content { grid-template-columns: 1fr; }
   .sidebar {
@@ -1712,6 +1729,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     display: flex;
     align-items: center;
     gap: 8px;
+    min-height: 44px;
     padding: 10px 14px;
     border-radius: var(--radius);
     color: var(--text-secondary);
@@ -1721,7 +1739,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   }
   .sidebar-settings-link:hover { background: var(--surface-subtle); }
 
-  .main { padding: 10px; overflow-y: auto; }
+  .main { padding: 12px; overflow-y: auto; }
 
   .stock-table-wrap { display: none; }
   .stock-table { min-width: 640px; }
@@ -1746,7 +1764,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     -webkit-tap-highlight-color: transparent;
   }
   .stock-card:last-child { border-bottom: none; }
-  .stock-card:active { background: var(--surface-subtle); }
+  .stock-card:active { background: var(--surface-subtle); transform: scale(0.99); transition: transform 0.1s; }
   .stock-card-row1 {
     display: flex;
     align-items: center;
@@ -1770,7 +1788,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .stock-card-ticker { font-size: 11px; color: var(--text-tertiary); }
+  .stock-card-ticker { font-size: 12px; color: var(--text-tertiary); }
   .stock-card-score {
     font-size: 22px;
     font-weight: 800;
@@ -1839,7 +1857,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     flex-shrink: 0;
   }
   .dp-tab-nav::-webkit-scrollbar { display: none; }
-  .dp-tab-btn { padding: 0 14px; font-size: 13px; white-space: nowrap; height: 40px; }
+  .dp-tab-btn { padding: 0 16px; font-size: 13px; white-space: nowrap; height: 44px; }
 
   /* 4축 그리드 2열로 */
   #dp-fouraxis-header > div:last-child {
