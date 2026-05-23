@@ -625,6 +625,8 @@ function _applyQuickFilter(stocks) {
       return stocks.filter(s => _watchlist.has(s.Ticker));
     case 'entry_green':
       return stocks.filter(s => s.EntryStatus === 'STRONG' || s.EntryStatus === 'GREEN');
+    case 'strong_buy':
+      return stocks.filter(s => _signalTier(s.Signal) === 'strong');
     case 'strong': {
       return stocks.filter(s => {
         const g = _stockGrade(s.TotalScore);

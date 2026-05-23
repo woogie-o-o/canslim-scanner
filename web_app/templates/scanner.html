@@ -2212,7 +2212,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
       <span class="stat-label">스캔 종목</span>
       <span id="stat-total" class="stat-value">—<span class="unit">개</span></span>
     </div>
-    <div class="stat-item">
+    <div class="stat-item hover-filter" onclick="document.querySelector('[data-filter=\'strong_buy\']').click()" style="cursor:pointer" title="클릭해서 강력매수 종목만 보기">
       <span class="stat-label">강력매수</span>
       <span id="stat-strong" class="stat-value">—<span class="unit">개</span></span>
     </div>
@@ -2224,6 +2224,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
       <div id="filter-chips" class="filter-chips">
         <button class="chip active" data-filter="all">전체</button>
         <button class="chip" data-filter="watchlist">⭐ 워치리스트 <span class="chip-count" id="chip-watch-count">0</span></button>
+        <button class="chip" data-filter="strong_buy" title="스캔 결과 시그널이 강력매수인 종목만 표시">🚀 강력매수</button>
         <button class="chip" data-filter="entry_green" title="진입점수 70점 이상 — 6가지 기술 신호(RSI·볼린저밴드·VWAP·52주 위치·MACD·시장 국면)가 모두 양호한 종목">🟢 진입좋음</button>
         <button class="chip" data-filter="strong" title="종합점수 60점 이상 — S등급(75+)·A등급(60+) 해당 종목만 표시">🔥 S·A등급</button>
         <button class="chip" data-filter="near_high" title="52주 신고가에 근접한 종목 — 추세 돌파 후보">📈 신고가</button>
