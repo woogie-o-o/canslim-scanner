@@ -67,8 +67,8 @@
 ### 로컬 실행
 
 ```bash
-git clone https://github.com/gunchinam/canslim-quant-scanner.git
-cd canslim-quant-scanner
+git clone https://github.com/woogie-o-o/canslim-scanner.git
+cd canslim-scanner
 pip install -r requirements.txt
 python -m web_app.app
 ```

@@ -2,12 +2,15 @@
 engine_adapter.py — quant_nexus_v20.py 엔진을 tkinter 없이 사용하는 어댑터
 Flask 웹앱이 이 클래스를 통해 스캔 기능을 호출한다.
 """
+from __future__ import annotations
+
 import sys
 import os
 import threading
 import logging
 import concurrent.futures
 from collections import OrderedDict
+from datetime import datetime, timedelta
 
 # 프로젝트 경로 추가 (quant_nexus_v20.py가 있는 디렉토리)
 _BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -145,9 +148,15 @@ class ScanAdapter:
     def analyze_ticker(self, ticker: str, *, prefer_cache: bool = False, cache_only: bool = False) -> dict | None:
         """단일 종목 분석 — 캐시 우선/캐시 전용 모드를 지원한다."""
         if prefer_cache:
-            cached = self.cache.get(f"{ticker}__{self._scan_strategy}", max_age_minutes=60 * 24 * 7)
-            if cached:
-                return cached
+            base_key = f"{ticker}__{self._scan_strategy}"
+            dated_keys = [
+                f"{base_key}__{(datetime.now() - timedelta(days=days)).strftime('%Y%m%d')}"
+                for days in range(7)
+            ]
+            for cache_key in (*dated_keys, base_key):
+                cached = self.cache.get(cache_key, max_age_minutes=60 * 24 * 7)
+                if cached:
+                    return cached
             if cache_only:
                 return None
         return _qn.QuantNexusApp._analyze_ticker(self, ticker)
