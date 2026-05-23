@@ -1748,6 +1748,10 @@ async function openDetail(ticker) {
       if (cached.OneLinerData != null) data.OneLinerData = cached.OneLinerData;
       if (cached.OneLinerTag != null) data.OneLinerTag = cached.OneLinerTag;
     }
+    // 스캐너의 정밀한 커스텀 섹터명이 Yahoo의 포괄적 섹터명(기술, 금융 등)으로 덮어써지는 것 방지
+    if (cached && cached.Sector) {
+      data.Sector = cached.Sector;
+    }
     _populatePanelDetail(data, /* skipFourAxis */ true);
   } catch (e) {
     if (seq !== _detailSeq) return;
