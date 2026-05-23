@@ -16,11 +16,12 @@ jobs:
                   DART_API_KEY: ${{ secrets.DART_API_KEY }}
                   NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
                   NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+                  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
               with:
                   host: 168.110.117.10
                   username: ubuntu
                   key: ${{ secrets.E2_SSH_KEY }}
-                  envs: DART_API_KEY,NAVER_CLIENT_ID,NAVER_CLIENT_SECRET
+                  envs: DART_API_KEY,NAVER_CLIENT_ID,NAVER_CLIENT_SECRET,GEMINI_API_KEY
                   script: |
                       echo "=== REPOSITORY DETECTION & DEPLOYMENT ==="
                       REPO_DIR=""
@@ -50,7 +51,7 @@ jobs:
                         import os
                         from pathlib import Path
 
-                        keys = ('DART_API_KEY', 'NAVER_CLIENT_ID', 'NAVER_CLIENT_SECRET')
+                        keys = ('DART_API_KEY', 'NAVER_CLIENT_ID', 'NAVER_CLIENT_SECRET', 'GEMINI_API_KEY')
                         path = Path('.env')
                         values = {}
                         if path.exists():
