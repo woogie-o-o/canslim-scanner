@@ -129,6 +129,40 @@ def _annotate_one_liners(results: list):
     return annotate(results)
 
 
+def _override_kr_day_chg(results: list) -> list:
+    """KR 종목 DayChg를 네이버 금융 실시간 등락률로 덮어쓴다.
+
+    yfinance KR 일봉이 장중에 전일 종가 기준으로 고착되는 문제 회피.
+    네이버 change_pct는 퍼센트 단위 → DayChg 저장은 fraction이므로 /100.
+    """
+    if not results:
+        return results
+    from concurrent.futures import ThreadPoolExecutor
+    from naver_finance import get_quote
+
+    kr_items = [
+        r for r in results
+        if isinstance(r, dict) and isinstance(r.get("Ticker"), str)
+        and r["Ticker"].replace(".KS", "").replace(".KQ", "").isdigit()
+    ]
+    if not kr_items:
+        return results
+
+    def _fetch(r):
+        try:
+            q = get_quote(r["Ticker"])
+            pct = q.get("change_pct")
+            if pct is not None:
+                r["DayChg"] = float(pct) / 100.0
+        except Exception:
+            pass
+        return r
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(_fetch, kr_items))
+    return results
+
+
 def _render_static_template(name: str, replacements: dict[str, str] | None = None) -> Response:
     path = os.path.join(os.path.dirname(__file__), "templates", name)
     with open(path, encoding="utf-8") as f:
@@ -617,6 +651,12 @@ def api_scan():
                 history.save_snapshot(results, market)
         except Exception as he:
             logging.warning("history annotate/save failed: %s", he)
+        # KR 등락률 네이버 실시간 오버라이드 (yfinance 장중 고착 회피)
+        if market == "KR":
+            try:
+                results = _override_kr_day_chg(results)
+            except Exception as ne:
+                logging.warning("naver DayChg override failed: %s", ne)
         # 촌철살인 한줄평 추가
         try:
             results = _annotate_one_liners(results)
