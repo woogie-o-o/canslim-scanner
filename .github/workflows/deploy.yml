@@ -71,7 +71,7 @@ jobs:
                         if changed:
                             ordered = [k for k in keys if values.get(k)]
                             ordered += sorted(k for k in values if k not in keys and values.get(k))
-                            body = '\\n'.join(f'{k}={values[k]}' for k in ordered) + '\\n'
+                            body = chr(10).join(f'{k}={values[k]}' for k in ordered) + chr(10)
                             path.write_text(body, encoding='utf-8')
                             print('Runtime API key defaults updated.')
                         else:
