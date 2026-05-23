@@ -4,7 +4,7 @@
  */
 
 // ── 상태 ─────────────────────────────────────────────────────────────────
-let currentMarket   = 'US';
+let currentMarket   = 'KR';
 let currentStrategy = 'BALANCED';
 let currentSector   = '';   // '' = 전체
 let allStocks       = [];   // 마지막 스캔 결과 캐시
