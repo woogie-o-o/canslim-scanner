@@ -1752,8 +1752,6 @@ async function openDetail(ticker) {
   overlay.classList.add('visible');
   panel.classList.add('open');
   document.body.style.overflow = 'hidden';
-  const _dpLink = document.getElementById('dp-detail-link');
-  if (_dpLink) _dpLink.href = '/detail/' + encodeURIComponent(ticker) + '?market=' + currentMarket + '&strategy=' + currentStrategy;
 
   // 스캔 데이터가 이미 있으면 즉시 렌더링 (빈 드로어 방지)
   const cached = _stockMap[ticker];
