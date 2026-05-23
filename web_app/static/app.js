@@ -725,6 +725,7 @@ function renderStockTable(stocks) {
       ? '워치리스트가 비어있습니다. 표의 ☆ 버튼으로 추가하세요.'
       : '필터 조건에 맞는 종목이 없습니다.';
     tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(_currentFilter === 'all' ? '결과 없음' : emptyMsg)}</td></tr>`;
+    _updateMobileList([], _currentFilter === 'all' ? '결과 없음' : emptyMsg);
     return;
   }
 
@@ -745,6 +746,7 @@ function renderStockTable(stocks) {
     });
   }
   tbody.innerHTML = view.map((s, i) => renderStockRow(s, i + 1)).join('');
+  _updateMobileList(view);
 }
 
 function _deltaBadge(stock) {
@@ -830,6 +832,52 @@ function renderStockRow(stock, rank) {
 </tr>`;
 }
 
+function renderMobileCard(stock, rank) {
+  const score    = Math.round(stock.TotalScore || 0);
+  const sc       = scoreClass(score);
+  const dayChg   = stock.DayChg || 0;
+  const chgPct   = (dayChg * 100).toFixed(2);
+  const chgClass = dayChg > 0 ? 'chg-up' : dayChg < 0 ? 'chg-down' : 'chg-flat';
+  const chgSign  = dayChg > 0 ? '+' : '';
+  const starred  = _watchlist.has(stock.Ticker);
+  const olTag    = stock.OneLinerTag || '';
+  const olText   = stock.OneLiner   || '';
+
+  const olHtml = olText
+    ? `<div class="stock-oneliner stock-card-oneliner" data-tag="${esc(olTag)}">${esc(olText)}</div>`
+    : '';
+
+  return `
+<div class="stock-card" onclick="openDetail('${esc(stock.Ticker)}')">
+  <div class="stock-card-row1">
+    <span class="stock-card-rank">${rank}</span>
+    <button class="star-btn${starred ? ' starred' : ''}"
+            onclick="toggleWatchlist('${esc(stock.Ticker)}', event)"
+            title="${starred ? '워치리스트에서 제거' : '워치리스트에 추가'}">${starred ? '★' : '☆'}</button>
+    <div class="stock-card-name">
+      <span class="stock-card-name-main">${esc(stock.Name || stock.Ticker)}</span>
+      <span class="stock-card-ticker">${esc(stock.Ticker)} · ${esc(stock.Sector || '')}</span>
+    </div>
+    <span class="stock-card-score ${sc}">${score}</span>
+    <span class="stock-card-chg ${chgClass}">${chgSign}${chgPct}%</span>
+  </div>
+  ${olHtml}
+  <div class="stock-card-row2">
+    ${_renderSignalHtml(stock.Signal, stock)}
+  </div>
+</div>`;
+}
+
+function _updateMobileList(view, emptyMsg) {
+  const el = document.getElementById('mobile-stock-list');
+  if (!el) return;
+  if (!view || view.length === 0) {
+    el.innerHTML = `<div class="mobile-stock-list-msg">${emptyMsg || '결과 없음'}</div>`;
+    return;
+  }
+  el.innerHTML = view.map((s, i) => renderMobileCard(s, i + 1)).join('');
+}
+
 // ── 회사 정보 팝업 ──────────────────────────────────────────────────────
 
 function showStockPopup(ticker, ev) {
@@ -874,6 +922,7 @@ function _colCount() {
 function setStockListMsg(msg) {
   const tbody = document.getElementById('stock-list');
   if (tbody) tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(msg)}</td></tr>`;
+  _updateMobileList([], msg);
 }
 
 // ── Game-style Loading Screen (쓸데없는 주식 잡학) ─────────────────────
@@ -933,6 +982,8 @@ function showScanLoading() {
   _triviaIdx = 0;
   const tbody = document.getElementById('stock-list');
   if (!tbody) return;
+  const mEl = document.getElementById('mobile-stock-list');
+  if (mEl) mEl.innerHTML = '<div class="mobile-stock-list-msg">종목 분석 중...</div>';
   tbody.innerHTML = `<tr><td colspan="${_colCount()}" style="padding:0;border:none;">
     <div class="scan-loading">
       <div class="scan-loading-spinner">

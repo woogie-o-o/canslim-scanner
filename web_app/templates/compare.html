@@ -212,6 +212,19 @@ html, body {
 @media (prefers-reduced-motion: reduce) {
   .ix-flip-inner { transition: none !important; }
 }
+@media (max-width: 768px) {
+  .compare-shell { padding: 12px; }
+  .compare-topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .compare-title { font-size: 20px; }
+  .compare-sub { font-size: 12px; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .compare-back { height: 34px; font-size: 13px; }
+}
 </style>
 </head>
 <body>
