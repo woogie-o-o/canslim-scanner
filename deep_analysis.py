@@ -219,7 +219,6 @@ def _call_gemini(prompt: str, timeout: int = 120) -> dict[str, Any]:
     url = f"{_ENDPOINT}?key={urllib.parse.quote(api_key)}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "tools": [{"google_search": {}}],
         "generationConfig": {
             "temperature": 0.4,
             "topP": 0.9,
