@@ -41,7 +41,18 @@ def _korean_font() -> Optional[str]:
     # 1순위: 프로젝트 동봉 Paperlogy 폰트 우선 등록 및 탐색
     import os as _os
     font_dir = _os.path.join(_os.path.dirname(__file__), "web_app", "static", "fonts")
-    for fn in ("Paperlogy-5Medium.ttf", "Paperlogy-7Bold.ttf"):
+    paperlogy_fonts = [
+        "Paperlogy-1Thin.ttf",
+        "Paperlogy-2ExtraLight.ttf",
+        "Paperlogy-3Light.ttf",
+        "Paperlogy-4Regular.ttf",
+        "Paperlogy-5Medium.ttf",
+        "Paperlogy-6SemiBold.ttf",
+        "Paperlogy-7Bold.ttf",
+        "Paperlogy-8ExtraBold.ttf",
+        "Paperlogy-9Black.ttf"
+    ]
+    for fn in paperlogy_fonts:
         p = _os.path.join(font_dir, fn)
         if _os.path.exists(p):
             try:
