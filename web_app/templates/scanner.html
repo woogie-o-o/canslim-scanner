@@ -1698,7 +1698,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   }
   .sidebar.mobile-open { display: block; }
 
-  .main { padding: 10px; overflow: hidden; }
+  .main { padding: 10px; overflow-y: auto; }
 
   .stock-table-wrap { display: none; }
   .stock-table { min-width: 640px; }
@@ -2189,7 +2189,9 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
           </tbody>
         </table>
       </div>
-      <div id="mobile-stock-list" class="mobile-stock-list"></div>
+      <div id="mobile-stock-list" class="mobile-stock-list">
+        <div class="mobile-stock-list-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</div>
+      </div>
     </main>
   </div>
 
