@@ -1722,11 +1722,13 @@ async function openDetail(ticker) {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
     // 한줄평은 시드(score/RSI 양자화 + 시간 회전)에 따라 매번 달라질 수 있다.
-    // 스캐너에서 본 한줄평이 패널 열 때 잠깐 보였다가 API 응답 도착 시 다른 문구로
-    // 바뀌는 깜빡임을 막기 위해, 같은 버킷이면 스캐너 한줄평을 그대로 유지한다.
-    if (cached && cached.OneLinerTag && cached.OneLinerTag === data.OneLinerTag) {
-      if (cached.OneLiner) data.OneLiner = cached.OneLiner;
+    // 스캐너에서 본 한줄평이 패널 열 때 보였다가 API 응답 도착 시 다른 문구로
+    // 바뀌는 깜빡임을 막기 위해, 캐시된 한줄평이 있으면 무조건 그대로 유지한다.
+    // (버킷이 달라도 시각적 깜빡임이 더 거슬리므로 캐시 우선.)
+    if (cached && cached.OneLiner) {
+      data.OneLiner = cached.OneLiner;
       if (cached.OneLinerData != null) data.OneLinerData = cached.OneLinerData;
+      if (cached.OneLinerTag != null) data.OneLinerTag = cached.OneLinerTag;
     }
     _populatePanelDetail(data, /* skipFourAxis */ true);
   } catch (e) {
