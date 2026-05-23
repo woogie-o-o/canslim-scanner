@@ -1,5 +1,5 @@
 """
-app.py — (.)(.)분석기 Flask 웹 서버
+app.py — 종목분석기 Flask 웹 서버
 engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더링한다.
 
 실행: python web_app/app.py

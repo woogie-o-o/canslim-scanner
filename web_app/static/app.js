@@ -1,5 +1,5 @@
 /**
- * app.js — (.)(.)분석기 웹 프론트엔드
+ * app.js — 종목분석기 웹 프론트엔드
  * scanner.html (데스크탑 테이블) / detail.html 공용 스크립트
  */
 
@@ -398,17 +398,20 @@ function _renderSignalHtml(signal, stock) {
   const { base, tags } = _splitSignal(signal);
   const tr = _trKo(base || '—');
   // 종목 퀄리티 축: STORY_STOCK 버킷은 "스토리" 칩, 그 외는 TotalScore 파생 등급.
-  // 등급/칩을 못 만들면 기존 시그널 라벨로 폴백.
-  let qualityHtml;
+  let qualityHtml = '';
   if (stock && stock.OneLinerTag === 'STORY_STOCK') {
     qualityHtml = `<span class="story-chip" title="스토리 종목 — 등급 척도 비적용">스토리</span>`;
   } else {
     const g = stock ? _stockGrade(stock.TotalScore) : null;
-    qualityHtml = g
-      ? `<span class="grade-badge grade-${g}" title="종합점수 ${Math.round(Number(stock.TotalScore))} 기준 등급">${g}</span>`
-      : `<span class="signal-badge" style="color:${signalColor(base)};background:${signalBg(base)}">${esc(tr)}</span>`;
+    if (g) {
+      qualityHtml = `<span class="grade-badge grade-${g}" title="종합점수 ${Math.round(Number(stock.TotalScore))} 기준 등급">${g}</span>`;
+    }
   }
-  let h = `<div class="signal-row">${_entryLight(stock)}${qualityHtml}</div>`;
+  
+  // 시그널 배지 (강력매수 등 명시적 표시)
+  const signalHtml = `<span class="signal-badge" style="color:${signalColor(base)};background:${signalBg(base)};">${esc(tr)}</span>`;
+
+  let h = `<div class="signal-row" style="display:flex;align-items:center;gap:4px;">${_entryLight(stock)}${qualityHtml}${signalHtml}</div>`;
   if (tags.length) {
     h += '<div class="signal-tags">';
     for (const t of tags) {
@@ -2105,7 +2108,7 @@ const _KO_MAP = {
   'POSSIBLE_REVERSAL': '반전 가능', 'RANGE': '횡보',
   'CONFIRMED': '확인', 'FAILED': '실패',
   // Breakdown desc 번역 (compound terms first)
-  'STRONG_BUY': '강력 매수', 'STRONG_BULLISH': '강한 상승', 'STRONG_BEARISH': '강한 하락',
+  'STRONG_BUY': '강력매수', 'STRONG_BULLISH': '강한 상승', 'STRONG_BEARISH': '강한 하락',
   'MILD_BULLISH': '약한 상승', 'MILD_BEARISH': '약한 하락',
   'STRONG_S_CONFIRMED': '강한 수급 확인', 'S_CONFIRMED': '수급 확인', 'S_WEAK': '수급 약함',
   'STRONG_DISTRIBUTION': '강한 분산', 'MILD_DISTRIBUTION': '약한 분산',
@@ -3778,7 +3781,7 @@ function generateShareCard() {
     <div style="background:linear-gradient(135deg,#3182F6,#1B64DA);padding:20px 20px 16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
-          <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">(.)(.) 분석기</div>
+          <div style="font-size:18px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">종목 분석기</div>
           <div style="font-size:12px;color:rgba(255,255,255,0.75);margin-top:4px;">${mkt} · ${dateStr}</div>
         </div>
         <div style="background:rgba(255,255,255,0.2);border-radius:8px;padding:6px 12px;">
