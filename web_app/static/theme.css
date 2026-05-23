@@ -28,7 +28,7 @@
   --destructive-foreground: #ffffff;
   --success: #00C073;
   --success-foreground: #ffffff;
-  --warning: #FF9200;
+  --warning: #C77700;
   --warning-foreground: #ffffff;
   --info: #3485FA;
   --info-foreground: #ffffff;
@@ -36,8 +36,8 @@
   /* Text Hierarchy */
   --text-primary: #191F28;
   --text-secondary: #4E5968;
-  --text-tertiary: #8B95A1;
-  --text-disabled: #B0B8C1;
+  --text-tertiary: #6B7684;
+  --text-disabled: #8B95A1;
   --icon-default: #4E5968;
 
   /* Page Surfaces */
@@ -80,6 +80,20 @@
   --chart-3: #F04452;
   --chart-4: #FF9200;
   --chart-5: #8B95A1;
+}
+
+:where(
+  button,
+  [type="button"],
+  [type="submit"],
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"]
+):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
 .dark {

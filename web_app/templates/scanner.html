@@ -1566,7 +1566,10 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 14px 30px rgba(15,23,42,0.22);
+  transition: transform var(--duration-fast), box-shadow var(--duration-fast), opacity var(--duration-fast);
 }
+.compare-fab-clear:active,
+.compare-fab-open:active { transform: scale(0.98); }
 
 .compare-fab-clear {
   background: var(--card);
@@ -1756,66 +1759,106 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .stock-card {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 12px 14px;
+    gap: 10px;
+    padding: 16px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
-    transition: background var(--duration-fast);
+    transition: background var(--duration-fast), transform var(--duration-fast);
     -webkit-tap-highlight-color: transparent;
   }
   .stock-card:last-child { border-bottom: none; }
-  .stock-card:active { background: var(--surface-subtle); transform: scale(0.99); transition: transform 0.1s; }
+  .stock-card:active { background: color-mix(in srgb, var(--brand) 6%, var(--card)); transform: scale(0.995); }
   .stock-card-row1 {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
+  .stock-card-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+  .stock-card .star-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-subtle);
+  }
+  .stock-card .star-btn:active { transform: scale(0.96); }
   .stock-card-rank {
     font-size: 12px;
     font-weight: 700;
     color: var(--text-tertiary);
-    width: 20px;
+    width: 24px;
+    line-height: 44px;
     text-align: center;
     flex-shrink: 0;
   }
-  .stock-card-name { flex: 1; min-width: 0; }
+  .stock-card-name { flex: 1; min-width: 0; padding-top: 2px; }
   .stock-card-name-main {
     display: block;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.25;
   }
-  .stock-card-ticker { font-size: 12px; color: var(--text-tertiary); }
-  .stock-card-score {
-    font-size: 22px;
-    font-weight: 800;
+  .stock-card-ticker {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    line-height: 1.4;
+  }
+  .stock-card-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    min-width: 72px;
     flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .stock-card-score {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
   }
   .stock-card-chg {
     font-size: 13px;
     font-weight: 700;
-    flex-shrink: 0;
     font-variant-numeric: tabular-nums;
-    min-width: 54px;
     text-align: right;
   }
   .stock-card-row2 {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     flex-wrap: wrap;
   }
   .stock-card-oneliner {
-    font-size: 12px;
-    padding: 3px 8px;
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 8px 10px;
     max-width: 100%;
     box-shadow: 1px 1px 0 #1a1a1a;
+    border-radius: 8px;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
   .mobile-stock-list-msg {
-    padding: 40px 16px;
+    padding: 48px 20px;
     text-align: center;
     color: var(--text-tertiary);
     font-size: 14px;
@@ -1858,6 +1901,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   }
   .dp-tab-nav::-webkit-scrollbar { display: none; }
   .dp-tab-btn { padding: 0 16px; font-size: 13px; white-space: nowrap; height: 44px; }
+  .dp-tab-btn:active { background: var(--surface-subtle); }
 
   /* 4축 그리드 2열로 */
   #dp-fouraxis-header > div:last-child {
@@ -1881,14 +1925,14 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 @media (max-width: 480px) {
   .topbar-logo { display: none; }
   .btn-seg { padding: 0 8px; font-size: 11px; height: 28px; }
-  .btn-scan { font-size: 11px; gap: 4px; }
+  .btn-scan { font-size: 12px; gap: 4px; }
   .btn-scan svg { width: 12px; height: 12px; }
 
   .macro-strip { height: 28px; font-size: 10.5px; gap: 8px; }
   .macro-signal { padding: 2px 8px; font-size: 10.5px; }
 
   .stats-bar .stat-item:nth-child(n+3):not(:last-child) { display: none; }
-  .chip { height: 26px; padding: 0 10px; font-size: 11px; }
+  .chip { min-height: 44px; padding: 0 12px; font-size: 12px; }
 
   .stock-table th:nth-child(1), .stock-table td:nth-child(1),
   .stock-table th:nth-child(2), .stock-table td:nth-child(2) { display: none; }

@@ -38,7 +38,7 @@ html, body {
 .compare-back {
   display: inline-flex;
   align-items: center;
-  height: 40px;
+  min-height: 44px;
   padding: 0 14px;
   border-radius: 999px;
   text-decoration: none;
@@ -46,7 +46,9 @@ html, body {
   border: 1px solid var(--border);
   color: var(--text-secondary);
   font-weight: 700;
+  transition: background var(--duration-fast), transform var(--duration-fast);
 }
+.compare-back:active { transform: scale(0.98); background: var(--surface-subtle); }
 .compare-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -85,9 +87,10 @@ html, body {
   display: inline-flex;
   align-items: center;
   margin-top: 10px;
-  padding: 5px 10px;
+  min-height: 32px;
+  padding: 6px 10px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
 }
 .compare-body {
@@ -118,16 +121,16 @@ html, body {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 12px;
   background: var(--surface-page);
 }
 .compare-label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-tertiary);
 }
 .compare-value {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-primary);
   text-align: right;
@@ -221,10 +224,11 @@ html, body {
     margin-bottom: 12px;
   }
   .compare-title { font-size: 20px; }
-  .compare-sub { font-size: 12px; }
+  .compare-sub { font-size: 13px; line-height: 1.5; }
   .compare-grid { grid-template-columns: 1fr; }
-  .compare-back { height: 44px; padding: 0 18px; font-size: 14px; }
-  .compare-back:active { opacity: 0.7; transform: scale(0.98); transition: transform 0.1s; }
+  .compare-back { width: 100%; justify-content: center; padding: 0 18px; font-size: 14px; }
+  .compare-card-header { padding: 18px 18px 14px; }
+  .compare-body { padding: 18px; }
 }
 </style>
 </head>
