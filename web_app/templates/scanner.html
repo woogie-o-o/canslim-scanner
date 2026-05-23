@@ -2696,8 +2696,8 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
             </div>
             <div id="dp-entry-conf-raw" style="font-size:10px;color:var(--text-tertiary);margin-top:4px;display:none;"></div>
           </div>
-          <div class="entry-detail-toggle" onclick="document.getElementById('dp-entry-detail').classList.toggle('open'); this.querySelector('.arrow').textContent = document.getElementById('dp-entry-detail').classList.contains('open') ? '▲' : '▼';">
-            <span class="arrow">▲</span> 상세 분석
+          <div class="entry-detail-toggle" id="dp-entry-density-toggle" onclick="_toggleEntryDensity()">
+            <span class="arrow">▲</span> <span class="dt-label">간단히 보기</span>
           </div>
         </div>
 

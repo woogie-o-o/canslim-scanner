@@ -351,8 +351,8 @@ function _renderEntryCard(d) {
 // 기본 compact: 다수 사용자는 진입·손절·목표가1 + 결론이면 결정 가능.
 // 고급 사용자가 펼치면 그 선택을 기억(= 향후 A/B 기준값).
 function _entryDensityMode() {
-  try { return localStorage.getItem('entryCardDensity') === 'full' ? 'full' : 'compact'; }
-  catch (e) { return 'compact'; }
+  try { return localStorage.getItem('entryCardDensity') === 'compact' ? 'compact' : 'full'; }
+  catch (e) { return 'full'; }
 }
 function _applyEntryDensity() {
   const det = document.getElementById('dp-entry-detail');
