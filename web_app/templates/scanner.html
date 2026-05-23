@@ -2674,7 +2674,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
             </div>
           </div>
           <!-- ③ 더보기존 (토글) -->
-          <div id="dp-entry-detail" class="entry-detail">
+          <div id="dp-entry-detail" class="entry-detail open">
             <div class="entry-meta-grid" style="margin-top:0;">
               <div class="entry-meta-cell"><span class="meta-lbl">목표가2</span><span class="meta-val" id="dp-entry-px-t2" style="color:var(--success);">—</span></div>
               <div class="entry-meta-cell"><span class="meta-lbl">유형</span><span class="meta-val" id="dp-entry-type">—</span></div>
@@ -2697,7 +2697,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
             <div id="dp-entry-conf-raw" style="font-size:10px;color:var(--text-tertiary);margin-top:4px;display:none;"></div>
           </div>
           <div class="entry-detail-toggle" onclick="document.getElementById('dp-entry-detail').classList.toggle('open'); this.querySelector('.arrow').textContent = document.getElementById('dp-entry-detail').classList.contains('open') ? '▲' : '▼';">
-            <span class="arrow">▼</span> 상세 분석
+            <span class="arrow">▲</span> 상세 분석
           </div>
         </div>
 

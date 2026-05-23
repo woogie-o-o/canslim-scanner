@@ -2667,7 +2667,15 @@ function _renderDeep(d) {
 }
 
 async function runDeepAnalysis(force) {
-  if (typeof TICKER === 'undefined' || !TICKER) return;
+  let tk = '';
+  if (typeof TICKER !== 'undefined' && TICKER) {
+    tk = TICKER;
+  } else {
+    tk = (document.getElementById('dp-ticker')?.textContent || '').trim();
+  }
+  if (!tk || tk === '—' || tk === '…') return;
+  const targetTicker = tk;
+
   const mode = (document.getElementById('deep-mode')?.value) || 'standard';
   const btn = document.getElementById('deep-run-btn');
   const refreshBtn = document.getElementById('deep-refresh-btn');
@@ -2679,7 +2687,7 @@ async function runDeepAnalysis(force) {
   if (content) {
     content.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-tertiary);font-size:13px;">
       <div style="display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
-      <div style="margin-top:10px;">Gemini가 ${_escapeHtml(TICKER)}의 최신 시장 데이터를 수집하고 있습니다…</div>
+      <div style="margin-top:10px;">Gemini가 ${_escapeHtml(targetTicker)}의 최신 시장 데이터를 수집하고 있습니다…</div>
     </div>`;
   }
   if (!document.getElementById('deep-spin-style')) {
@@ -2694,7 +2702,7 @@ async function runDeepAnalysis(force) {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 120000);
     let r;
-    try { r = await fetch(`/api/deep-analysis/${encodeURIComponent(TICKER)}?${p}`, { signal: ctrl.signal }); }
+    try { r = await fetch(`/api/deep-analysis/${encodeURIComponent(targetTicker)}?${p}`, { signal: ctrl.signal }); }
     finally { clearTimeout(tid); }
     const d = await r.json();
     if (!d.ok) {
