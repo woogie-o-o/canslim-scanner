@@ -1014,36 +1014,54 @@ td.score-col {
 
 .dp-axis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
-/* 진입 타이밍 카드 (V6 - 3단 구조) */
-.entry-card { border-left:4px solid var(--text-tertiary); transition:border-color .2s; border-radius:var(--radius); overflow:hidden; margin-bottom:10px; background:var(--surface-page); }
-.entry-card.green  { border-left-color:#16A34A; }
-.entry-card.yellow { border-left-color:#F59E0B; }
-.entry-card.red    { border-left-color:#DC2626; }
-.entry-verdict { padding:14px 16px 10px; }
-.entry-bar { position:relative; height:8px; background:var(--bg-tertiary,var(--surface-muted)); border-radius:6px; overflow:hidden; margin-top:6px; }
-.entry-bar-fill { position:absolute; left:0; top:0; height:100%; background:linear-gradient(90deg,#DC2626 0%,#F59E0B 50%,#16A34A 100%); border-radius:6px; transition:width .3s; }
-.entry-prices { padding:10px 16px; border-top:1px solid var(--border); background:var(--bg-tertiary,var(--surface-muted)); }
-.entry-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; font-size:13px; }
-.entry-grid .lbl { color:var(--text-tertiary); font-size:12px; margin-bottom:2px; display:block; }
-.entry-grid .val { font-weight:700; color:var(--text-primary); font-size:14px; }
-/* 3존 스파이크: 행동존 = 진입/손절/목표가1 3숫자, 진입가 시각 강조 */
-.entry-grid-3 { grid-template-columns:1.4fr 1fr 1fr; align-items:end; }
-.entry-grid-3 .eg-primary .lbl { color:var(--brand); font-weight:700; }
-.entry-grid-3 .eg-primary .val { font-size:20px; }
-.entry-meta-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:6px 16px; margin-top:10px; font-size:12px; }
-.entry-meta-grid .meta-lbl { color:var(--text-tertiary); font-size:11px; }
-.entry-meta-grid .meta-val { font-weight:600; color:var(--text-secondary); }
-.entry-detail { padding:0 16px; max-height:0; overflow:hidden; transition:max-height .3s ease, padding .3s ease; }
-.entry-detail.open { max-height:900px; padding:10px 16px; border-top:1px solid var(--border); }
-.entry-detail-toggle { display:flex; align-items:center; justify-content:center; padding:6px; font-size:11px; color:var(--text-tertiary); cursor:pointer; border-top:1px solid var(--border); user-select:none; gap:4px; }
-.entry-detail-toggle:hover { background:var(--bg-tertiary,var(--surface-muted)); }
-.bd-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:11px; }
-.bd-label { width:60px; text-align:right; color:var(--text-tertiary); flex-shrink:0; }
-.bd-bar-wrap { flex:1; height:14px; background:var(--bg-tertiary,var(--surface-muted)); border-radius:3px; overflow:hidden; position:relative; }
-.bd-bar { height:100%; border-radius:3px; transition:width .3s; min-width:2px; }
-.bd-bar.pos { background:#16A34A; }
-.bd-bar.neg { background:#DC2626; position:absolute; right:0; top:0; }
-.bd-pts { width:36px; font-weight:700; font-size:11px; }
+/* 진입 타이밍 카드 (Modern Toss Style) */
+.entry-card { border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:12px; background:var(--card); box-shadow:0 2px 8px rgba(0,0,0,0.02); }
+.entry-card.green  { border:2px solid rgba(22,163,74,0.3); }
+.entry-card.yellow { border:2px solid rgba(245,158,11,0.3); }
+.entry-card.red    { border:2px solid rgba(220,38,38,0.3); }
+
+.entry-header { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 4px; }
+.entry-title-wrap { display:flex; align-items:center; gap:10px; }
+.entry-icon { font-size:26px; line-height:1; }
+.entry-title-text .eyebrow { font-size:11px; color:var(--brand); font-weight:700; margin-bottom:2px; }
+.entry-title-text .phrase { font-size:17px; font-weight:800; color:var(--text-primary); line-height:1.2; }
+
+.entry-score-wrap { text-align:right; }
+.entry-score-wrap .score { font-size:26px; font-weight:800; color:var(--text-primary); line-height:1; }
+.entry-score-wrap .max { font-size:12px; color:var(--text-tertiary); font-weight:600; margin-left:2px; }
+
+.entry-subreason { padding:0 16px 12px; font-size:12px; color:var(--text-secondary); line-height:1.4; word-break:keep-all; }
+
+.entry-prices-modern { display:flex; gap:8px; padding:0 16px 16px; }
+.price-box { flex:1; background:var(--surface-subtle); border-radius:12px; padding:12px; text-align:center; }
+.price-box.primary { background:var(--brand-tint, #e8f3ff); }
+.price-box .lbl { font-size:11px; color:var(--text-tertiary); font-weight:600; margin-bottom:4px; }
+.price-box.primary .lbl { color:var(--brand); }
+.price-box .val-wrap { display:flex; align-items:center; justify-content:center; gap:4px; }
+.price-box .val { font-size:16px; font-weight:800; color:var(--text-primary); }
+.price-box.primary .val { color:var(--brand); font-size:18px; }
+.price-box .discount { font-size:11px; color:var(--brand); font-weight:700; }
+.text-red { color:var(--destructive) !important; }
+.text-green { color:var(--success) !important; }
+
+.entry-detail { max-height:0; overflow:hidden; transition:max-height .3s ease; background:var(--surface-page); }
+.entry-detail.open { max-height:900px; border-top:1px solid var(--border); padding:16px; }
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; margin-bottom:16px; }
+.dg-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; padding:6px 0; border-bottom:1px solid rgba(0,0,0,0.03); }
+.dg-lbl { color:var(--text-secondary); font-weight:500; }
+.dg-val { color:var(--text-primary); font-weight:700; }
+
+.breakdown-title { font-size:12px; color:var(--text-secondary); font-weight:700; margin-bottom:8px; }
+.modern-breakdown .bd-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:12px; }
+.modern-breakdown .bd-label { width:80px; text-align:right; color:var(--text-tertiary); font-weight:500; }
+.modern-breakdown .bd-bar-wrap { flex:1; height:8px; background:var(--surface-muted); border-radius:4px; overflow:hidden; position:relative; }
+.modern-breakdown .bd-bar { height:100%; border-radius:4px; transition:width .3s; }
+.modern-breakdown .bd-bar.pos { background:var(--success); }
+.modern-breakdown .bd-bar.neg { background:var(--destructive); position:absolute; right:0; top:0; }
+.modern-breakdown .bd-pts { width:30px; font-weight:700; font-size:12px; text-align:right; }
+
+.entry-detail-toggle { display:flex; align-items:center; justify-content:center; padding:12px; font-size:12px; font-weight:600; color:var(--text-secondary); cursor:pointer; border-top:1px solid var(--border); user-select:none; gap:6px; background:var(--surface-subtle); transition:background .15s; }
+.entry-detail-toggle:hover { background:var(--surface-muted); color:var(--text-primary); }
 
 /* Signal cell — entry light + badge wrapper */
 .signal-row {
@@ -2392,7 +2410,13 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 
         <!-- 시그널 이력 타임라인 -->
         <div id="dp-history-card" class="dp-metrics-card" style="display:none; padding:14px 16px;">
-          <div style="font-size:11px;color:var(--text-tertiary);font-weight:600;margin-bottom:8px;">시그널 이력</div>
+          <div style="font-size:11px; font-weight:700; color:var(--text-tertiary); margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
+            <div>시그널 이력</div>
+            <div style="font-size:10px; font-weight:600; color:var(--text-tertiary); display:flex; gap:10px;">
+              <span title="매일매일의 펀더멘털 종합 점수 (S, A, B, C)" style="cursor:help;">⬆️ 종합 등급</span>
+              <span title="매일매일의 기술적 진입 타점 (진입좋음, 눌림대기 등)" style="cursor:help;">⬇️ 매수 타이밍</span>
+            </div>
+          </div>
           <div id="dp-history-strip"></div>
           <div class="history-axis"><span id="dp-history-start"></span><span id="dp-history-end"></span></div>
         </div>
@@ -2433,63 +2457,60 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 
         <!-- 진입 타이밍 카드 -->
         <div id="dp-entry-card" class="card entry-card" style="padding:0; overflow:hidden;">
-          <!-- ① 결론존: 액션 문구 + 점수 -->
-          <div class="entry-verdict">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span id="dp-entry-icon" style="font-size:24px;">⚪</span>
-                <div>
-                  <div style="font-size:11px; color:var(--text-tertiary); font-weight:600;">📈 진입 타이밍</div>
-                  <div id="dp-entry-phrase" style="font-size:18px; font-weight:800; color:var(--text-primary); line-height:1.15; margin-top:1px;">—</div>
-                  <div id="dp-entry-subreason" style="font-size:11px; color:var(--text-tertiary); font-weight:500; margin-top:2px;"></div>
-                </div>
-              </div>
-              <div style="text-align:right;">
-                <span id="dp-entry-score" style="font-size:28px; font-weight:800; color:var(--text-primary); line-height:1;">—</span>
-                <span style="font-size:12px; color:var(--text-tertiary); font-weight:500;">/ 100</span>
+          <div class="entry-header">
+            <div class="entry-title-wrap">
+              <span id="dp-entry-icon" class="entry-icon">⚪</span>
+              <div class="entry-title-text">
+                <div class="eyebrow">📈 진입 타이밍</div>
+                <div id="dp-entry-phrase" class="phrase">—</div>
               </div>
             </div>
-            <div class="entry-bar"><div id="dp-entry-bar-fill" class="entry-bar-fill" style="width:0%;"></div></div>
-          </div>
-          <!-- ② 행동존: 진입/손절/목표가1 3숫자만 -->
-          <div class="entry-prices">
-            <div class="entry-grid entry-grid-3">
-              <div class="eg-primary">
-                <span class="lbl">진입가</span>
-                <span class="val" id="dp-entry-px-entry">—</span>
-                <span id="dp-entry-discount" style="font-size:11px; color:var(--brand); font-weight:700; margin-left:2px;"></span>
-              </div>
-              <div>
-                <span class="lbl">손절</span>
-                <span class="val" id="dp-entry-px-stop" style="color:var(--destructive);">—</span>
-              </div>
-              <div>
-                <span class="lbl">목표가1</span>
-                <span class="val" id="dp-entry-px-t1" style="color:var(--success);">—</span>
-              </div>
+            <div class="entry-score-wrap">
+              <span id="dp-entry-score" class="score">—</span><span class="max">/100</span>
             </div>
           </div>
-          <!-- ③ 더보기존 (토글): 나머지 전부 -->
+          <div id="dp-entry-subreason" class="entry-subreason"></div>
+
+          <div class="entry-prices-modern">
+            <div class="price-box primary">
+              <div class="lbl">진입가</div>
+              <div class="val-wrap"><span id="dp-entry-px-entry" class="val">—</span><span id="dp-entry-discount" class="discount"></span></div>
+            </div>
+            <div class="price-box">
+              <div class="lbl">손절가</div>
+              <div id="dp-entry-px-stop" class="val text-red">—</div>
+            </div>
+            <div class="price-box">
+              <div class="lbl">1차 목표가</div>
+              <div id="dp-entry-px-t1" class="val text-green">—</div>
+            </div>
+          </div>
+
+          <div id="dp-entry-bar-fill" style="display:none;"></div> <!-- Legacy selector for JS compatibility -->
+
           <div id="dp-entry-detail" class="entry-detail">
-            <div class="entry-meta-grid" style="margin-top:0;">
-              <div><span class="meta-lbl">목표가2</span> <span class="meta-val" id="dp-entry-px-t2" style="color:var(--success);">—</span></div>
-              <div><span class="meta-lbl">유형</span> <span class="meta-val" id="dp-entry-type">—</span></div>
-              <div><span class="meta-lbl">손익비</span> <span class="meta-val" id="dp-entry-rr" style="font-weight:700;">—</span></div>
-              <div><span class="meta-lbl">손절기준</span> <span class="meta-val" id="dp-entry-stop-method">—</span></div>
-              <div><span class="meta-lbl">현재가</span> <span class="meta-val" id="dp-entry-current" style="color:var(--text-tertiary);">—</span></div>
+            <div class="detail-grid">
+               <div class="dg-row"><span class="dg-lbl">현재가</span><span id="dp-entry-current" class="dg-val">—</span></div>
+               <div class="dg-row"><span class="dg-lbl">2차 목표가</span><span id="dp-entry-px-t2" class="dg-val text-green">—</span></div>
+               <div class="dg-row"><span class="dg-lbl">손익비</span><span id="dp-entry-rr" class="dg-val" style="color:var(--brand);">—</span></div>
+               <div class="dg-row"><span class="dg-lbl">손절기준</span><span id="dp-entry-stop-method" class="dg-val">—</span></div>
+               <div class="dg-row"><span class="dg-lbl" style="min-width:60px;">패턴유형</span><span id="dp-entry-type" class="dg-val" style="font-size:12px; font-weight:600; text-align:right;">—</span></div>
             </div>
-            <div style="font-size:11px; color:var(--text-tertiary); font-weight:600; margin:10px 0 6px;">점수 구성 (base 40)</div>
-            <div id="dp-entry-breakdown"></div>
-            <div id="dp-aq-row" style="display:none; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); font-size:11px; color:var(--text-secondary);">
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span style="font-size:11px; color:var(--text-tertiary); font-weight:600;">AI 종합판단</span>
-                <span id="dp-aq-verdict" style="font-weight:700; padding:2px 10px; border-radius:100px; font-size:11px;"></span>
-                <span id="dp-aq-regime" style="color:var(--text-tertiary);"></span>
-                <span id="dp-aq-detail" style="color:var(--text-tertiary); margin-left:auto;"></span>
+
+            <div class="breakdown-title">점수 구성 (Base 40)</div>
+            <div id="dp-entry-breakdown" class="modern-breakdown"></div>
+            
+            <div id="dp-aq-row" style="display:none; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border); font-size:12px; color:var(--text-secondary);">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                <span style="font-size:11px; color:var(--brand); font-weight:800;">AI 종합판단</span>
+                <span id="dp-aq-verdict" style="font-weight:800; padding:3px 10px; border-radius:100px; font-size:11px; background:var(--surface-muted); color:var(--text-primary);"></span>
+                <span id="dp-aq-regime" style="color:var(--text-tertiary); font-size:11px;"></span>
+                <span id="dp-aq-detail" style="color:var(--text-tertiary); margin-left:auto; font-size:11px;"></span>
               </div>
-              <div id="dp-aq-reasons" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; font-size:10px;"></div>
+              <div id="dp-aq-reasons" style="display:flex; flex-wrap:wrap; gap:4px; font-size:11px;"></div>
             </div>
           </div>
+          
           <div class="entry-detail-toggle" onclick="document.getElementById('dp-entry-detail').classList.toggle('open'); this.querySelector('.arrow').textContent = document.getElementById('dp-entry-detail').classList.contains('open') ? '▲' : '▼';">
             <span class="arrow">▼</span> 상세 분석
           </div>
