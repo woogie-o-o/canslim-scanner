@@ -642,9 +642,9 @@ function _applyQuickFilter(stocks) {
       return stocks.filter(s => s.RSI != null && s.RSI < 30);
     case 'intraday':
       return stocks.filter(s =>
-        (s.ORBSignal && s.ORBSignal !== 'NEUTRAL' && s.ORBSignal !== '-' && s.ORBSignal !== 'NONE') ||
-        (s.NR7Signal && s.NR7Signal !== 'NEUTRAL' && s.NR7Signal !== '-' && s.NR7Signal !== 'NONE') ||
-        (s.BBSignal  && s.BBSignal  !== 'NEUTRAL' && s.BBSignal  !== '-' && s.BBSignal  !== 'NONE')
+        (s.ORBSignal && s.ORBSignal !== 'NEUTRAL' && s.ORBSignal !== '-') ||
+        (s.NR7Signal && s.NR7Signal !== 'NEUTRAL' && s.NR7Signal !== '-') ||
+        (s.BBSignal  && s.BBSignal  !== 'NEUTRAL' && s.BBSignal  !== '-')
       );
     default: return stocks;
   }
