@@ -244,18 +244,18 @@ def _annotate_one_liners(results: list, force: bool = False):
     from one_liner import annotate
     if not results:
         return results
+    # Moat를 먼저 주입해야 one_liner._raw_bucket이 MoatCategory를 읽고
+    # 해자 종목을 STORY_STOCK으로 잘못 라우팅하는 것을 차단할 수 있다.
+    try:
+        _annotate_moats(results, force=force)
+    except Exception as e:
+        logging.warning("moat annotate failed: %s", e)
     if force:
         annotate(results)
     else:
         pending = [r for r in results if isinstance(r, dict) and not r.get("OneLiner")]
         if pending:
             annotate(pending)
-    # 경제적 해자(Moat) 표기도 동일 라이프사이클에서 주입.
-    # LLM 키가 없으면 섹터 기반 규칙으로 폴백 — 비용 0.
-    try:
-        _annotate_moats(results, force=force)
-    except Exception as e:
-        logging.warning("moat annotate failed: %s", e)
     return results
 
 

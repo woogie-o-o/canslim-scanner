@@ -13,11 +13,15 @@ analyze_ticker() 결과 dict를 받아 상황별 한줄평 1개를 반환한다.
 포스터 레터링에 어울리는 굵고 짧은 문장만.
 """
 from __future__ import annotations
+import collections
 import hashlib
 import logging
 import os
 import secrets
 import time
+
+# 버킷 분포 카운터 — 런타임 중 누적, /api/bucket-stats 로 조회
+_bucket_counter: collections.Counter = collections.Counter()
 
 _log = logging.getLogger(__name__)
 
@@ -1661,6 +1665,18 @@ _PHRASES: dict[str, list[str]] = {
         "튀지 않지만 안 꺾이는 차트가 진짜 강한 거임",
     ],
     "STORY_STOCK": [
+        # ── 중립 톤 (회색지대 fallback, 모욕 어조 회피) — 월가 패널 P0 권고 ──
+        "스토리는 명확한데 숫자로 증명되기 전 단계인 종목임",
+        "내러티브가 주가 동인이라 실적 발표마다 변동성이 큰 구간임",
+        "성장 시나리오 진행도를 분기마다 점검해야 하는 종목임",
+        "비전과 현 실적 사이 갭이 큰 만큼 변동성 감수 후 접근할 자리임",
+        "테마 사이클에 민감해서 진입 타이밍이 결과를 가르는 종목임",
+        "재무 증명이 아직이라 포지션 사이즈는 작게 잡는 게 정석인 구간임",
+        "기대값으로 가는 종목이라 실적 컨펌 전엔 베팅 사이즈가 핵심임",
+        "스토리 종목 중에선 진행도 있는 편이라 추적 가치는 있는 구간임",
+        "비전 실현 진척도를 분기 단위로 체크하면서 들고 가는 종목임",
+        "장기 내러티브는 살아있지만 단기 가격은 뉴스에 휘둘리는 구간임",
+        # ── 기존 sarcastic 톤 ──
         "버는 건 쥐뿔도 없는데 꿈 하나로 값 띄운 놈임",
         "뉴스 한방에 확 갔다가 뉴스 식으면 원위치 되는 거임",
         "테마 한 번 타면 떡상하고 테마 끝나면 떡락하는 놈임",
@@ -4112,6 +4128,38 @@ def _signal_strength(d: dict) -> float:
     return s
 
 
+def _veto_story_stock(d: dict) -> bool:
+    """STORY_STOCK 라벨을 거부해야 할 종목인지 판정.
+
+    근거(월가 리스크/펀더 게이트):
+      1) 큐레이션된 경제적 해자가 있음 (모건스탠리/버핏): 사업 회사 확정.
+      2) 수익성/성장 지표 중 하나라도 강함 (시타델 calibration view):
+         - ROE ≥ 15% (ROIC 프록시)
+         - 영업이익률 ≥ 10%
+         - EPS 성장률 ≥ 25% (재무로 증명된 성장)
+         - TotalScore ≥ 60 (종합 품질 게이트)
+
+    하나라도 만족하면 '꿈만 파는 컨셉주' 톤이 사실과 어긋남 → 차단.
+    """
+    moat_cat = (d.get("MoatCategory") or "").upper()
+    if moat_cat and moat_cat != "NONE":
+        return True
+    roe   = _num(d.get("_ROE")) * 100
+    eps_g = _num(d.get("_EPSGrowth")) * 100
+    op_m  = _num(d.get("_OperatingMargin"))
+    op_pct = op_m * 100 if 0 <= op_m <= 1 else op_m
+    score = _num(d.get("TotalScore"))
+    if roe >= 15:
+        return True
+    if op_pct >= 10:
+        return True
+    if eps_g >= 25:
+        return True
+    if score >= 60:
+        return True
+    return False
+
+
 def _raw_bucket(d: dict) -> str:
     per     = _num(d.get("_PER"))
     roe     = _num(d.get("_ROE"))
@@ -4146,6 +4194,10 @@ def _raw_bucket(d: dict) -> str:
     if entry in ("AVOID", "RED"):
         if dd_pct <= -25 and mom3 <= -8:
             return "FALLING_KNIFE"
+        # 재무 데이터 전무(PER·ROE·EPS 모두 0) + 낙폭 심각하지 않음
+        # → 적극 AVOID가 아니라 '데이터 없음' 중립 처리
+        if per == 0 and roe == 0 and eps_g == 0 and dd_pct > -15:
+            return "NEUTRAL"
         return "AVOID"
     if entry in ("STRONG", "GREEN"):
         # 진입이 강해도 '성격'을 먼저 본다. 점수만으로 모멘텀리더로 몰면
@@ -4189,7 +4241,7 @@ def _raw_bucket(d: dict) -> str:
         if "AVOID" in signal or grade == "RED":
             return "AVOID"
         # 딥테크 수주형 종목은 STORY_STOCK으로 라우팅
-        if _is_deeptech_story(d):
+        if _is_deeptech_story(d) and not _veto_story_stock(d):
             return "STORY_STOCK"
         return "AVOID"
     if dd_pct <= -25 and mom3 <= -8:
@@ -4228,6 +4280,8 @@ def _raw_bucket(d: dict) -> str:
         # 그리고 있을 때 cynical STORY_STOCK 톤이 안 맞는 문제 보정.
         if entry in ("STRONG", "GREEN") and score >= 60:
             return "MOMENTUM_LEADER"
+        if _veto_story_stock(d):
+            return "MOMENTUM_LEADER"
         return "STORY_STOCK"
     # 성장이 멀티플을 정당화하면 버블이 아니다 → 버블 판정보다 먼저 본다
     if per >= 30 and eps_g >= 20 and mom12 >= 20:
@@ -4255,6 +4309,8 @@ def _raw_bucket(d: dict) -> str:
     # 극단 모멘텀 (12M 100%+) — 위 펀더 버킷에 안 걸린 경우
     if mom12 >= 100:
         if entry in ("STRONG", "GREEN") and score >= 60:
+            return "MOMENTUM_LEADER"
+        if _veto_story_stock(d):
             return "MOMENTUM_LEADER"
         return "STORY_STOCK"
 
@@ -4284,8 +4340,15 @@ def _raw_bucket(d: dict) -> str:
         return "MOMENTUM_LEADER"
     if 0 < per <= 20 and roe >= 8:
         return "DEFENSIVE"
-    if per >= 25 and eps_g >= 10:
-        return "STORY_STOCK"
+    # 비싼데 성장률은 보통(eps_g 10~25%) — 과거엔 무조건 STORY_STOCK 으로 빠졌으나
+    # ROE/마진/해자 있으면 '컨셉주' 라벨이 부당. veto 통과시에만 STORY_STOCK.
+    # (월가 패널 P0 — Citadel calibration view: 5조건 OR + 해자 게이트)
+    if per >= 25 and eps_g >= 10 and not _veto_story_stock(d):
+        # 추가 가드: 진짜 컨셉주는 ROE 가 매우 낮음. ROE 8% 미만일 때만 STORY_STOCK.
+        if roe < 8:
+            return "STORY_STOCK"
+        # ROE 정상이지만 성장 정당화 부족 → EXPENSIVE_JUSTIFIED 보다 약한 케이스 → DEFENSIVE
+        return "DEFENSIVE"
     # '우량주인데 NEUTRAL' 방지: 저평가·견조 ROE면 NEUTRAL로 흘리지 말고
     # 방어주 성격을 부여한다. NEUTRAL은 진짜 성격 없는 종목만 남긴다.
     if 0 < per <= 30 and roe >= 10:
@@ -4364,6 +4427,9 @@ def _negative_for(d: dict) -> str:
         return "FALLING_KNIFE"
     if 0 < per <= 15 and (roe < 8 or eps_g < 0):
         return "VALUE_TRAP"
+    # 재무 데이터 전무(PER·ROE·EPS 모두 0) → 적극적 부정 신호 없음, NEUTRAL로 완화
+    if per == 0 and roe == 0 and eps_g == 0:
+        return "NEUTRAL"
     return "AVOID"
 
 
@@ -4406,11 +4472,12 @@ def _bucket(d: dict) -> str:
             return "NEUTRAL"
         return raw
 
-    # grade == "AVOID": 모든 긍정 버킷 차단 → 부정으로 치환
+    # grade == "AVOID": 긍정 버킷만 차단 → 부정으로 치환
+    # NEUTRAL은 "데이터 없음" 종목이 대부분 — 적극 AVOID로 밀지 않는다.
     # 극강 모멘텀 완화 종목은 MOMENTUM_LEADER 유지
     if d.get("_momentum_override"):
         return raw
-    if raw in _POS_BUCKETS or raw in ("NEUTRAL", "STORY_STOCK", "OVERSOLD"):
+    if raw in _POS_BUCKETS or raw in ("STORY_STOCK", "OVERSOLD"):
         return _negative_for(d)
     return raw
 
@@ -4432,6 +4499,7 @@ def get_one_liner(d: dict) -> str:
         seed = hashlib.md5(f"{ticker}|spec|{rot}".encode("utf-8")).hexdigest()
         return _SPECULATIVE_PHRASES[int(seed, 16) % len(_SPECULATIVE_PHRASES)]
     bucket = _bucket(d)
+    _bucket_counter[bucket] += 1
     phrases = _PHRASES.get(bucket) or _PHRASES["NEUTRAL"]
     ticker = (d.get("Ticker") or "").upper()
     # 시드에 점수/모멘텀/RSI 양자화값 + 회전 솔트를 섞어
@@ -4658,6 +4726,7 @@ def annotate(results: list[dict]) -> list[dict]:
     for r in results:
         try:
             bucket = _bucket(r)
+            _bucket_counter[bucket] += 1
             r["OneLinerTag"] = bucket
             r["OneLiner"] = _scrub_oneliner(wrap_oneliner(_friendly_one_liner(r)))
             r["OneLinerData"] = _scrub_oneliner(get_oneliner_data(r, bucket))
