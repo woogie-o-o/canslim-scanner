@@ -48,7 +48,22 @@ def is_speculative(ticker: str) -> tuple[bool, str]:
     return (False, "")
 
 
-def apply_to_row(row: dict) -> dict:
+def _resolve_cap(cap: float | None) -> float:
+    """MF-003: 환경변수/인자로 동적 score_cap 오버라이드.
+
+    SCORE_CAP_OVERRIDE 환경변수가 있으면 우선, 다음 인자, 다음 기본값.
+    """
+    import os as _os
+    env = _os.environ.get("SCORE_CAP_OVERRIDE")
+    if env:
+        try:
+            return float(env)
+        except ValueError:
+            pass
+    return float(cap) if cap is not None else _SCORE_CAP
+
+
+def apply_to_row(row: dict, score_cap: float | None = None) -> dict:
     """단일 row in-place 보정. 보정된 dict 반환(동일 객체)."""
     if not row:
         return row
@@ -56,19 +71,21 @@ def apply_to_row(row: dict) -> dict:
     spec, reason = is_speculative(ticker)
     if not spec:
         return row
+    cap = _resolve_cap(score_cap)
     ts = row.get("TotalScore")
-    if isinstance(ts, (int, float)) and ts > _SCORE_CAP:
+    if isinstance(ts, (int, float)) and ts > cap:
         row.setdefault("_RawTotalScore", float(ts))
-        row["TotalScore"] = _SCORE_CAP
+        row["TotalScore"] = cap
     row["IsSpeculativeTheme"] = True
     row["ThemeWarning"] = reason
     return row
 
 
-def apply_speculative_correction(rows: list[dict]) -> None:
+def apply_speculative_correction(rows: list[dict], score_cap: float | None = None) -> None:
     """rows를 in-place 보정. 투기성 테마주는 점수 캡 + 플래그 부착.
 
+    score_cap 인자/환경변수 SCORE_CAP_OVERRIDE 로 체제별 동적 캡 가능.
     원본 점수는 _RawTotalScore에 보존해 디버깅·재계산 가능.
     """
     for r in rows:
-        apply_to_row(r)
+        apply_to_row(r, score_cap=score_cap)

@@ -6027,5 +6027,29 @@
     "label": "스펙트럼·궤도 라이선스",
     "detail": "FCC IBFS 위성 스펙트럼 라이선스와 AT&T/Vodafone 등 글로벌 통신사 MOU로 D2C 위성 통신 진입장벽 확보. 경쟁 진입은 규제 승인 5~7년 소요.",
     "confidence": "estimated"
+  },
+  "OKLO": {
+    "category": "INTANGIBLE",
+    "label": "NRC 인증·소형원자로 IP",
+    "detail": "NRC(미국원자력규제위원회) 설계 인증 절차와 Aurora 마이크로로 IP 보유. 신규 진입자는 인증에 5~10년 + 수억$ 자본 필요로 규제 진입장벽 매우 높음.",
+    "confidence": "estimated"
+  },
+  "SMR": {
+    "category": "INTANGIBLE",
+    "label": "NRC 설계 인증·EPC 라이선스",
+    "detail": "뉴스케일 SMR 디자인은 NRC 표준설계 인증(SDA) 완료 — 미국 내 최초 인증 SMR. 라이선스·기술이전 계약이 INTANGIBLE 해자.",
+    "confidence": "estimated"
+  },
+  "RKLB": {
+    "category": "INTANGIBLE",
+    "label": "발사 라이선스·궤도 자산",
+    "detail": "일렉트론 발사체 FAA 라이선스, 자체 발사장(LC-1/LC-2) 운영권, 우주선 부품 수직통합(Neutron 개발). 발사 인프라 자체가 진입장벽.",
+    "confidence": "estimated"
+  },
+  "VSAT": {
+    "category": "NETWORK",
+    "label": "위성 인터넷·항공 Wi-Fi 네트워크",
+    "detail": "ViaSat-3 고용량 위성·항공기 IFC(인기내연결) 글로벌 네트워크. 항공사 장기계약 + 위성 capex 락인으로 NETWORK 효과.",
+    "confidence": "estimated"
   }
 }

@@ -27,6 +27,7 @@ if _BASE not in sys.path:
 # Windows에서 tkinter는 import만으로 GUI를 띄우지 않음 — 안전하게 import 가능
 import quant_nexus_v20 as _qn
 from speculative_themes import apply_speculative_correction, apply_to_row
+from micro_outlier import annotate as _annotate_micro_outlier
 try:
     # web_app 디렉토리 보장 (engine_adapter 가 외부에서 import 될 때 대비)
     _WEB_APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -227,6 +228,7 @@ class ScanAdapter:
                     logging.error("scan_sector error: %s", e)
         self._attach_sector_residual(results)
         apply_speculative_correction(results)
+        _annotate_micro_outlier(results)
         results.sort(key=lambda x: x.get("TotalScore", 0), reverse=True)
         return results
 
@@ -258,6 +260,7 @@ class ScanAdapter:
                     logging.error("scan_all [%s] error: %s", ticker, e)
         self._attach_sector_residual(results)
         apply_speculative_correction(results)
+        _annotate_micro_outlier(results)
         results.sort(key=lambda x: x.get("TotalScore", 0), reverse=True)
         return results
 
