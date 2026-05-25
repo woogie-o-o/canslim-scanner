@@ -90,6 +90,34 @@ def _inject_asset_versions():
     }
 
 
+# ── JSON Provider: NaN/Infinity → null 강제 변환 ──
+# Python json.dumps 는 기본 allow_nan=True 라 'NaN','Infinity' 토큰을 그대로 출력하지만
+# JSON 표준이 아니므로 브라우저 JSON.parse() 는 SyntaxError 를 던진다.
+# → fetch().json() 실패 → app.js runScan catch 가 "HTTP 200" 로 잘못 표기하며 무한 재시도.
+# 모든 응답에서 NaN/±Inf 를 null 로 치환해 silent regression 차단.
+import math as _math
+from flask.json.provider import DefaultJSONProvider as _DefaultJSONProvider
+
+
+def _sanitize_nan(obj):
+    if isinstance(obj, float):
+        return None if not _math.isfinite(obj) else obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_nan(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_nan(v) for v in obj]
+    return obj
+
+
+class _SafeJSONProvider(_DefaultJSONProvider):
+    def dumps(self, obj, **kwargs):
+        kwargs["allow_nan"] = False
+        return super().dumps(_sanitize_nan(obj), **kwargs)
+
+
+app.json = _SafeJSONProvider(app)
+
+
 # Gzip 압축 — JSON API 응답 크기 60~70% 절감
 # (스캔 응답이 10MB+ 가 될 수 있어 모바일/원거리 클라이언트에서 비압축 시 타임아웃 발생)
 # 알고리즘 br/gzip 만 허용 — zstd 는 Chrome 123+ 가 Accept-Encoding 에 광고하지만

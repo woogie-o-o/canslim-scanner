@@ -183,12 +183,22 @@ const _ENTRY_ICON  = { STRONG: '🟢', NEUTRAL: '🟡', AVOID: '🔴',
 const _ENTRY_LABEL = { STRONG: '진입적기', NEUTRAL: '눌림대기', AVOID: '부적합',
                        GREEN: '진입적기', YELLOW: '눌림대기', RED: '부적합' };
 
-// STRONG/GREEN 라벨을 entry_discount(%) 에 따라 분기.
-// 갭 1.5% 미만 → '진입적기', 5% 미만 → '분할진입', 그 이상 → '풀백대기'.
-// 라벨 = 단어 자체로 행동을 지시하므로 진입가가 멀면 '진입적기'는 거짓말이 됨.
-function _entryLabel(st, disc) {
+// STRONG/GREEN 라벨을 entry_discount(%) 와 atrPct(%) 에 따라 분기.
+// disc<0 → '풀백대기' (현재가가 entry 위, 추격),
+// atrPct 있으면 disc/atrPct 비율로 — <0.5 진입적기, <1.0 분할진입, 그 외 풀백대기.
+// atrPct null/0 이면 절대값 fallback (1.5%/5%).
+// 이유: ATR 6% 종목의 -4% 갭은 정상이지만, ATR 0.5% 종목의 -4% 는 비정상.
+function _entryLabel(st, disc, atrPct) {
   if (st === 'STRONG' || st === 'GREEN') {
-    if (disc == null || isNaN(disc) || disc < 1.5) return '진입적기';
+    if (disc == null || isNaN(disc)) return '진입적기';
+    if (disc < 0) return '풀백대기';
+    if (atrPct != null && !isNaN(atrPct) && atrPct > 0) {
+      const r = disc / atrPct;
+      if (r < 0.5) return '진입적기';
+      if (r < 1.0) return '분할진입';
+      return '풀백대기';
+    }
+    if (disc < 1.5) return '진입적기';
     if (disc < 5.0) return '분할진입';
     return '풀백대기';
   }
@@ -258,7 +268,7 @@ function _renderEntryCard(d) {
   // 구버전 캐시 스캔(파생필드 없음)만 "관망 · BB 과확장 · …" 문자열을 분해.
   const _pp = phrase.split(' · ');
   // 진입 타이밍 라벨은 리스트 배지와 같은 어휘(진입적기/눌림대기/부적합)로 통일.
-  const _headline = _entryLabel(st, plan.entry_discount) || plan.headline_action || _pp[0] || phrase;
+  const _headline = _entryLabel(st, plan.entry_discount, plan.atr_pct) || plan.headline_action || _pp[0] || phrase;
   const _reason = plan.one_reason || _pp.slice(1).filter(Boolean).slice(0, 2).join(' · ');
   setText('dp-entry-phrase', _headline);
   const _subEl = document.getElementById('dp-entry-subreason');
@@ -437,7 +447,8 @@ function _entryLight(stock) {
   const st = stock.EntryStatus;
   const ico = _ENTRY_ICON[st] || '⚪';
   const _disc = (stock.EntryPlan && stock.EntryPlan.entry_discount != null) ? stock.EntryPlan.entry_discount : null;
-  const lbl = _entryLabel(st, _disc);
+  const _atrPct = (stock.EntryPlan && stock.EntryPlan.atr_pct != null) ? stock.EntryPlan.atr_pct : null;
+  const lbl = _entryLabel(st, _disc, _atrPct);
   const cls = _ENTRY_COLOR[st] || 'neutral';
   const phr = stock.EntryPhrase || '';
   const sc  = stock.EntryScore != null ? `진입 타이밍 ${stock.EntryScore}/100` : '';
@@ -669,12 +680,15 @@ async function runScan() {
     const res    = await fetch(`/api/scan?${p}`);
     // 이미 더 새로운 요청이 떴으면 이 결과는 폐기
     if (myToken !== _scanToken) return;
+    // body 를 한 번만 읽고 직접 파싱 — res.json() 실패 후 res.text() 호출 시
+    // "body stream already read" 로 raw 가 비어 진짜 원인(NaN/Infinity 등)을 가린다.
+    const bodyText = await res.text().catch(() => '');
     let payload;
     try {
-      payload = await res.json();
-    } catch (_parseErr) {
-      const raw = await res.text().catch(() => '');
-      throw new Error(raw || `HTTP ${res.status}`);
+      payload = JSON.parse(bodyText);
+    } catch (parseErr) {
+      const sample = (bodyText || '').slice(0, 160);
+      throw new Error(`JSON parse failed (HTTP ${res.status}): ${parseErr.message} | body[0:160]=${sample}`);
     }
     if (!res.ok) {
       const msg = payload && typeof payload === 'object' ? payload.error : '';

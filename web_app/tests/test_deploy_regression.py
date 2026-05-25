@@ -137,6 +137,48 @@ def test_flask_compress_excludes_zstd_for_browser_compatibility():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# 3b) NaN/Infinity 회귀 — Python json 은 'NaN','Infinity' 토큰을 그대로 출력하지만
+#     브라우저 JSON.parse() 는 SyntaxError 를 던진다 → runScan 무한 재시도.
+# ─────────────────────────────────────────────────────────────────────────────
+def test_jsonify_replaces_nan_and_infinity_with_null():
+    """Flask jsonify 가 NaN/±Inf 를 null 로 치환해야 한다.
+
+    회귀 사례: pandas/계산 결과의 float('inf'), float('nan') 이 응답에 섞임 →
+    Python json.dumps(allow_nan=True) 가 'NaN','Infinity' 토큰을 그대로 직렬화 →
+    브라우저 fetch.json() 이 SyntaxError → runScan catch → "서버 준비 중…" 무한 재시도.
+    """
+    import math
+    import json as _json
+    from web_app.app import app
+    client = app.test_client()
+    # 임시 엔드포인트 추가는 번거로우니, jsonify 를 직접 호출해 결과 검증.
+    with app.test_request_context():
+        from flask import jsonify
+        resp = jsonify({
+            "good": 1.5,
+            "nan": float("nan"),
+            "pos_inf": float("inf"),
+            "neg_inf": -float("inf"),
+            "nested": [{"x": float("nan")}, {"y": 2.0}],
+        })
+    body = resp.get_data(as_text=True)
+    # JSON 표준 — 'NaN','Infinity' 토큰 금지.
+    assert "NaN" not in body, f"NaN 토큰이 응답에 남아있음 — 브라우저 JSON.parse 실패: {body[:200]}"
+    assert "Infinity" not in body, f"Infinity 토큰이 응답에 남아있음: {body[:200]}"
+    # 표준 JSON 으로 파싱돼야 한다 (stdlib json 은 allow_nan 기본 True 라
+    # 'NaN' 도 통과하므로 simplejson 로 strict 검증).
+    parsed = _json.loads(body, parse_constant=lambda _v: (_ for _ in ()).throw(
+        ValueError(f"non-standard JSON constant: {_v}")
+    ))
+    assert parsed["good"] == 1.5
+    assert parsed["nan"] is None
+    assert parsed["pos_inf"] is None
+    assert parsed["neg_inf"] is None
+    assert parsed["nested"][0]["x"] is None
+    assert parsed["nested"][1]["y"] == 2.0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 4) /api/scan 엔드포인트 존재 + 200
 # ─────────────────────────────────────────────────────────────────────────────
 def test_api_scan_endpoint_exists():
