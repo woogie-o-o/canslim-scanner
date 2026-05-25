@@ -1,0 +1,4334 @@
+{
+  "_meta": {
+    "version": 1,
+    "unit": "percent",
+    "note": "최신 사업보고서/Annual Report 기준 사업부문 매출 비중(근사치). 회계연도·환율·재분류로 차이가 날 수 있음."
+  },
+  "AAPL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "iPhone",
+        "pct": 51.4
+      },
+      {
+        "name": "Services",
+        "pct": 24.6
+      },
+      {
+        "name": "Wearables/Home/Acc",
+        "pct": 9.4
+      },
+      {
+        "name": "Mac",
+        "pct": 8.0
+      },
+      {
+        "name": "iPad",
+        "pct": 6.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MSFT": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Productivity & Business Processes",
+        "pct": 32.1
+      },
+      {
+        "name": "Intelligent Cloud",
+        "pct": 43.1
+      },
+      {
+        "name": "More Personal Computing",
+        "pct": 24.8
+      }
+    ],
+    "confidence": "verified"
+  },
+  "GOOGL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Google Search & Other",
+        "pct": 56.7
+      },
+      {
+        "name": "YouTube Ads",
+        "pct": 10.4
+      },
+      {
+        "name": "Google Network",
+        "pct": 8.4
+      },
+      {
+        "name": "Google Cloud",
+        "pct": 13.1
+      },
+      {
+        "name": "Other Bets & Subscriptions",
+        "pct": 11.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AMZN": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Online Stores",
+        "pct": 38.0
+      },
+      {
+        "name": "Third-Party Seller",
+        "pct": 23.5
+      },
+      {
+        "name": "AWS",
+        "pct": 16.8
+      },
+      {
+        "name": "Advertising",
+        "pct": 8.6
+      },
+      {
+        "name": "Subscription Services",
+        "pct": 7.0
+      },
+      {
+        "name": "Physical Stores",
+        "pct": 3.5
+      },
+      {
+        "name": "Other",
+        "pct": 2.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "META": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Family of Apps (Ads)",
+        "pct": 96.5
+      },
+      {
+        "name": "Reality Labs",
+        "pct": 1.2
+      },
+      {
+        "name": "Other",
+        "pct": 2.3
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NVDA": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Data Center",
+        "pct": 87.6
+      },
+      {
+        "name": "Gaming",
+        "pct": 8.7
+      },
+      {
+        "name": "Professional Visualization",
+        "pct": 1.5
+      },
+      {
+        "name": "Automotive",
+        "pct": 1.3
+      },
+      {
+        "name": "OEM & Other",
+        "pct": 0.9
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TSLA": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Automotive Sales",
+        "pct": 78.0
+      },
+      {
+        "name": "Automotive Leasing",
+        "pct": 2.2
+      },
+      {
+        "name": "Energy Gen & Storage",
+        "pct": 10.4
+      },
+      {
+        "name": "Services & Other",
+        "pct": 9.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AVGO": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Semiconductor Solutions",
+        "pct": 58.4
+      },
+      {
+        "name": "Infrastructure Software",
+        "pct": 41.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TSM": {
+    "fy": "FY2024",
+    "source": "Annual Report",
+    "segments": [
+      {
+        "name": "HPC",
+        "pct": 51.0
+      },
+      {
+        "name": "Smartphone",
+        "pct": 35.0
+      },
+      {
+        "name": "IoT",
+        "pct": 6.0
+      },
+      {
+        "name": "Automotive",
+        "pct": 5.0
+      },
+      {
+        "name": "DCE/Other",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ORCL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Cloud Services & License Support",
+        "pct": 73.4
+      },
+      {
+        "name": "Cloud License & On-Premise",
+        "pct": 10.9
+      },
+      {
+        "name": "Hardware",
+        "pct": 6.6
+      },
+      {
+        "name": "Services",
+        "pct": 9.1
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ADBE": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Digital Media",
+        "pct": 73.6
+      },
+      {
+        "name": "Digital Experience",
+        "pct": 24.7
+      },
+      {
+        "name": "Publishing & Advertising",
+        "pct": 1.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "CRM": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Subscription & Support",
+        "pct": 93.6
+      },
+      {
+        "name": "Professional Services",
+        "pct": 6.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NFLX": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Streaming (UCAN)",
+        "pct": 44.7
+      },
+      {
+        "name": "Streaming (EMEA)",
+        "pct": 32.8
+      },
+      {
+        "name": "Streaming (LATAM)",
+        "pct": 13.0
+      },
+      {
+        "name": "Streaming (APAC)",
+        "pct": 9.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "DIS": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Entertainment",
+        "pct": 45.8
+      },
+      {
+        "name": "Sports (ESPN)",
+        "pct": 19.8
+      },
+      {
+        "name": "Experiences (Parks)",
+        "pct": 34.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "JPM": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Consumer & Community Banking",
+        "pct": 41.0
+      },
+      {
+        "name": "Corporate & Investment Bank",
+        "pct": 33.0
+      },
+      {
+        "name": "Commercial Banking",
+        "pct": 12.0
+      },
+      {
+        "name": "Asset & Wealth Management",
+        "pct": 13.0
+      },
+      {
+        "name": "Corporate",
+        "pct": 1.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BAC": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Consumer Banking",
+        "pct": 38.0
+      },
+      {
+        "name": "Global Wealth & Inv Mgmt",
+        "pct": 22.0
+      },
+      {
+        "name": "Global Banking",
+        "pct": 22.0
+      },
+      {
+        "name": "Global Markets",
+        "pct": 18.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "V": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Service Revenues",
+        "pct": 47.0
+      },
+      {
+        "name": "Data Processing",
+        "pct": 47.5
+      },
+      {
+        "name": "Intl Transactions",
+        "pct": 31.7
+      },
+      {
+        "name": "Other",
+        "pct": 8.0
+      },
+      {
+        "name": "Client Incentives (offset)",
+        "pct": -34.2
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MA": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Payment Network",
+        "pct": 67.0
+      },
+      {
+        "name": "Value-Added Services & Solutions",
+        "pct": 33.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PYPL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Transaction Revenues",
+        "pct": 91.6
+      },
+      {
+        "name": "Other Value-Added Services",
+        "pct": 8.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "WMT": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Walmart U.S.",
+        "pct": 67.4
+      },
+      {
+        "name": "Walmart International",
+        "pct": 18.0
+      },
+      {
+        "name": "Sam's Club",
+        "pct": 14.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "COST": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Merchandise Sales",
+        "pct": 97.8
+      },
+      {
+        "name": "Membership Fees",
+        "pct": 2.2
+      }
+    ],
+    "confidence": "verified"
+  },
+  "HD": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Products",
+        "pct": 96.3
+      },
+      {
+        "name": "Services",
+        "pct": 3.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MCD": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "U.S.",
+        "pct": 41.0
+      },
+      {
+        "name": "International Operated Markets",
+        "pct": 47.0
+      },
+      {
+        "name": "Intl Developmental Licensed",
+        "pct": 12.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "SBUX": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "North America",
+        "pct": 75.0
+      },
+      {
+        "name": "International",
+        "pct": 22.0
+      },
+      {
+        "name": "Channel Development",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NKE": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "North America",
+        "pct": 42.5
+      },
+      {
+        "name": "EMEA",
+        "pct": 27.0
+      },
+      {
+        "name": "Greater China",
+        "pct": 14.5
+      },
+      {
+        "name": "APLA",
+        "pct": 13.0
+      },
+      {
+        "name": "Converse",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "KO": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "North America",
+        "pct": 38.0
+      },
+      {
+        "name": "EMEA",
+        "pct": 20.0
+      },
+      {
+        "name": "Latin America",
+        "pct": 11.0
+      },
+      {
+        "name": "Asia Pacific",
+        "pct": 13.0
+      },
+      {
+        "name": "Bottling Investments",
+        "pct": 16.0
+      },
+      {
+        "name": "Global Ventures",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PEP": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Frito-Lay North America",
+        "pct": 27.0
+      },
+      {
+        "name": "Quaker Foods North America",
+        "pct": 3.5
+      },
+      {
+        "name": "PepsiCo Beverages NA",
+        "pct": 31.0
+      },
+      {
+        "name": "Latin America",
+        "pct": 13.0
+      },
+      {
+        "name": "Europe",
+        "pct": 16.0
+      },
+      {
+        "name": "AMESA",
+        "pct": 7.0
+      },
+      {
+        "name": "APAC",
+        "pct": 2.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "JNJ": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Innovative Medicine",
+        "pct": 64.0
+      },
+      {
+        "name": "MedTech",
+        "pct": 36.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PFE": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Primary Care",
+        "pct": 47.0
+      },
+      {
+        "name": "Specialty Care",
+        "pct": 26.0
+      },
+      {
+        "name": "Oncology",
+        "pct": 27.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "UNH": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "UnitedHealthcare",
+        "pct": 50.0
+      },
+      {
+        "name": "Optum Health",
+        "pct": 26.0
+      },
+      {
+        "name": "Optum Rx",
+        "pct": 22.0
+      },
+      {
+        "name": "Optum Insight",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "XOM": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Upstream",
+        "pct": 25.0
+      },
+      {
+        "name": "Energy Products (Downstream)",
+        "pct": 50.0
+      },
+      {
+        "name": "Chemical Products",
+        "pct": 11.0
+      },
+      {
+        "name": "Specialty Products",
+        "pct": 14.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "CVX": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Upstream",
+        "pct": 35.0
+      },
+      {
+        "name": "Downstream",
+        "pct": 65.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BA": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Commercial Airplanes",
+        "pct": 35.0
+      },
+      {
+        "name": "Defense, Space & Security",
+        "pct": 35.0
+      },
+      {
+        "name": "Global Services",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "CAT": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Construction Industries",
+        "pct": 39.0
+      },
+      {
+        "name": "Resource Industries",
+        "pct": 19.0
+      },
+      {
+        "name": "Energy & Transportation",
+        "pct": 38.0
+      },
+      {
+        "name": "Financial Products",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "GE": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Aerospace",
+        "pct": 56.0
+      },
+      {
+        "name": "Defense & Propulsion Technologies",
+        "pct": 27.0
+      },
+      {
+        "name": "Commercial Engines & Services",
+        "pct": 17.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "LMT": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Aeronautics",
+        "pct": 40.0
+      },
+      {
+        "name": "Missiles and Fire Control",
+        "pct": 18.0
+      },
+      {
+        "name": "Rotary and Mission Systems",
+        "pct": 25.0
+      },
+      {
+        "name": "Space",
+        "pct": 17.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "T": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Mobility",
+        "pct": 67.0
+      },
+      {
+        "name": "Business Wireline",
+        "pct": 16.0
+      },
+      {
+        "name": "Consumer Wireline",
+        "pct": 13.0
+      },
+      {
+        "name": "Latin America",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "VZ": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Consumer",
+        "pct": 76.0
+      },
+      {
+        "name": "Business",
+        "pct": 22.0
+      },
+      {
+        "name": "Corporate & Other",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "INTC": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Client Computing",
+        "pct": 56.0
+      },
+      {
+        "name": "Data Center & AI",
+        "pct": 24.0
+      },
+      {
+        "name": "Network & Edge",
+        "pct": 11.0
+      },
+      {
+        "name": "Foundry/Intel Foundry",
+        "pct": 5.0
+      },
+      {
+        "name": "Mobileye & Other",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AMD": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Data Center",
+        "pct": 49.0
+      },
+      {
+        "name": "Client",
+        "pct": 28.0
+      },
+      {
+        "name": "Gaming",
+        "pct": 11.0
+      },
+      {
+        "name": "Embedded",
+        "pct": 12.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "QCOM": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "QCT (Handsets)",
+        "pct": 64.0
+      },
+      {
+        "name": "QCT (Automotive)",
+        "pct": 8.0
+      },
+      {
+        "name": "QCT (IoT)",
+        "pct": 14.0
+      },
+      {
+        "name": "QTL (Licensing)",
+        "pct": 14.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "005930.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "DX (가전·모바일·디스플레이)",
+        "pct": 60.0
+      },
+      {
+        "name": "DS (반도체)",
+        "pct": 35.0
+      },
+      {
+        "name": "Harman",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "000660.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "메모리 (DRAM·NAND)",
+        "pct": 95.0
+      },
+      {
+        "name": "시스템반도체·기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035420.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "서치플랫폼 (검색·디스플레이)",
+        "pct": 35.0
+      },
+      {
+        "name": "커머스 (스마트스토어·쇼핑)",
+        "pct": 28.0
+      },
+      {
+        "name": "핀테크 (페이·증권)",
+        "pct": 17.0
+      },
+      {
+        "name": "콘텐츠 (웹툰·SNOW)",
+        "pct": 14.0
+      },
+      {
+        "name": "클라우드·기타",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035720.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "플랫폼 (톡비즈·포털)",
+        "pct": 47.0
+      },
+      {
+        "name": "콘텐츠 (게임·뮤직·스토리·미디어)",
+        "pct": 53.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "005380.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "차량 (완성차 판매)",
+        "pct": 78.0
+      },
+      {
+        "name": "금융 (할부·리스)",
+        "pct": 17.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "000270.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "완성차",
+        "pct": 92.0
+      },
+      {
+        "name": "기타",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "207940.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "CDMO (위탁생산)",
+        "pct": 65.0
+      },
+      {
+        "name": "바이오시밀러",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "068270.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "바이오시밀러",
+        "pct": 80.0
+      },
+      {
+        "name": "케미컬·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "051910.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "석유화학",
+        "pct": 35.0
+      },
+      {
+        "name": "첨단소재 (양극재 등)",
+        "pct": 25.0
+      },
+      {
+        "name": "에너지솔루션 지분법",
+        "pct": 20.0
+      },
+      {
+        "name": "생명과학·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "373220.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "자동차전지",
+        "pct": 70.0
+      },
+      {
+        "name": "ESS·소형전지",
+        "pct": 25.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "006400.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "중대형전지 (자동차)",
+        "pct": 60.0
+      },
+      {
+        "name": "소형전지",
+        "pct": 20.0
+      },
+      {
+        "name": "전자재료",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "105560.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "은행 (KB국민은행)",
+        "pct": 62.0
+      },
+      {
+        "name": "증권",
+        "pct": 12.0
+      },
+      {
+        "name": "손해보험",
+        "pct": 10.0
+      },
+      {
+        "name": "카드·캐피탈·기타",
+        "pct": 16.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "055550.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "은행 (신한은행)",
+        "pct": 65.0
+      },
+      {
+        "name": "카드",
+        "pct": 13.0
+      },
+      {
+        "name": "금융투자·생명·기타",
+        "pct": 22.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "066570.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "H&A (생활가전)",
+        "pct": 35.0
+      },
+      {
+        "name": "HE (TV)",
+        "pct": 22.0
+      },
+      {
+        "name": "VS (전장)",
+        "pct": 14.0
+      },
+      {
+        "name": "BS (IT·로봇)",
+        "pct": 8.0
+      },
+      {
+        "name": "이노텍·기타",
+        "pct": 21.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "012330.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "모듈",
+        "pct": 30.0
+      },
+      {
+        "name": "전동화",
+        "pct": 18.0
+      },
+      {
+        "name": "샤시·시트·열관리",
+        "pct": 35.0
+      },
+      {
+        "name": "AS·기타",
+        "pct": 17.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "028260.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "건설 (래미안 등)",
+        "pct": 35.0
+      },
+      {
+        "name": "패션",
+        "pct": 18.0
+      },
+      {
+        "name": "리조트·식음",
+        "pct": 12.0
+      },
+      {
+        "name": "에버랜드·기타",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "005490.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "철강",
+        "pct": 55.0
+      },
+      {
+        "name": "친환경인프라(E&C·International)",
+        "pct": 30.0
+      },
+      {
+        "name": "친환경미래소재(이차전지소재)",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "086790.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "은행 (하나은행)",
+        "pct": 70.0
+      },
+      {
+        "name": "카드·증권·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "316140.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "은행 (우리은행)",
+        "pct": 85.0
+      },
+      {
+        "name": "카드·종금·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "247540.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "양극재 (NCM·NCA)",
+        "pct": 95.0
+      },
+      {
+        "name": "전구체·기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "086520.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "양극재",
+        "pct": 92.0
+      },
+      {
+        "name": "리튬·기타",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "091990.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "바이오시밀러·CMO",
+        "pct": 70.0
+      },
+      {
+        "name": "유통·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "293490.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "모바일게임 (쿠키런 등)",
+        "pct": 85.0
+      },
+      {
+        "name": "PC·콘솔·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "112040.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "모바일게임",
+        "pct": 75.0
+      },
+      {
+        "name": "PC·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "041510.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "음반·MD",
+        "pct": 55.0
+      },
+      {
+        "name": "콘서트·매니지먼트",
+        "pct": 30.0
+      },
+      {
+        "name": "광고·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "352820.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "음반·MD",
+        "pct": 60.0
+      },
+      {
+        "name": "콘서트·매니지먼트",
+        "pct": 25.0
+      },
+      {
+        "name": "광고·콘텐츠·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "LLY": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Diabetes & Obesity (Mounjaro/Zepbound)",
+        "pct": 48.0
+      },
+      {
+        "name": "Oncology",
+        "pct": 17.0
+      },
+      {
+        "name": "Immunology",
+        "pct": 14.0
+      },
+      {
+        "name": "Neuroscience",
+        "pct": 11.0
+      },
+      {
+        "name": "Other Therapeutics",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MRK": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Pharmaceutical (Keytruda 등)",
+        "pct": 88.0
+      },
+      {
+        "name": "Animal Health",
+        "pct": 9.0
+      },
+      {
+        "name": "Other",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ABBV": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Immunology (Humira/Skyrizi/Rinvoq)",
+        "pct": 49.0
+      },
+      {
+        "name": "Oncology",
+        "pct": 12.0
+      },
+      {
+        "name": "Aesthetics (Allergan)",
+        "pct": 9.0
+      },
+      {
+        "name": "Neuroscience",
+        "pct": 16.0
+      },
+      {
+        "name": "Eye Care·Other",
+        "pct": 14.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TMO": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Life Sciences Solutions",
+        "pct": 22.0
+      },
+      {
+        "name": "Analytical Instruments",
+        "pct": 17.0
+      },
+      {
+        "name": "Specialty Diagnostics",
+        "pct": 10.0
+      },
+      {
+        "name": "Laboratory Products & Biopharma",
+        "pct": 51.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ABT": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Medical Devices",
+        "pct": 44.0
+      },
+      {
+        "name": "Established Pharmaceuticals",
+        "pct": 13.0
+      },
+      {
+        "name": "Diagnostics",
+        "pct": 23.0
+      },
+      {
+        "name": "Nutrition",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "DHR": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Biotechnology",
+        "pct": 26.0
+      },
+      {
+        "name": "Life Sciences",
+        "pct": 30.0
+      },
+      {
+        "name": "Diagnostics",
+        "pct": 44.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BMY": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Growth Portfolio (Opdivo·Yervoy 등)",
+        "pct": 47.0
+      },
+      {
+        "name": "Legacy Portfolio (Eliquis·Revlimid)",
+        "pct": 53.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "GILD": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "HIV (Biktarvy 등)",
+        "pct": 65.0
+      },
+      {
+        "name": "Oncology",
+        "pct": 12.0
+      },
+      {
+        "name": "Liver Disease",
+        "pct": 10.0
+      },
+      {
+        "name": "Other",
+        "pct": 13.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AMGN": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "General Medicine (Repatha 등)",
+        "pct": 30.0
+      },
+      {
+        "name": "Inflammation (Enbrel·Otezla)",
+        "pct": 22.0
+      },
+      {
+        "name": "Oncology",
+        "pct": 25.0
+      },
+      {
+        "name": "Rare Disease",
+        "pct": 18.0
+      },
+      {
+        "name": "Other",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ELV": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Health Benefits",
+        "pct": 78.0
+      },
+      {
+        "name": "Carelon Services",
+        "pct": 16.0
+      },
+      {
+        "name": "Other",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "CVS": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Health Services (Caremark PBM)",
+        "pct": 43.0
+      },
+      {
+        "name": "Pharmacy & Consumer Wellness",
+        "pct": 26.0
+      },
+      {
+        "name": "Health Care Benefits (Aetna)",
+        "pct": 31.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "WFC": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Consumer Banking & Lending",
+        "pct": 40.0
+      },
+      {
+        "name": "Commercial Banking",
+        "pct": 16.0
+      },
+      {
+        "name": "Corporate & Investment Banking",
+        "pct": 22.0
+      },
+      {
+        "name": "Wealth & Investment Management",
+        "pct": 19.0
+      },
+      {
+        "name": "Corporate",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "GS": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Global Banking & Markets",
+        "pct": 67.0
+      },
+      {
+        "name": "Asset & Wealth Management",
+        "pct": 28.0
+      },
+      {
+        "name": "Platform Solutions",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MS": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Institutional Securities",
+        "pct": 47.0
+      },
+      {
+        "name": "Wealth Management",
+        "pct": 47.0
+      },
+      {
+        "name": "Investment Management",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "C": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Services (TTS+Securities)",
+        "pct": 23.0
+      },
+      {
+        "name": "Markets",
+        "pct": 27.0
+      },
+      {
+        "name": "Banking",
+        "pct": 7.0
+      },
+      {
+        "name": "U.S. Personal Banking",
+        "pct": 26.0
+      },
+      {
+        "name": "Wealth",
+        "pct": 10.0
+      },
+      {
+        "name": "Legacy Franchises·Other",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "SCHW": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Net Interest Revenue",
+        "pct": 49.0
+      },
+      {
+        "name": "Asset Management & Admin Fees",
+        "pct": 28.0
+      },
+      {
+        "name": "Trading Revenue",
+        "pct": 15.0
+      },
+      {
+        "name": "Bank Deposit·Other",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BLK": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Investment Advisory & Admin Fees",
+        "pct": 82.0
+      },
+      {
+        "name": "Performance Fees",
+        "pct": 4.0
+      },
+      {
+        "name": "Technology Services (Aladdin)",
+        "pct": 9.0
+      },
+      {
+        "name": "Distribution Fees·Other",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AXP": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "U.S. Consumer Services",
+        "pct": 39.0
+      },
+      {
+        "name": "Commercial Services",
+        "pct": 26.0
+      },
+      {
+        "name": "International Card Services",
+        "pct": 17.0
+      },
+      {
+        "name": "Global Merchant & Network",
+        "pct": 17.0
+      },
+      {
+        "name": "Corporate·Other",
+        "pct": 1.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PG": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Beauty",
+        "pct": 18.0
+      },
+      {
+        "name": "Grooming",
+        "pct": 8.0
+      },
+      {
+        "name": "Health Care",
+        "pct": 14.0
+      },
+      {
+        "name": "Fabric & Home Care",
+        "pct": 35.0
+      },
+      {
+        "name": "Baby/Feminine/Family Care",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "UL": {
+    "fy": "FY2024",
+    "source": "Annual Report",
+    "segments": [
+      {
+        "name": "Beauty & Wellbeing",
+        "pct": 21.0
+      },
+      {
+        "name": "Personal Care",
+        "pct": 23.0
+      },
+      {
+        "name": "Home Care",
+        "pct": 20.0
+      },
+      {
+        "name": "Foods",
+        "pct": 21.0
+      },
+      {
+        "name": "Ice Cream",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MO": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Smokeable Products",
+        "pct": 88.0
+      },
+      {
+        "name": "Oral Tobacco",
+        "pct": 11.0
+      },
+      {
+        "name": "All Other",
+        "pct": 1.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PM": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Combustibles",
+        "pct": 60.0
+      },
+      {
+        "name": "Smoke-Free (IQOS·Zyn)",
+        "pct": 38.0
+      },
+      {
+        "name": "Wellness & Other",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TGT": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Food & Beverage",
+        "pct": 23.0
+      },
+      {
+        "name": "Beauty/Household Essentials",
+        "pct": 27.0
+      },
+      {
+        "name": "Apparel & Accessories",
+        "pct": 16.0
+      },
+      {
+        "name": "Home Furnishings & Decor",
+        "pct": 16.0
+      },
+      {
+        "name": "Hardlines (전자·완구·스포츠)",
+        "pct": 18.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "LOW": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Home Decor",
+        "pct": 35.0
+      },
+      {
+        "name": "Building Products",
+        "pct": 35.0
+      },
+      {
+        "name": "Hardlines·Other",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TJX": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Marmaxx (US)",
+        "pct": 56.0
+      },
+      {
+        "name": "HomeGoods (US)",
+        "pct": 16.0
+      },
+      {
+        "name": "TJX Canada",
+        "pct": 11.0
+      },
+      {
+        "name": "TJX International",
+        "pct": 17.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ABNB": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "North America",
+        "pct": 50.0
+      },
+      {
+        "name": "EMEA",
+        "pct": 30.0
+      },
+      {
+        "name": "Latin America",
+        "pct": 12.0
+      },
+      {
+        "name": "Asia Pacific",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BKNG": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Merchant Revenue",
+        "pct": 52.0
+      },
+      {
+        "name": "Agency Revenue",
+        "pct": 43.0
+      },
+      {
+        "name": "Advertising·Other",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "UBER": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Mobility",
+        "pct": 56.0
+      },
+      {
+        "name": "Delivery",
+        "pct": 33.0
+      },
+      {
+        "name": "Freight",
+        "pct": 11.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "SPOT": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "Premium Subscription",
+        "pct": 88.0
+      },
+      {
+        "name": "Ad-Supported",
+        "pct": 12.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "SHOP": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Merchant Solutions",
+        "pct": 75.0
+      },
+      {
+        "name": "Subscription Solutions",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "COIN": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Transaction Revenue",
+        "pct": 65.0
+      },
+      {
+        "name": "Subscription & Services",
+        "pct": 32.0
+      },
+      {
+        "name": "Other",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PLTR": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Commercial (US+Intl)",
+        "pct": 45.0
+      },
+      {
+        "name": "Government",
+        "pct": 55.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NOW": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Subscription",
+        "pct": 97.0
+      },
+      {
+        "name": "Professional Services·Other",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "SNOW": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Product Revenue (Consumption)",
+        "pct": 96.0
+      },
+      {
+        "name": "Professional Services·Other",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "DDOG": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Subscription",
+        "pct": 98.0
+      },
+      {
+        "name": "Professional Services",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MDB": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Subscription",
+        "pct": 96.0
+      },
+      {
+        "name": "Services",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ZS": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Subscription & Support",
+        "pct": 97.0
+      },
+      {
+        "name": "Professional Services",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PANW": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Subscription & Support",
+        "pct": 78.0
+      },
+      {
+        "name": "Product",
+        "pct": 22.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "CRWD": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Subscription",
+        "pct": 95.0
+      },
+      {
+        "name": "Professional Services",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TXN": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Analog",
+        "pct": 76.0
+      },
+      {
+        "name": "Embedded Processing",
+        "pct": 17.0
+      },
+      {
+        "name": "Other",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AMAT": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Semiconductor Systems",
+        "pct": 73.0
+      },
+      {
+        "name": "Applied Global Services",
+        "pct": 23.0
+      },
+      {
+        "name": "Display & Adjacent",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "LRCX": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Systems (Etch/Deposition)",
+        "pct": 65.0
+      },
+      {
+        "name": "Customer Support & Other",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "KLAC": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Semiconductor Process Control",
+        "pct": 89.0
+      },
+      {
+        "name": "Specialty Semi·PCB·Display",
+        "pct": 11.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ASML": {
+    "fy": "FY2024",
+    "source": "Annual Report",
+    "segments": [
+      {
+        "name": "EUV",
+        "pct": 41.0
+      },
+      {
+        "name": "DUV (ArFi·Dry·KrF)",
+        "pct": 33.0
+      },
+      {
+        "name": "Metrology & Inspection",
+        "pct": 4.0
+      },
+      {
+        "name": "Installed Base Management",
+        "pct": 22.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MU": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Compute & Networking (DRAM HBM)",
+        "pct": 44.0
+      },
+      {
+        "name": "Mobile (DRAM/NAND)",
+        "pct": 25.0
+      },
+      {
+        "name": "Embedded",
+        "pct": 14.0
+      },
+      {
+        "name": "Storage (NAND)",
+        "pct": 17.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ARM": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Royalty",
+        "pct": 53.0
+      },
+      {
+        "name": "License & Other",
+        "pct": 47.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "CSCO": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Networking",
+        "pct": 51.0
+      },
+      {
+        "name": "Security",
+        "pct": 8.0
+      },
+      {
+        "name": "Collaboration",
+        "pct": 7.0
+      },
+      {
+        "name": "Observability",
+        "pct": 2.0
+      },
+      {
+        "name": "Services",
+        "pct": 28.0
+      },
+      {
+        "name": "Other Products",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "IBM": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Software",
+        "pct": 44.0
+      },
+      {
+        "name": "Consulting",
+        "pct": 33.0
+      },
+      {
+        "name": "Infrastructure",
+        "pct": 21.0
+      },
+      {
+        "name": "Financing",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ACN": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Strategy & Consulting",
+        "pct": 18.0
+      },
+      {
+        "name": "Managed Services",
+        "pct": 49.0
+      },
+      {
+        "name": "Technology Services (Operate)",
+        "pct": 33.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "INTU": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Small Business & Self-Employed",
+        "pct": 60.0
+      },
+      {
+        "name": "Consumer (TurboTax)",
+        "pct": 27.0
+      },
+      {
+        "name": "Credit Karma",
+        "pct": 11.0
+      },
+      {
+        "name": "ProTax",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BX": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Real Estate",
+        "pct": 33.0
+      },
+      {
+        "name": "Private Equity",
+        "pct": 30.0
+      },
+      {
+        "name": "Credit & Insurance",
+        "pct": 28.0
+      },
+      {
+        "name": "Hedge Fund Solutions",
+        "pct": 9.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "KKR": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Asset Management",
+        "pct": 60.0
+      },
+      {
+        "name": "Insurance (Global Atlantic)",
+        "pct": 33.0
+      },
+      {
+        "name": "Strategic Holdings",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BRK-B": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Insurance (GEICO·BHRG·BHPC)",
+        "pct": 28.0
+      },
+      {
+        "name": "Railroad (BNSF)",
+        "pct": 8.0
+      },
+      {
+        "name": "Energy (BHE)",
+        "pct": 8.0
+      },
+      {
+        "name": "Manufacturing·Service·Retail",
+        "pct": 50.0
+      },
+      {
+        "name": "Investments·Other",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "DUK": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Electric Utilities & Infrastructure",
+        "pct": 87.0
+      },
+      {
+        "name": "Gas Utilities & Infrastructure",
+        "pct": 7.0
+      },
+      {
+        "name": "Commercial Renewables·Other",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NEE": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Florida Power & Light",
+        "pct": 70.0
+      },
+      {
+        "name": "NextEra Energy Resources",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "SO": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Electric Utilities (GA·AL·MS)",
+        "pct": 90.0
+      },
+      {
+        "name": "Gas Distribution",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "COP": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Lower 48 (US Onshore)",
+        "pct": 60.0
+      },
+      {
+        "name": "Alaska",
+        "pct": 8.0
+      },
+      {
+        "name": "Canada",
+        "pct": 6.0
+      },
+      {
+        "name": "Europe/Middle East/N.Africa",
+        "pct": 14.0
+      },
+      {
+        "name": "Asia Pacific",
+        "pct": 12.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "EOG": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Crude Oil & Condensate",
+        "pct": 70.0
+      },
+      {
+        "name": "Natural Gas Liquids",
+        "pct": 12.0
+      },
+      {
+        "name": "Natural Gas",
+        "pct": 16.0
+      },
+      {
+        "name": "Other",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "SLB": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Digital & Integration",
+        "pct": 14.0
+      },
+      {
+        "name": "Reservoir Performance",
+        "pct": 20.0
+      },
+      {
+        "name": "Well Construction",
+        "pct": 39.0
+      },
+      {
+        "name": "Production Systems",
+        "pct": 27.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "DE": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Production & Precision Ag",
+        "pct": 41.0
+      },
+      {
+        "name": "Small Ag & Turf",
+        "pct": 24.0
+      },
+      {
+        "name": "Construction & Forestry",
+        "pct": 25.0
+      },
+      {
+        "name": "Financial Services",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "HON": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Aerospace",
+        "pct": 39.0
+      },
+      {
+        "name": "Performance Materials & Tech",
+        "pct": 31.0
+      },
+      {
+        "name": "Industrial Automation",
+        "pct": 22.0
+      },
+      {
+        "name": "Energy & Sustainability",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "RTX": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Collins Aerospace",
+        "pct": 37.0
+      },
+      {
+        "name": "Pratt & Whitney",
+        "pct": 36.0
+      },
+      {
+        "name": "Raytheon",
+        "pct": 27.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NOC": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Aeronautics Systems",
+        "pct": 27.0
+      },
+      {
+        "name": "Defense Systems",
+        "pct": 15.0
+      },
+      {
+        "name": "Mission Systems",
+        "pct": 28.0
+      },
+      {
+        "name": "Space Systems",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "GD": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Aerospace (Gulfstream)",
+        "pct": 28.0
+      },
+      {
+        "name": "Marine Systems",
+        "pct": 33.0
+      },
+      {
+        "name": "Combat Systems",
+        "pct": 21.0
+      },
+      {
+        "name": "Technologies",
+        "pct": 18.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "FDX": {
+    "fy": "FY2025",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Federal Express",
+        "pct": 82.0
+      },
+      {
+        "name": "FedEx Freight",
+        "pct": 10.0
+      },
+      {
+        "name": "Other & Eliminations",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "UPS": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "U.S. Domestic Package",
+        "pct": 67.0
+      },
+      {
+        "name": "International Package",
+        "pct": 20.0
+      },
+      {
+        "name": "Supply Chain Solutions",
+        "pct": 13.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AAL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Passenger",
+        "pct": 91.0
+      },
+      {
+        "name": "Cargo",
+        "pct": 1.5
+      },
+      {
+        "name": "Other (Loyalty·Other)",
+        "pct": 7.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "DAL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Passenger",
+        "pct": 84.0
+      },
+      {
+        "name": "Cargo",
+        "pct": 1.5
+      },
+      {
+        "name": "Refinery·Other",
+        "pct": 14.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "CCL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Passenger Ticket",
+        "pct": 65.0
+      },
+      {
+        "name": "Onboard & Other",
+        "pct": 33.0
+      },
+      {
+        "name": "Tour & Other",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "RCL": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Passenger Ticket",
+        "pct": 67.0
+      },
+      {
+        "name": "Onboard & Other",
+        "pct": 33.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PLD": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Real Estate (Rental)",
+        "pct": 91.0
+      },
+      {
+        "name": "Strategic Capital (Fund Mgmt)",
+        "pct": 7.0
+      },
+      {
+        "name": "Development Management·Other",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AMT": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "U.S. & Canada Property",
+        "pct": 53.0
+      },
+      {
+        "name": "Asia-Pacific Property",
+        "pct": 4.0
+      },
+      {
+        "name": "Africa Property",
+        "pct": 12.0
+      },
+      {
+        "name": "Europe Property",
+        "pct": 11.0
+      },
+      {
+        "name": "Latin America Property",
+        "pct": 17.0
+      },
+      {
+        "name": "Data Centers (CoreSite)",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "EQIX": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Americas",
+        "pct": 47.0
+      },
+      {
+        "name": "EMEA",
+        "pct": 34.0
+      },
+      {
+        "name": "Asia-Pacific",
+        "pct": 19.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "F": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "Ford Blue (ICE)",
+        "pct": 56.0
+      },
+      {
+        "name": "Ford Model e (EV)",
+        "pct": 4.0
+      },
+      {
+        "name": "Ford Pro (Commercial)",
+        "pct": 33.0
+      },
+      {
+        "name": "Ford Credit",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "GM": {
+    "fy": "FY2024",
+    "source": "10-K",
+    "segments": [
+      {
+        "name": "GM North America",
+        "pct": 84.0
+      },
+      {
+        "name": "GM International",
+        "pct": 8.0
+      },
+      {
+        "name": "Cruise",
+        "pct": 0.1
+      },
+      {
+        "name": "GM Financial",
+        "pct": 7.9
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MELI": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "Commerce",
+        "pct": 55.0
+      },
+      {
+        "name": "Fintech (Mercado Pago)",
+        "pct": 45.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "SE": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "E-commerce (Shopee)",
+        "pct": 60.0
+      },
+      {
+        "name": "Digital Financial Services (SeaMoney)",
+        "pct": 16.0
+      },
+      {
+        "name": "Digital Entertainment (Garena)",
+        "pct": 12.0
+      },
+      {
+        "name": "Other",
+        "pct": 12.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "BABA": {
+    "fy": "FY2025",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "Taobao & Tmall Group",
+        "pct": 44.0
+      },
+      {
+        "name": "Cloud Intelligence",
+        "pct": 12.0
+      },
+      {
+        "name": "International Digital Commerce",
+        "pct": 14.0
+      },
+      {
+        "name": "Cainiao (Logistics)",
+        "pct": 11.0
+      },
+      {
+        "name": "Local Services·Digital Media·Other",
+        "pct": 19.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "JD": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "JD Retail",
+        "pct": 87.0
+      },
+      {
+        "name": "JD Logistics",
+        "pct": 11.0
+      },
+      {
+        "name": "New Businesses·Other",
+        "pct": 2.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "PDD": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "Online Marketing Services",
+        "pct": 58.0
+      },
+      {
+        "name": "Transaction Services (Temu·Pinduoduo)",
+        "pct": 42.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "NIO": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "Vehicle Sales",
+        "pct": 90.0
+      },
+      {
+        "name": "Other Sales",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "BIDU": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "Baidu Core (검색·광고·AI Cloud)",
+        "pct": 73.0
+      },
+      {
+        "name": "iQIYI (스트리밍)",
+        "pct": 27.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "TCEHY": {
+    "fy": "FY2024",
+    "source": "Annual Report",
+    "segments": [
+      {
+        "name": "VAS (게임·SNS)",
+        "pct": 50.0
+      },
+      {
+        "name": "Marketing Services (광고)",
+        "pct": 18.0
+      },
+      {
+        "name": "Fintech & Business Services",
+        "pct": 31.0
+      },
+      {
+        "name": "Other",
+        "pct": 1.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NTES": {
+    "fy": "FY2024",
+    "source": "20-F",
+    "segments": [
+      {
+        "name": "Games & Related Services",
+        "pct": 79.0
+      },
+      {
+        "name": "Youdao",
+        "pct": 5.0
+      },
+      {
+        "name": "Cloud Music",
+        "pct": 8.0
+      },
+      {
+        "name": "Innovative & Other",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "estimated"
+  },
+  "017670.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "MNO(무선)",
+        "pct": 50.0
+      },
+      {
+        "name": "B2B·AI·Cloud·IDC",
+        "pct": 25.0
+      },
+      {
+        "name": "미디어·커머스",
+        "pct": 15.0
+      },
+      {
+        "name": "단말·기타",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "030200.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "무선통신",
+        "pct": 47.0
+      },
+      {
+        "name": "유선·인터넷",
+        "pct": 18.0
+      },
+      {
+        "name": "B2B·AICC·Cloud",
+        "pct": 22.0
+      },
+      {
+        "name": "콘텐츠·기타",
+        "pct": 13.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "032640.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "무선통신",
+        "pct": 60.0
+      },
+      {
+        "name": "초고속인터넷·IPTV",
+        "pct": 25.0
+      },
+      {
+        "name": "기업회선·솔루션·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "010130.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "비철금속(아연·연·금·은)",
+        "pct": 80.0
+      },
+      {
+        "name": "신소재(이차전지소재)·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "011200.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "컨테이너",
+        "pct": 78.0
+      },
+      {
+        "name": "벌크·기타",
+        "pct": 22.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "009540.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "조선·해양",
+        "pct": 75.0
+      },
+      {
+        "name": "엔진·플랜트·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "010620.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "상선·특수선",
+        "pct": 80.0
+      },
+      {
+        "name": "기자재·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "042660.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "특수선·상선",
+        "pct": 70.0
+      },
+      {
+        "name": "방산(잠수함 등)",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "047810.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "항공기 (KF-21·T-50)",
+        "pct": 55.0
+      },
+      {
+        "name": "회전익 (수리온 등)",
+        "pct": 25.0
+      },
+      {
+        "name": "기체구조·MRO·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "012450.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "지상 (K9·천무)",
+        "pct": 65.0
+      },
+      {
+        "name": "유도무기·항공·기타",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "272210.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "지상 (K2 전차 등)",
+        "pct": 60.0
+      },
+      {
+        "name": "해상·항공·기타",
+        "pct": 40.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "064350.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "전동차·고속철·기관차",
+        "pct": 75.0
+      },
+      {
+        "name": "플랜트·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "267250.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "건설기계 (현대두산인프라코어 등)",
+        "pct": 40.0
+      },
+      {
+        "name": "엔진",
+        "pct": 25.0
+      },
+      {
+        "name": "조선·기타",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "010140.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "조선·해양·플랜트",
+        "pct": 80.0
+      },
+      {
+        "name": "엔진·기자재·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "024110.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "기업금융(은행)",
+        "pct": 88.0
+      },
+      {
+        "name": "글로벌·기타",
+        "pct": 12.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "138930.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "은행(BNK경남·부산)",
+        "pct": 75.0
+      },
+      {
+        "name": "캐피탈·증권·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "139130.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "은행(DGB대구)",
+        "pct": 70.0
+      },
+      {
+        "name": "증권·하이투자·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "071050.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "투자은행(IB)·트레이딩",
+        "pct": 35.0
+      },
+      {
+        "name": "위탁매매·자산관리",
+        "pct": 35.0
+      },
+      {
+        "name": "이자수익·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "006800.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "위탁·금융상품",
+        "pct": 30.0
+      },
+      {
+        "name": "IB·자기매매",
+        "pct": 35.0
+      },
+      {
+        "name": "이자손익·기타",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "005830.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "자동차보험",
+        "pct": 45.0
+      },
+      {
+        "name": "장기보험",
+        "pct": 40.0
+      },
+      {
+        "name": "일반·해외·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "000810.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "장기보험",
+        "pct": 55.0
+      },
+      {
+        "name": "자동차보험",
+        "pct": 30.0
+      },
+      {
+        "name": "일반·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "032830.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "보장성보험",
+        "pct": 65.0
+      },
+      {
+        "name": "저축성·변액·기타",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035250.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "카지노",
+        "pct": 65.0
+      },
+      {
+        "name": "호텔·콘도",
+        "pct": 25.0
+      },
+      {
+        "name": "워터파크·골프·기타",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "114090.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "카지노(파라다이스시티 외)",
+        "pct": 80.0
+      },
+      {
+        "name": "호텔·복합리조트·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "008770.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "호텔·면세점",
+        "pct": 80.0
+      },
+      {
+        "name": "식음·레저·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "004990.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "유통(롯데마트·하이마트 등)",
+        "pct": 45.0
+      },
+      {
+        "name": "식품·관광·화학·기타",
+        "pct": 55.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "033780.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "담배",
+        "pct": 75.0
+      },
+      {
+        "name": "건강기능식품·인삼",
+        "pct": 18.0
+      },
+      {
+        "name": "부동산·기타",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "097950.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "제일제당(식품·바이오)",
+        "pct": 70.0
+      },
+      {
+        "name": "글로벌(Schwan's·해외)",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "001040.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "식품(설탕·밀가루·식자재)",
+        "pct": 50.0
+      },
+      {
+        "name": "사료·축산",
+        "pct": 25.0
+      },
+      {
+        "name": "외식·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "000080.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "맥주",
+        "pct": 50.0
+      },
+      {
+        "name": "소주(참이슬)",
+        "pct": 38.0
+      },
+      {
+        "name": "음료·생수·기타",
+        "pct": 12.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "271560.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "초콜릿·빙과·제과",
+        "pct": 60.0
+      },
+      {
+        "name": "건과·식품·기타",
+        "pct": 40.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "069960.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "마트(현대홈쇼핑 등)",
+        "pct": 45.0
+      },
+      {
+        "name": "백화점·면세점",
+        "pct": 35.0
+      },
+      {
+        "name": "기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "004170.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "마트·슈퍼",
+        "pct": 55.0
+      },
+      {
+        "name": "백화점",
+        "pct": 30.0
+      },
+      {
+        "name": "온라인·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "023530.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "백화점",
+        "pct": 55.0
+      },
+      {
+        "name": "마트·슈퍼",
+        "pct": 20.0
+      },
+      {
+        "name": "면세·온라인·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "139480.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "이마트(할인점)",
+        "pct": 70.0
+      },
+      {
+        "name": "트레이더스·전문점·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "003490.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "여객(국제선·국내선)",
+        "pct": 70.0
+      },
+      {
+        "name": "화물",
+        "pct": 22.0
+      },
+      {
+        "name": "기타(기내식·정비·항공우주)",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "020560.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "여객",
+        "pct": 75.0
+      },
+      {
+        "name": "화물·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "180640.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "여객(중·단거리 국제선)",
+        "pct": 92.0
+      },
+      {
+        "name": "기타",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "000120.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "택배",
+        "pct": 40.0
+      },
+      {
+        "name": "글로벌(포워딩 등)",
+        "pct": 30.0
+      },
+      {
+        "name": "계약물류(CL)·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "088980.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "도로(고속도로)",
+        "pct": 50.0
+      },
+      {
+        "name": "도시가스·항만·기타",
+        "pct": 50.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "036570.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "게임(리니지M·W·2M)",
+        "pct": 90.0
+      },
+      {
+        "name": "스토브·기타",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "251270.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "모바일 게임(세븐나이츠·블레이드 등)",
+        "pct": 95.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "263750.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "PC·콘솔(P의 거짓 등)",
+        "pct": 50.0
+      },
+      {
+        "name": "모바일·기타",
+        "pct": 50.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "259960.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "PC게임(배틀그라운드 등)",
+        "pct": 75.0
+      },
+      {
+        "name": "모바일·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "079160.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "투자(영화·드라마)",
+        "pct": 60.0
+      },
+      {
+        "name": "극장(CGV)·기타",
+        "pct": 40.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035760.KS": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "홈쇼핑(TV·모바일)",
+        "pct": 60.0
+      },
+      {
+        "name": "쇼핑·통신판매·기타",
+        "pct": 40.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "066970.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "양극재(NCM)",
+        "pct": 70.0
+      },
+      {
+        "name": "전구체·전해질·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "058470.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "이차전지 장비(노칭·전극공정)",
+        "pct": 75.0
+      },
+      {
+        "name": "디스플레이·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "278280.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "이차전지 조립공정 장비",
+        "pct": 80.0
+      },
+      {
+        "name": "디스플레이·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "240810.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "반도체 장비(증착·에칭)",
+        "pct": 85.0
+      },
+      {
+        "name": "디스플레이·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "095340.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "반도체 후공정 장비(인덱서·핸들러)",
+        "pct": 90.0
+      },
+      {
+        "name": "기타",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "403870.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "반도체 부품(쿼츠웨어 등)",
+        "pct": 95.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "036930.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "반도체 부품(쿼츠·세라믹)",
+        "pct": 95.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "104830.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "반도체 소재(전구체)",
+        "pct": 70.0
+      },
+      {
+        "name": "OLED 소재·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "131970.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "반도체 후공정(테스트하우스)",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "194480.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "반도체 후공정",
+        "pct": 95.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "025900.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "후공정 패키지",
+        "pct": 80.0
+      },
+      {
+        "name": "테스트·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "950140.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "콘솔·PC 게임 (검은사막)",
+        "pct": 50.0
+      },
+      {
+        "name": "모바일·기타",
+        "pct": 50.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "192080.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "모바일게임(서머너즈워 등)",
+        "pct": 95.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "095660.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "모바일게임(릴리스 등)",
+        "pct": 90.0
+      },
+      {
+        "name": "기타",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035900.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "음반·콘서트(매니지먼트)",
+        "pct": 80.0
+      },
+      {
+        "name": "광고·MD·기타",
+        "pct": 20.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "122870.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "콘서트·매니지먼트",
+        "pct": 55.0
+      },
+      {
+        "name": "음반·MD·기타",
+        "pct": 45.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "067160.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "광고매출(콘텐츠)",
+        "pct": 70.0
+      },
+      {
+        "name": "콘텐츠 판매·라이선싱·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "214150.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "디스플레이용 검사장비",
+        "pct": 35.0
+      },
+      {
+        "name": "이차전지 검사장비",
+        "pct": 50.0
+      },
+      {
+        "name": "반도체·기타",
+        "pct": 15.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "065350.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "엔지니어링·EPC",
+        "pct": 70.0
+      },
+      {
+        "name": "장비·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "353200.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "AI 의료영상 솔루션(Lunit INSIGHT·SCOPE)",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "328130.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "K-팝 팬덤 플랫폼(버블 등)",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "086900.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "메디톡신 등 보툴리눔톡신",
+        "pct": 70.0
+      },
+      {
+        "name": "필러·기타",
+        "pct": 30.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "950130.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "보툴리눔톡신(Nabota)",
+        "pct": 65.0
+      },
+      {
+        "name": "필러·기타",
+        "pct": 35.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "214450.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "보툴리눔톡신·HA필러",
+        "pct": 95.0
+      },
+      {
+        "name": "기타",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "237690.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "신약 R&D 마일스톤·로열티(Rezdiffra 등)",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "196170.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "신약 라이선스 마일스톤",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "298380.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "임플란트",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "048410.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "임플란트(국내·해외)",
+        "pct": 90.0
+      },
+      {
+        "name": "디지털 덴티스트리·기타",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "099190.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "치과 CAD/CAM·디지털 덴티스트리",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035600.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "광고·플랫폼(KG이니시스 PG 포함)",
+        "pct": 60.0
+      },
+      {
+        "name": "기타",
+        "pct": 40.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "078340.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "PG·VAN·간편결제",
+        "pct": 100.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035080.KQ": {
+    "fy": "FY2024",
+    "source": "사업보고서",
+    "segments": [
+      {
+        "name": "온라인 광고·콘텐츠",
+        "pct": 75.0
+      },
+      {
+        "name": "전자상거래·기타",
+        "pct": 25.0
+      }
+    ],
+    "confidence": "verified"
+  }
+}

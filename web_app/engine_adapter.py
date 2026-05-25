@@ -1,4 +1,4 @@
-"""
+﻿"""
 engine_adapter.py — quant_nexus_v20.py 엔진을 tkinter 없이 사용하는 어댑터
 Flask 웹앱이 이 클래스를 통해 스캔 기능을 호출한다.
 """
@@ -27,6 +27,16 @@ if _BASE not in sys.path:
 # Windows에서 tkinter는 import만으로 GUI를 띄우지 않음 — 안전하게 import 가능
 import quant_nexus_v20 as _qn
 from speculative_themes import apply_speculative_correction, apply_to_row
+try:
+    # web_app 디렉토리 보장 (engine_adapter 가 외부에서 import 될 때 대비)
+    _WEB_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+    if _WEB_APP_DIR not in sys.path:
+        sys.path.insert(0, _WEB_APP_DIR)
+    from symbol_alias import filter_symbols as _filter_symbols  # type: ignore
+except Exception as _e:  # pragma: no cover
+    logging.warning("[Adapter] symbol_alias import failed → DELISTED filter disabled: %s", _e)
+    def _filter_symbols(xs):  # fallback no-op
+        return list(xs)
 
 
 class ScanAdapter:
@@ -127,7 +137,8 @@ class ScanAdapter:
         sub_kr = getattr(self, 'us_sector_labels_kr', {}) if self._market != "KR" else {}
         for cat_data in raw.values():
             for subcat, tickers in cat_data.items():
-                self._sectors[sub_kr.get(subcat, subcat)] = tickers
+                # normalize aliases (FB→META) + drop DELISTED (ATVI/TWTR/VMW/…)
+                self._sectors[sub_kr.get(subcat, subcat)] = _filter_symbols(list(tickers))
 
     # ── QuantNexusApp이 사용하는 메서드 (tkinter 콜백 대체) ──────────────
 
@@ -185,17 +196,13 @@ class ScanAdapter:
         """단일 종목 분석 — 캐시 우선/캐시 전용 모드를 지원한다."""
         if prefer_cache:
             # _analyze_ticker(quant_nexus_v20.py:4684)와 동일한 dated 키 포맷.
-            # 최근 7일 내의 캐시가 있으면 일단 반환하여 무한 대기 및 누락을 방지합니다.
-            from datetime import datetime, timedelta
-            base_key = f"{ticker}__{self._scan_strategy}"
-            dated_keys = [
-                f"{base_key}__{(datetime.now() - timedelta(days=days)).strftime('%Y%m%d')}"
-                for days in range(7)
-            ]
-            for cache_key in dated_keys:
-                cached = self.cache.get(cache_key, max_age_minutes=60 * 24 * 7)
-                if cached:
-                    return apply_to_row(cached)
+            # 키 포맷 불일치 시 cache_only 분기에서 종목이 대량 누락되어
+            # /api/scan 이 일부 universe만 반환하던 버그를 잡는다.
+            _today = time.strftime("%Y%m%d")
+            strategy_key = f"{ticker}__{self._scan_strategy}__{_today}"
+            cached = self.cache.get(strategy_key, max_age_minutes=60 * 24)
+            if cached:
+                return apply_to_row(cached)
             if cache_only:
                 return None
         result = _qn.QuantNexusApp._analyze_ticker(self, ticker)

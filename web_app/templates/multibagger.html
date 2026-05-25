@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>멀티배거 파인더 — (.)(.)분석기</title>
+<link rel="stylesheet" href="/static/theme.css?v={{ v_theme_css }}">
+<link rel="stylesheet" href="/static/multibagger.css?v={{ v_multibagger_css }}">
+</head>
+<body>
+<div class="multibagger-shell">
+  <header class="mb-header">
+    <a href="/" style="text-decoration:none;font-size:13px;font-weight:700;padding:6px 10px;border-radius:6px;background:var(--surface-2,rgba(0,0,0,0.04));border:1px solid var(--border,rgba(0,0,0,0.08));color:var(--text-primary);">← 대시보드</a>
+    <h1>멀티배거 파인더 <span class="mb-sub">US</span></h1>
+    <div class="mb-meta" id="mb-meta"></div>
+    <button id="mb-advanced-toggle">고급 임계 펴치기</button>
+    <section id="mb-advanced" hidden></section>
+  </header>
+  <nav class="mb-tabs">
+    <button data-layer="pass" class="active">PASS</button>
+    <button data-layer="watch">WATCH</button>
+    <button data-layer="diff">DIFF (회고)</button>
+  </nav>
+  <main>
+    <div class="mb-disclaimer">
+      서바이버십 편향 주의: 현재 상장 종목 기준. 워킹페이퍼 영감 기반이며 10배 보장 아님.
+    </div>
+    <table id="mb-table"></table>
+  </main>
+</div>
+<script src="/static/multibagger.js?v={{ v_multibagger_js }}"></script>
+</body>
+</html>

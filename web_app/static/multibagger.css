@@ -1,0 +1,23 @@
+.multibagger-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: 'Pretendard', system-ui, sans-serif;
+  color: var(--text-primary);
+}
+.mb-header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.mb-header h1 { font-size: 24px; font-weight: 800; }
+.mb-sub { font-size: 12px; padding: 2px 6px; background: var(--surface-2); border-radius: 4px; margin-left: 6px; }
+.mb-meta { font-size: 12px; color: var(--text-secondary); }
+.mb-disclaimer { font-size: 12px; background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.30); padding: 8px 12px; border-radius: 6px; margin: 12px 0; }
+.mb-tabs { display: flex; gap: 4px; margin: 16px 0; }
+.mb-tabs button { padding: 8px 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+.mb-tabs button.active { background: var(--accent); color: white; }
+#mb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#mb-table th, #mb-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+#mb-table th { background: var(--surface-2); font-weight: 600; }
+#mb-table tr:hover { background: rgba(0,0,0,0.03); }
+.mb-badge { display: inline-block; padding: 2px 6px; font-size: 11px; border-radius: 3px; background: var(--surface-2); margin-right: 4px; }
+.mb-badge.fail { background: rgba(239,68,68,0.15); color: rgb(185,28,28); }
+#mb-advanced { width: 100%; margin-top: 8px; padding: 12px; background: var(--surface-2); border-radius: 6px; }
+#mb-advanced[hidden] { display: none; }

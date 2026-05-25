@@ -218,11 +218,102 @@ def get_financials(
                         result["CF"].append(entry)
                     else:
                         result.setdefault(sj, []).append(entry)
+                # K-IFRS 채택 기업은 IS 대신 CIS(포괄손익계산서)만 제공.
+                # IS 비어 있으면 CIS로 폴백해 EPS·순이익을 같은 자리에서 꺼낼 수 있게.
+                if not result["IS"] and result.get("CIS"):
+                    result["IS"] = list(result["CIS"])
                 return result
         except Exception:
             continue
 
     return {"available": False, "error": f"재무데이터 없음 ({code})"}
+
+
+def _extract_eps(rows: List[Dict[str, Any]]) -> Optional[Dict[str, float]]:
+    """IS/CIS 행에서 보통주 기본 EPS(원/주) 당기·전기·전전기 값을 뽑는다.
+
+    DART account_nm 변형(우선주/희석/손실/계속영업/'기본 및 희석' 합본 등)을
+    모두 처리. 보통주 기본을 최우선, 손실 표기·합본 표기도 수용.
+    """
+    def _f(v: Any) -> Optional[float]:
+        s = str(v or "").replace(",", "").strip()
+        if s in ("", "-"):
+            return None
+        try:
+            return float(s)
+        except ValueError:
+            return None
+
+    # 점수: 높을수록 우선. 우선주/중단영업은 제외, 계속영업은 차순위 수용.
+    best_score = -(10**9)
+    best_row: Optional[Dict[str, Any]] = None
+    for r in rows:
+        nm_raw = r.get("account_nm") or ""
+        nm = nm_raw.replace(" ", "")
+        if "주당" not in nm:
+            continue
+        if not any(k in nm for k in ("이익", "손실", "손익", "순이익")):
+            continue
+        if "우선주" in nm:
+            continue
+        if "중단영업" in nm:
+            continue  # 중단사업 EPS는 going-forward 분석에 부적합
+        score = 0
+        if "보통주" in nm:
+            score += 4
+        if "기본" in nm:
+            score += 2
+        if "희석" in nm and "기본" not in nm:
+            score += 1   # 희석만 단독이면 차순위로
+        if "계속영업" in nm:
+            score -= 3   # 분할표기 종목에서 차순위 — 단, 다른 행이 없으면 채택
+        # 합본 "기본 및 희석주당이익" 도 자연히 +6 → 충분히 선호
+        if score > best_score:
+            best_score = score
+            best_row = r
+
+    if best_row is None:
+        return None
+    return {
+        "ths": _f(best_row.get("thstrm_amount")),
+        "frm": _f(best_row.get("frmtrm_amount")),
+        "bf":  _f(best_row.get("bfefrmtrm_amount")),
+    }
+
+
+def get_annual_eps_growth(stock_code: str) -> Dict[str, Any]:
+    """DART 사업보고서(연결, 최신) 기본 EPS의 연간 성장률.
+
+    Returns:
+        {
+          "available": bool,
+          "eps_growth": float | None,   # (당기 - 전기) / |전기|
+          "eps_ths":    float | None,   # 당기 EPS (원/주)
+          "eps_frm":    float | None,   # 전기 EPS
+          "year":       int,            # 사업보고서 연도
+          "source":     "DART-사업보고서",
+        }
+    """
+    out: Dict[str, Any] = {"available": False, "source": "DART-사업보고서"}
+    fin = get_financials(stock_code)
+    if not fin.get("available"):
+        return out
+    eps = _extract_eps(fin.get("IS") or [])
+    if eps is None:
+        eps = _extract_eps(fin.get("CIS") or [])
+    if eps is None or eps.get("ths") is None or eps.get("frm") is None:
+        return out
+    ths, frm = eps["ths"], eps["frm"]
+    if abs(frm) < 1e-9:
+        return out
+    out.update({
+        "available":  True,
+        "eps_growth": (ths - frm) / abs(frm),
+        "eps_ths":    ths,
+        "eps_frm":    frm,
+        "year":       fin.get("year"),
+    })
+    return out
 
 
 def get_summary(stock_code: str) -> Dict[str, Any]:

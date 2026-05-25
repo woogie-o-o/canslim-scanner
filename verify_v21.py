@@ -28,11 +28,9 @@ def check_position_sizer():
     r = m.calc_position(10000, 1, 100, 97)
     assert r["qty"] == 33, r
     assert abs(r["risk_amount"] - 99.0) < 0.01
-    try:
-        m.calc_position(10000, 1, 100, 105)
-        raise AssertionError("should reject stop>=entry")
-    except ValueError:
-        pass
+    # WS-003: stop>=entry 는 ValueError 대신 qty=0 + skipped 사유 반환 (graceful)
+    bad = m.calc_position(10000, 1, 100, 105)
+    assert bad["qty"] == 0 and bad.get("skipped") == "stop_not_below_entry", bad
     rr = m.calc_rr(100, 97, 109)
     assert abs(rr - 3.0) < 0.01
 

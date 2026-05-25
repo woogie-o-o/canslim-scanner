@@ -1,5 +1,5 @@
 """
-슡목스캐너
+(.)(.)스캐너
 =============================================================
 윌리엄 오닐(William O'Neil) CAN SLIM 원칙 + 월가 퀀트 전략 융합
 
@@ -74,6 +74,13 @@ except Exception:
     _naver_q = None  # type: ignore
     _NAVERQ_OK = False
 
+try:
+    import dart_api as _dart_api
+    _DART_OK = True
+except Exception:
+    _dart_api = None  # type: ignore
+    _DART_OK = False
+
 import concurrent.futures
 from datetime import datetime, timedelta
 import pickle
@@ -86,6 +93,7 @@ import json
 from functools import wraps
 import re
 import urllib.request
+import urllib.error
 import valuation_engine
 from us_company_info import US_COMPANY_INFO as _US_COMPANY_INFO
 from kr_company_info import KR_COMPANY_INFO as _KR_COMPANY_INFO
@@ -316,14 +324,101 @@ _FALLBACK_UA = (
 )
 
 
-def _fetch_yahoo_chart_history(ticker: str) -> pd.DataFrame | None:
-    """Direct Yahoo chart API — bypasses yfinance library's rate-limited path."""
+# ════════════════════════════════════════════════════════════════════════
+# 상폐(delisted) 블록리스트 — 라이브 로그에서 확인된 미국 티커 + 자동 누적
+# 사유: 같은 상폐 티커를 매 스캔마다 Yahoo → Stooq 폴백으로 재시도해 로그를
+#       오염시키고 시간을 낭비함. fetch 레이어에서 short-circuit 한다.
+# UI 섹터 트리에는 그대로 노출되며(역사적 컨텍스트), fetch 만 차단된다.
+# ════════════════════════════════════════════════════════════════════════
+_US_DELISTED: set[str] = {
+    "MYR", "MMC", "CMA", "SNV", "CIVI", "HES", "NOVA", "MRO",
+    "SAVA", "DCPH", "AXNX", "EXAS", "CTLT", "GPS",
+}
+_DELISTED_CACHE_PATH = os.path.join(_YF_CACHE_DIR, "delisted.json") \
+    if "_YF_CACHE_DIR" in globals() else None
+
+
+def _load_delisted_cache() -> None:
+    """파일 캐시(.yfinance-cache/delisted.json)를 _US_DELISTED 에 머지."""
+    if not _DELISTED_CACHE_PATH or not os.path.exists(_DELISTED_CACHE_PATH):
+        return
+    try:
+        with open(_DELISTED_CACHE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            for t in data:
+                if isinstance(t, str) and t.strip():
+                    _US_DELISTED.add(t.strip().upper())
+        elif isinstance(data, dict) and isinstance(data.get("tickers"), list):
+            for t in data["tickers"]:
+                if isinstance(t, str) and t.strip():
+                    _US_DELISTED.add(t.strip().upper())
+    except Exception as e:
+        logging.warning("[delisted-blocklist] cache load failed: %s", e)
+
+
+def _persist_delisted_cache() -> None:
+    """atomic write — temp 파일 + os.replace."""
+    if not _DELISTED_CACHE_PATH:
+        return
+    try:
+        tmp = _DELISTED_CACHE_PATH + ".tmp"
+        payload = {"tickers": sorted(_US_DELISTED)}
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, _DELISTED_CACHE_PATH)
+    except Exception as e:
+        logging.warning("[delisted-blocklist] cache persist failed: %s", e)
+
+
+def _is_delisted_us(ticker: str) -> bool:
+    if not ticker:
+        return False
+    return str(ticker).strip().upper() in _US_DELISTED
+
+
+def _add_delisted(ticker: str) -> None:
+    """yahoo 404 + stooq miss 가 동시에 발생하면 자동 블록리스트에 추가."""
+    if not ticker:
+        return
+    t = str(ticker).strip().upper()
+    if t in _US_DELISTED:
+        return
+    _US_DELISTED.add(t)
+    logging.info("[delisted-blocklist] auto-added %s after yahoo 404 + stooq miss", t)
+    _persist_delisted_cache()
+
+
+# import 시점에 캐시 로드 (한 번만)
+try:
+    _load_delisted_cache()
+except Exception:
+    pass
+
+
+class _YahooNotFound(Exception):
+    """Yahoo chart API 가 404 (definitive not found) — Stooq 재시도 무의미."""
+
+
+def _fetch_yahoo_chart_history(ticker: str, *, raise_on_404: bool = False) -> pd.DataFrame | None:
+    """Direct Yahoo chart API — bypasses yfinance library's rate-limited path.
+
+    raise_on_404=True 인 경우 HTTP 404 응답 시 _YahooNotFound 예외를 발생시켜
+    호출자가 "확정적 not found" 를 식별할 수 있게 한다. 기본 False(역호환).
+    """
     sym = ticker.upper().replace(".", "-")
+    # 블록리스트 short-circuit — Yahoo 호출 자체를 생략
+    if _is_delisted_us(sym):
+        logging.debug("[delisted-blocklist] skip yahoo fetch for %s", sym)
+        if raise_on_404:
+            raise _YahooNotFound(sym)
+        return None
     url = (
         f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
         "?range=2y&interval=1d&includePrePost=false&events=div%2Csplits"
     )
     last_err = None
+    saw_404 = False
     for attempt, timeout_sec in enumerate((10, 15)):
         try:
             req = urllib.request.Request(url, headers={
@@ -359,12 +454,27 @@ def _fetch_yahoo_chart_history(ticker: str) -> pd.DataFrame | None:
             if df.empty or len(df) < 30:
                 return None
             return df
+        except urllib.error.HTTPError as he:
+            last_err = he
+            if getattr(he, "code", None) == 404:
+                saw_404 = True
+                break  # 404 는 재시도 무의미
+            if attempt == 0:
+                time.sleep(0.8 + random.random() * 0.7)
+                continue
+            break
         except Exception as e:
             last_err = e
             if attempt == 0:
                 time.sleep(0.8 + random.random() * 0.7)
                 continue
             break
+    if saw_404:
+        # 404 는 "확정적 not found" — 호출자에게 시그널 전달
+        logging.debug("[yahoo-chart] 404 (definitive) %s", ticker)
+        if raise_on_404:
+            raise _YahooNotFound(ticker)
+        return None
     logging.warning("[yahoo-chart] history failed %s: %s", ticker, last_err)
     return None
 
@@ -372,12 +482,18 @@ def _fetch_yahoo_chart_history(ticker: str) -> pd.DataFrame | None:
 def _fetch_stooq_history(ticker: str) -> pd.DataFrame | None:
     """Fetch daily US price history from Stooq (secondary fallback)."""
     sym = ticker.upper().replace(".", "-")
+    # 블록리스트 short-circuit
+    if _is_delisted_us(sym):
+        logging.debug("[delisted-blocklist] skip stooq fetch for %s", sym)
+        return None
     url = f"https://stooq.com/q/d/l/?s={sym.lower()}.us&i=d"
     try:
         req = urllib.request.Request(url, headers={
             "User-Agent": _FALLBACK_UA,
             "Accept": "text/csv,text/plain,*/*"})
-        with urllib.request.urlopen(req, timeout=8) as resp:
+        # timeout 5s — 8s 대비 단축. 네트워크 이슈 ≠ 상폐 이므로 timeout 만으로
+        # blocklist 추가는 하지 않는다(호출자 정책).
+        with urllib.request.urlopen(req, timeout=5) as resp:
             raw = resp.read().decode("utf-8", errors="ignore")
         if not raw or "Date,Open,High,Low,Close,Volume" not in raw:
             return None
@@ -402,11 +518,30 @@ def _fetch_stooq_history(ticker: str) -> pd.DataFrame | None:
 
 
 def _fetch_us_fallback_history(ticker: str) -> pd.DataFrame | None:
-    """US 폴백 체인: Yahoo chart API → stooq."""
-    df = _fetch_yahoo_chart_history(ticker)
+    """US 폴백 체인: Yahoo chart API → stooq.
+
+    블록리스트 hit 시 즉시 None (debug 레벨 로그만).
+    Yahoo 가 404 (definitive) 이면서 Stooq 도 None 이면 자동 블록리스트 추가.
+    Stooq timeout 단독으로는 블록리스트 추가하지 않음(네트워크 이슈 ≠ 상폐).
+    """
+    if _is_delisted_us(ticker):
+        logging.debug("[delisted-blocklist] short-circuit %s", ticker)
+        return None
+    yahoo_404 = False
+    try:
+        df = _fetch_yahoo_chart_history(ticker, raise_on_404=True)
+    except _YahooNotFound:
+        yahoo_404 = True
+        df = None
     if df is not None:
         return df
-    return _fetch_stooq_history(ticker)
+    stooq_df = _fetch_stooq_history(ticker)
+    if stooq_df is not None:
+        return stooq_df
+    if yahoo_404:
+        # yahoo 가 확정적으로 404 + stooq 도 데이터 없음 → 상폐 확정
+        _add_delisted(ticker)
+    return None
 
 # ============================================================
 # Toss Design System 컬러 팔레트
@@ -3223,16 +3358,16 @@ class WallStreetQuantStrategies:
 # ============================================================
 class QuantNexusApp:
     """
-    슡목스캐너 메인 애플리케이션.
+    (.)(.)스캐너 메인 애플리케이션.
 
     스큐어모피즘 UI + 전략 패턴 아키텍처.
     v20: High DPI 지원 / Malgun Gothic 한글 폰트 / 섹터 대규모 확장.
     """
 
     def __init__(self, root: tk.Tk):
-        logging.info("슡목스캐너 시작")
+        logging.info("(.)(.)스캐너 시작")
         self.root = root
-        self.root.title("슡목스캐너")
+        self.root.title("(.)(.)스캐너")
 
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         w, h   = min(int(sw * 0.88), 1650), min(int(sh * 0.90), 960)
@@ -3311,6 +3446,16 @@ class QuantNexusApp:
                 if ts and (datetime.now() - ts).total_seconds() < 43200:
                     self._naver_target_cache = data
                     self._naver_target_meta = data.get('_meta', {}) or {}
+            except (pickle.UnpicklingError, EOFError, AttributeError, ImportError, ValueError) as e:
+                # WS-004: 손상 캐시 자가복구 — .corrupt 백업 후 빈 dict로 재시작
+                try:
+                    bak = self._naver_cache_path + '.corrupt'
+                    os.replace(self._naver_cache_path, bak)
+                    logging.warning("[CacheRepair] naver target cache corrupt → quarantined to %s (%s)", bak, e)
+                except Exception:
+                    logging.warning("[CacheRepair] naver target cache corrupt, quarantine failed: %s", e)
+                self._naver_target_cache = {}
+                self._naver_target_meta = {}
             except Exception:
                 pass
 
@@ -3397,6 +3542,15 @@ class QuantNexusApp:
                 if (ts and (datetime.now() - ts).total_seconds() < 43200
                         and schema == self._NAVER_FUND_SCHEMA):
                     self._naver_fund_cache = data
+            except (pickle.UnpicklingError, EOFError, AttributeError, ImportError, ValueError) as e:
+                # WS-004: 손상 캐시 자가복구
+                try:
+                    bak = self._naver_fund_cache_path + '.corrupt'
+                    os.replace(self._naver_fund_cache_path, bak)
+                    logging.warning("[CacheRepair] naver fund cache corrupt → quarantined to %s (%s)", bak, e)
+                except Exception:
+                    logging.warning("[CacheRepair] naver fund cache corrupt, quarantine failed: %s", e)
+                self._naver_fund_cache = {}
             except Exception:
                 pass
 
@@ -3615,7 +3769,7 @@ class QuantNexusApp:
         # ─ 왼쪽: 타이틀
         left = tk.Frame(inner, bg=C["HEADER_BG"])
         left.pack(side=tk.LEFT, fill=tk.Y)
-        tk.Label(left, text="슡목스캐너", font=F["TITLE"],
+        tk.Label(left, text="(.)(.)스캐너", font=F["TITLE"],
                  bg=C["HEADER_BG"], fg=C["ACCENT"]).pack(side=tk.LEFT)
         tk.Label(left, text="  주식 스캐너",
                  font=F["BODY"], bg=C["HEADER_BG"], fg=C["GOLD"]).pack(side=tk.LEFT)
@@ -4668,7 +4822,7 @@ class QuantNexusApp:
     @rate_limit(max_per_second=4)
     def _analyze_ticker(self, ticker: str) -> dict | None:
         """
-        슡목스캐너 단일 티커 분석 진입점 (v20.1)
+        (.)(.)스캐너 단일 티커 분석 진입점 (v20.1)
         ─────────────────────────────────────────────────────────────────
         점수 산출 순서 (예산 분배 아키텍처):
           1. 19개 전략 원점수 계산
@@ -4705,6 +4859,10 @@ class QuantNexusApp:
             with self._stats_lock:
                 self.stats["cache_misses"] += 1
 
+            # 상폐 블록리스트 short-circuit — yfinance 호출/로그 자체 회피
+            if self._scan_market == "US" and _is_delisted_us(ticker):
+                logging.debug("[delisted-blocklist] skip yfinance for %s", ticker)
+                return None
             stock = yf.Ticker(ticker)
             # period="2y"로 확장 — 252거래일 윈도우(12개월 수익률)를 안정적으로 확보
             # rate-limit (429) 대응: 지수 백오프 재시도, 최종 실패 시 1y 폴백 후 종목 스킵
@@ -4724,7 +4882,7 @@ class QuantNexusApp:
                     if _attempt == 0:
                         time.sleep(2.0 + random.random() * 2.0)
                         continue
-                    logging.warning("[yf] rate-limited %s (US fast path)", ticker)
+                    logging.warning("[yf] rate-limited %s (%s)", ticker, self._scan_market)
                     break
                 except Exception as _e:
                     logging.warning("[yf] history failed %s: %s", ticker, _e)
@@ -4904,9 +5062,23 @@ class QuantNexusApp:
                         info["freeCashflow"] = fin["operating_income"]
                     if fin.get("ebitda"):
                         info["ebitda"] = fin["ebitda"]
-                    # CAN SLIM [C] 용 EPS 성장률 — Naver 분기 실데이터 주입
-                    if fin.get("eps_growth") is not None:
-                        info["earningsGrowth"] = fin["eps_growth"]
+                    # ── CAN SLIM [C] 용 연간 EPS 성장률 ─────────────────────
+                    # 우선순위:
+                    #   1순위) DART 사업보고서(연결) 기본 EPS 당기 vs 전기 — 감독원 공시
+                    #   2순위) 네이버 분기 TTM (actual 8Q 필요, 5Q 신규/결산변경은 결측)
+                    # 분기 YoY(eps_qoq_growth)는 별도로 earningsQuarterlyGrowth 유지.
+                    annual_eg = None
+                    if _DART_OK and _dart_api is not None:
+                        try:
+                            d_eps = _dart_api.get_annual_eps_growth(ticker)
+                            if d_eps.get("available") and d_eps.get("eps_growth") is not None:
+                                annual_eg = d_eps["eps_growth"]
+                        except Exception as _e:
+                            logging.debug(f"[DART EPS] {ticker} 조회 실패: {_e}")
+                    if annual_eg is None and fin.get("eps_growth") is not None:
+                        annual_eg = fin["eps_growth"]
+                    if annual_eg is not None:
+                        info["earningsGrowth"] = annual_eg
                     if fin.get("eps_qoq_growth") is not None:
                         info["earningsQuarterlyGrowth"] = fin["eps_qoq_growth"]
                     src_tag = fin.get("source", "?")
@@ -7859,10 +8031,10 @@ class QuantNexusApp:
     # ─────────────────────────────────────────────────────────────────────
     def _show_guide(self):
         win = tk.Toplevel(self.root)
-        win.title("📘 슡목스캐너 가이드")
+        win.title("📘 (.)(.)스캐너 가이드")
         win.geometry("900x960")
         win.configure(bg=C["PANEL"])
-        tk.Label(win, text="⭐  슡목스캐너",
+        tk.Label(win, text="⭐  (.)(.)스캐너",
                  font=F["POPUP_SUB"], bg=C["PANEL"], fg=C["ACCENT"], pady=14).pack()
         tk.Label(win, text="윌리엄 오닐(William O'Neil) 7원칙 + 월가 퀀트 19전략 융합",
                  font=F["BODY"], bg=C["PANEL"], fg=C["GOLD"]).pack()
@@ -8042,7 +8214,7 @@ class QuantNexusApp:
             messagebox.showwarning("데이터 없음", "먼저 스캔을 실행해 주세요.")
             return
         try:
-            fname = f"슡목스캐너_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            fname = f"(.)(.)스캐너_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             wb    = xlsxwriter.Workbook(fname)
             ws    = wb.add_worksheet("분석_결과")
 
@@ -11618,8 +11790,10 @@ class QuantNexusApp:
             "Restaurants": "외식",
             "Auto & EV": "자동차·EV",
             "Luxury & Apparel": "럭셔리·의류",
+            "Hotels & Gaming": "호텔·카지노",
             "Beverages & Spirits": "음료·주류",
             "Food & Household": "식품·생활용품",
+            "Cannabis": "칸나비스",
             "Agriculture & Agri": "농업·비료",
             "Social & Ad Tech": "소셜·애드테크",
             "Gaming": "게임",
@@ -11628,8 +11802,10 @@ class QuantNexusApp:
             "Industrial REITs": "산업용 리츠",
             "Residential REITs": "주거용 리츠",
             "Retail & Office": "리테일·오피스",
+            "Healthcare REITs": "헬스케어 리츠",
             "Homebuilders": "주택건설",
             "Chemicals": "화학",
+            "Construction Materials": "건자재·골재",
             "Packaging": "패키징",
             "Metals & Mining": "금속·광산",
             "Gold & Precious": "금·귀금속",
@@ -11828,7 +12004,7 @@ class QuantNexusApp:
 # ============================================================
 if __name__ == "__main__":
     try:
-        logging.info("슡목스캐너 시작")
+        logging.info("(.)(.)스캐너 시작")
         root = tk.Tk()
         app  = QuantNexusApp(root)
         root.mainloop()

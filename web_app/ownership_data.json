@@ -1,0 +1,2471 @@
+{
+  "_meta": {
+    "version": 1,
+    "unit": "percent",
+    "note": "최신 사업보고서·DEF 14A·13F 기준 근사치. 분기마다 변동 가능."
+  },
+  "AAPL": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관 (Vanguard·BlackRock·SSGA 등)",
+        "pct": 62.3,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(임원·이사)",
+        "pct": 0.1,
+        "kind": "insider"
+      },
+      {
+        "name": "기타·개인 유동주식",
+        "pct": 37.6,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard Group",
+        "pct": 8.6
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.1
+      },
+      {
+        "name": "Berkshire Hathaway",
+        "pct": 2.0
+      },
+      {
+        "name": "State Street",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MSFT": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 71.7,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.05,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 28.25,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.2
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.4
+      },
+      {
+        "name": "State Street",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "GOOGL": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 42.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(창업자 의결권 슈퍼주식 포함)",
+        "pct": 11.4,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 46.6,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 8.3
+      },
+      {
+        "name": "BlackRock",
+        "pct": 5.0
+      },
+      {
+        "name": "Larry Page (Class B)",
+        "pct": 5.8
+      },
+      {
+        "name": "Sergey Brin (Class B)",
+        "pct": 5.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AMZN": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 61.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Bezos 등)",
+        "pct": 10.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 28.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Jeff Bezos",
+        "pct": 9.2
+      },
+      {
+        "name": "Vanguard",
+        "pct": 7.3
+      },
+      {
+        "name": "BlackRock",
+        "pct": 5.9
+      }
+    ],
+    "confidence": "verified"
+  },
+  "META": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 78.5,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Zuckerberg 의결권 ~57%)",
+        "pct": 13.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 8.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Mark Zuckerberg (Class B)",
+        "pct": 13.5
+      },
+      {
+        "name": "Vanguard",
+        "pct": 7.5
+      },
+      {
+        "name": "BlackRock",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NVDA": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 66.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Jensen Huang 등)",
+        "pct": 4.0,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 30.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 8.6
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.2
+      },
+      {
+        "name": "Jensen Huang",
+        "pct": 3.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TSLA": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 48.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Musk 등)",
+        "pct": 13.1,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 38.9,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Elon Musk",
+        "pct": 12.8
+      },
+      {
+        "name": "Vanguard",
+        "pct": 7.3
+      },
+      {
+        "name": "BlackRock",
+        "pct": 5.9
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BRK-B": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 58.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Buffett A주 의결권)",
+        "pct": 31.0,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 11.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Warren Buffett (A+B)",
+        "pct": 15.0
+      },
+      {
+        "name": "Vanguard",
+        "pct": 11.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 9.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "JPM": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 72.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 27.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.7
+      },
+      {
+        "name": "State Street",
+        "pct": 4.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "LLY": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 81.0,
+        "kind": "inst"
+      },
+      {
+        "name": "Lilly Endowment (재단)",
+        "pct": 11.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 7.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Lilly Endowment Inc",
+        "pct": 11.5
+      },
+      {
+        "name": "Vanguard",
+        "pct": 9.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.3
+      }
+    ],
+    "confidence": "verified"
+  },
+  "UNH": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 89.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.4,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 10.6,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.5
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "JNJ": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 71.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.1,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 28.9,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.4
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "V": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 94.5,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.05,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 5.45,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 8.2
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MA": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 80.0,
+        "kind": "inst"
+      },
+      {
+        "name": "MasterCard Foundation (Class A)",
+        "pct": 10.0,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 10.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "MasterCard Foundation",
+        "pct": 10.0
+      },
+      {
+        "name": "Vanguard",
+        "pct": 7.6
+      },
+      {
+        "name": "BlackRock",
+        "pct": 6.3
+      }
+    ],
+    "confidence": "verified"
+  },
+  "WMT": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 34.0,
+        "kind": "inst"
+      },
+      {
+        "name": "Walton 가문 (Walton Enterprises)",
+        "pct": 44.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 21.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Walton Enterprises",
+        "pct": 44.5
+      },
+      {
+        "name": "Vanguard",
+        "pct": 4.6
+      },
+      {
+        "name": "BlackRock",
+        "pct": 3.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "COST": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 68.5,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.2,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 31.3,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "DIS": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 67.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.3,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 32.7,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "NFLX": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 83.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Hastings 등)",
+        "pct": 1.0,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 16.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 8.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 6.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AVGO": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 76.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Hock Tan 등)",
+        "pct": 0.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 23.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.1
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.2
+      }
+    ],
+    "confidence": "verified"
+  },
+  "AMD": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 71.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Lisa Su 등)",
+        "pct": 0.6,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 28.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Vanguard",
+        "pct": 9.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ORCL": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 44.0,
+        "kind": "inst"
+      },
+      {
+        "name": "Larry Ellison",
+        "pct": 40.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 15.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Larry Ellison",
+        "pct": 40.5
+      },
+      {
+        "name": "Vanguard",
+        "pct": 4.5
+      },
+      {
+        "name": "BlackRock",
+        "pct": 3.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PLTR": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 51.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Karp·Thiel·Cohen, 의결권 ~50%)",
+        "pct": 11.0,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 38.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Peter Thiel",
+        "pct": 7.0
+      },
+      {
+        "name": "Alex Karp",
+        "pct": 3.0
+      },
+      {
+        "name": "Vanguard",
+        "pct": 7.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "COIN": {
+    "asof": "2025Q1",
+    "source": "DEF 14A·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 63.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자(Brian Armstrong)",
+        "pct": 13.0,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 24.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Brian Armstrong",
+        "pct": 13.0
+      },
+      {
+        "name": "ARK Invest",
+        "pct": 3.5
+      },
+      {
+        "name": "Vanguard",
+        "pct": 6.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "BABA": {
+    "asof": "2025Q1",
+    "source": "20-F·13F",
+    "breakdown": [
+      {
+        "name": "기관(글로벌)",
+        "pct": 40.0,
+        "kind": "inst"
+      },
+      {
+        "name": "SoftBank Group",
+        "pct": 12.0,
+        "kind": "insider"
+      },
+      {
+        "name": "Jack Ma & Joe Tsai 등 창업자",
+        "pct": 7.0,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 41.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "SoftBank Group",
+        "pct": 12.0
+      },
+      {
+        "name": "Jack Ma",
+        "pct": 4.5
+      },
+      {
+        "name": "Joe Tsai",
+        "pct": 1.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "PDD": {
+    "asof": "2025Q1",
+    "source": "20-F·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 35.0,
+        "kind": "inst"
+      },
+      {
+        "name": "Colin Huang (창업자)",
+        "pct": 24.6,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 40.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Colin Huang",
+        "pct": 24.6
+      },
+      {
+        "name": "Tencent",
+        "pct": 5.0
+      },
+      {
+        "name": "Sequoia Capital",
+        "pct": 4.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "MELI": {
+    "asof": "2025Q1",
+    "source": "20-F·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 75.0,
+        "kind": "inst"
+      },
+      {
+        "name": "Marcos Galperin (CEO)",
+        "pct": 8.5,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 16.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Marcos Galperin",
+        "pct": 8.5
+      },
+      {
+        "name": "Capital Group",
+        "pct": 7.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "SE": {
+    "asof": "2025Q1",
+    "source": "20-F·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 42.0,
+        "kind": "inst"
+      },
+      {
+        "name": "Forrest Li (창업자, 의결권 다수)",
+        "pct": 18.0,
+        "kind": "insider"
+      },
+      {
+        "name": "Tencent",
+        "pct": 18.7,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 21.3,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Tencent",
+        "pct": 18.7
+      },
+      {
+        "name": "Forrest Li",
+        "pct": 18.0
+      },
+      {
+        "name": "Capital Group",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "TSM": {
+    "asof": "2025Q1",
+    "source": "Annual Report·20-F",
+    "breakdown": [
+      {
+        "name": "외국인 기관(ADR 등)",
+        "pct": 76.0,
+        "kind": "inst"
+      },
+      {
+        "name": "National Development Fund (대만 정부)",
+        "pct": 6.4,
+        "kind": "insider"
+      },
+      {
+        "name": "기타·개인",
+        "pct": 17.6,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "NDF (대만 정부)",
+        "pct": 6.4
+      },
+      {
+        "name": "Vanguard",
+        "pct": 3.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 2.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "ASML": {
+    "asof": "2025Q1",
+    "source": "Annual Report·13F",
+    "breakdown": [
+      {
+        "name": "기관",
+        "pct": 83.0,
+        "kind": "inst"
+      },
+      {
+        "name": "내부자",
+        "pct": 0.2,
+        "kind": "insider"
+      },
+      {
+        "name": "개인 유동주식",
+        "pct": 16.8,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Capital Group",
+        "pct": 7.5
+      },
+      {
+        "name": "BlackRock",
+        "pct": 6.0
+      },
+      {
+        "name": "Vanguard",
+        "pct": 3.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "005930.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "최대주주(이재용·홍라희·삼성물산·생명 등)",
+        "pct": 20.8,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 53.5,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 12.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 13.7,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "삼성물산",
+        "pct": 5.0
+      },
+      {
+        "name": "삼성생명",
+        "pct": 8.5
+      },
+      {
+        "name": "이재용",
+        "pct": 1.6
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "000660.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "SK스퀘어 등 최대주주 측",
+        "pct": 20.1,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 52.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 11.5,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 16.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "SK스퀘어",
+        "pct": 20.1
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035420.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "이해진 외 특수관계인",
+        "pct": 3.7,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 48.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 18.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 30.3,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 7.6
+      },
+      {
+        "name": "BlackRock",
+        "pct": 5.1
+      },
+      {
+        "name": "이해진",
+        "pct": 3.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035720.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "김범수 외 특수관계인(K큐브 포함)",
+        "pct": 24.2,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 24.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 13.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 38.8,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "김범수 외",
+        "pct": 24.2
+      },
+      {
+        "name": "국민연금",
+        "pct": 6.2
+      }
+    ],
+    "confidence": "verified"
+  },
+  "005380.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "현대모비스·정의선 등 특수관계인",
+        "pct": 30.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 33.5,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 21.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "현대모비스",
+        "pct": 21.6
+      },
+      {
+        "name": "정의선",
+        "pct": 2.6
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "000270.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "현대차·정의선 등 특수관계인",
+        "pct": 35.6,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 40.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 10.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 14.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "현대자동차",
+        "pct": 33.9
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "207940.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "삼성물산·삼성전자 등",
+        "pct": 74.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 12.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 5.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 9.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "삼성물산",
+        "pct": 43.1
+      },
+      {
+        "name": "삼성전자",
+        "pct": 31.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "068270.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "셀트리온홀딩스·서정진",
+        "pct": 22.2,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 22.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 13.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 42.8,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "셀트리온홀딩스",
+        "pct": 18.5
+      },
+      {
+        "name": "서정진",
+        "pct": 3.7
+      },
+      {
+        "name": "국민연금",
+        "pct": 5.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "051910.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "LG·구광모 등 특수관계인",
+        "pct": 33.3,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 40.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 13.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 13.7,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "㈜LG",
+        "pct": 30.1
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "373220.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "LG화학(모회사)",
+        "pct": 81.8,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 6.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 5.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 7.2,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "LG화학",
+        "pct": 81.8
+      },
+      {
+        "name": "국민연금",
+        "pct": 3.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "006400.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "삼성디스플레이·삼성SDS 등 특수관계인",
+        "pct": 19.6,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 50.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 13.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 17.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "삼성디스플레이",
+        "pct": 15.2
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.4
+      }
+    ],
+    "confidence": "verified"
+  },
+  "105560.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "국민연금",
+        "pct": 8.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 75.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 8.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 9.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 8.0
+      },
+      {
+        "name": "BlackRock",
+        "pct": 7.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "055550.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "국민연금",
+        "pct": 7.7,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 61.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 12.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 19.3,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 7.7
+      },
+      {
+        "name": "BlackRock",
+        "pct": 5.6
+      }
+    ],
+    "confidence": "verified"
+  },
+  "066570.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "㈜LG 등 특수관계인",
+        "pct": 33.7,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 28.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 13.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 25.3,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "㈜LG",
+        "pct": 33.7
+      },
+      {
+        "name": "국민연금",
+        "pct": 6.8
+      }
+    ],
+    "confidence": "verified"
+  },
+  "012330.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "기아·정몽구·정의선 등 특수관계인",
+        "pct": 30.5,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 35.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 19.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "기아",
+        "pct": 17.4
+      },
+      {
+        "name": "정몽구",
+        "pct": 7.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "028260.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "이재용 등 오너 일가",
+        "pct": 33.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 15.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 37.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "이재용",
+        "pct": 18.3
+      },
+      {
+        "name": "국민연금",
+        "pct": 5.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "005490.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "국민연금",
+        "pct": 7.3,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 50.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 12.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 30.7,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 7.3
+      },
+      {
+        "name": "우리사주조합",
+        "pct": 3.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "086790.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "국민연금",
+        "pct": 8.5,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 68.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 10.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 13.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 8.5
+      },
+      {
+        "name": "BlackRock",
+        "pct": 5.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "316140.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "우리사주조합 등",
+        "pct": 10.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 42.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 18.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 30.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 9.4
+      },
+      {
+        "name": "우리사주조합",
+        "pct": 7.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "017670.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "SK스퀘어 등 특수관계인",
+        "pct": 30.6,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 42.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 12.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 15.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "SK스퀘어",
+        "pct": 30.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "030200.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "국민연금",
+        "pct": 13.6,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 48.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 10.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 28.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 13.6
+      },
+      {
+        "name": "NTT Docomo",
+        "pct": 5.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "032640.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "㈜LG",
+        "pct": 37.7,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 40.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 8.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 14.3,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "㈜LG",
+        "pct": 37.7
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "033780.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "국민연금",
+        "pct": 9.6,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 42.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 12.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 36.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 9.6
+      },
+      {
+        "name": "기업은행",
+        "pct": 6.9
+      }
+    ],
+    "confidence": "verified"
+  },
+  "088980.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "맥쿼리 그룹 등 운용사",
+        "pct": 40.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 20.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 25.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "Macquarie Group",
+        "pct": 18.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "352820.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "방시혁",
+        "pct": 31.6,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 12.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 41.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "방시혁",
+        "pct": 31.6
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.2
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035250.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "국민연금",
+        "pct": 7.6,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 35.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 12.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 45.4,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "국민연금",
+        "pct": 7.6
+      },
+      {
+        "name": "교직원공제회",
+        "pct": 4.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "036570.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "김택진 등 특수관계인",
+        "pct": 11.9,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 35.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 38.1,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "김택진",
+        "pct": 11.9
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.7
+      }
+    ],
+    "confidence": "verified"
+  },
+  "047810.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "한국수출입은행·국민연금 등",
+        "pct": 40.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 20.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 25.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "한국수출입은행",
+        "pct": 26.4
+      },
+      {
+        "name": "국민연금",
+        "pct": 8.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "012450.KS": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "한화에어로스페이스 특수관계인",
+        "pct": 35.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 25.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 25.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "㈜한화",
+        "pct": 33.9
+      },
+      {
+        "name": "국민연금",
+        "pct": 6.2
+      }
+    ],
+    "confidence": "verified"
+  },
+  "247540.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "포스코홀딩스 등",
+        "pct": 21.5,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 20.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 43.5,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "포스코홀딩스",
+        "pct": 15.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 6.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "086520.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "이동채 등 특수관계인",
+        "pct": 25.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 12.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 13.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 50.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "이동채",
+        "pct": 22.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "353200.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "서범석·박종찬 등 특수관계인",
+        "pct": 18.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 18.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 49.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "서범석",
+        "pct": 10.5
+      },
+      {
+        "name": "국민연금",
+        "pct": 5.8
+      }
+    ],
+    "confidence": "verified"
+  },
+  "328130.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "SM엔터테인먼트(JYP·SM·HYBE 지분 포함)",
+        "pct": 32.9,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 8.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 44.1,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "SM엔터테인먼트",
+        "pct": 21.6
+      },
+      {
+        "name": "JYP",
+        "pct": 11.3
+      }
+    ],
+    "confidence": "verified"
+  },
+  "293490.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "이지훈 등 창업자·임직원",
+        "pct": 42.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 12.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 10.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 36.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "이지훈",
+        "pct": 21.3
+      },
+      {
+        "name": "송재준",
+        "pct": 10.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "041510.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "이수만(전 최대주주)·카카오 등",
+        "pct": 40.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 15.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 30.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "카카오",
+        "pct": 35.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 6.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "035900.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "박진영 등 특수관계인",
+        "pct": 18.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 20.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 47.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "박진영",
+        "pct": 15.2
+      },
+      {
+        "name": "국민연금",
+        "pct": 7.5
+      }
+    ],
+    "confidence": "verified"
+  },
+  "086900.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "정현호 등 특수관계인",
+        "pct": 20.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 15.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 12.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 53.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "정현호 외",
+        "pct": 17.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  },
+  "950130.KQ": {
+    "asof": "2024Q4",
+    "source": "사업보고서",
+    "breakdown": [
+      {
+        "name": "이오플로우(전 최대주주)·기타",
+        "pct": 15.0,
+        "kind": "insider"
+      },
+      {
+        "name": "외국인",
+        "pct": 20.0,
+        "kind": "foreign"
+      },
+      {
+        "name": "국내 기관",
+        "pct": 15.0,
+        "kind": "inst"
+      },
+      {
+        "name": "개인",
+        "pct": 50.0,
+        "kind": "retail"
+      }
+    ],
+    "top": [
+      {
+        "name": "강신영",
+        "pct": 12.0
+      },
+      {
+        "name": "국민연금",
+        "pct": 5.0
+      }
+    ],
+    "confidence": "verified"
+  }
+}
