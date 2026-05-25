@@ -93,7 +93,7 @@ def annotate_deltas(results: list[dict], market: str) -> list[dict]:
     days = (today - base_day).days if base_day else 0
     # 오늘 순위 산출 (TotalScore 내림차순 가정 — 이미 정렬됨)
     sorted_by_score = sorted(
-        results, key=lambda x: x.get("TotalScore", 0), reverse=True
+        results, key=lambda x: x.get("TotalScore") or 0, reverse=True
     )
     today_rank = {r.get("Ticker"): i + 1 for i, r in enumerate(sorted_by_score)}
 
@@ -101,7 +101,7 @@ def annotate_deltas(results: list[dict], market: str) -> list[dict]:
         tkr = r.get("Ticker")
         cur_score = r.get("TotalScore")
         cur_rank = today_rank.get(tkr)
-        if baseline and tkr in baseline:
+        if baseline and tkr in baseline and not baseline[tkr].get("missing"):
             prev = baseline[tkr]
             prev_score = prev.get("score")
             prev_rank = prev.get("rank")
@@ -126,13 +126,18 @@ def annotate_deltas(results: list[dict], market: str) -> list[dict]:
     return results
 
 
-def save_snapshot(results: list[dict], market: str) -> None:
-    """오늘 결과를 스냅샷으로 저장. 이미 있으면 덮어씀(같은 날 재스캔)."""
+def save_snapshot(results: list[dict], market: str, universe: list[str] | set[str] | None = None) -> None:
+    """오늘 결과를 스냅샷으로 저장. 이미 있으면 덮어씀(같은 날 재스캔).
+
+    universe 가 주어지면 분석 실패로 결과에 없는 티커도
+    {"score": None, "rank": None, "entry": None, "missing": True}
+    형태로 함께 저장한다 — 유니버스 커버리지 일관성 유지용.
+    """
     if not results:
         return
     today = date.today()
     sorted_by_score = sorted(
-        results, key=lambda x: x.get("TotalScore", 0), reverse=True
+        results, key=lambda x: x.get("TotalScore") or 0, reverse=True
     )
     snap = {
         r["Ticker"]: {
@@ -143,6 +148,15 @@ def save_snapshot(results: list[dict], market: str) -> None:
         for i, r in enumerate(sorted_by_score)
         if r.get("Ticker")
     }
+    if universe:
+        for tkr in universe:
+            if tkr and tkr not in snap:
+                snap[tkr] = {
+                    "score": None,
+                    "rank": None,
+                    "entry": None,
+                    "missing": True,
+                }
     p = _snap_path(market, today)
     try:
         with open(p, "w", encoding="utf-8") as f:

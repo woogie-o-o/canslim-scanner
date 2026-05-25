@@ -2,6 +2,7 @@
 # install: pip install -r requirements.txt
 
 flask>=3.0
+flask-compress>=1.14
 flask-socketio>=5.3
 simple-websocket>=1.0
 gunicorn>=22.0
@@ -22,4 +23,5 @@ Pillow>=10.0
 
 plyer>=2.1
 xlsxwriter>=3.1
-lxml>=5.0
+
+# rebuild-trigger: 2026-05-23 — ensure flask-compress is installed on prod (silent gzip fail caused 11MB JSON timeouts)

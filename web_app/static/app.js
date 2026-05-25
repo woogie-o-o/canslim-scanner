@@ -581,6 +581,15 @@ function selectSector(btn, sector) {
   runScan();
 }
 
+// 처음 접속 시엔 서버가 아직 준비 안 됐을 수 있어 잠시 후 자동 재시도.
+// 콜드 스타트 직후 fetch 실패를 "서버 접속안됨" 처럼 보이지 않도록 부드럽게 처리.
+let _runScanAttempt = 0;
+const _RUN_SCAN_MAX_RETRY = 4;            // 총 시도 5회 (초기 + 재시도 4)
+const _RUN_SCAN_BACKOFF_MS = [2000, 4000, 8000, 12000];
+// 워밍업 응답(X-Warming-In-Progress)을 받을 때마다 재시도 — 무한 폴링을 막기 위해 캡.
+let _warmingRetries = 0;
+const _WARMING_MAX_RETRY = 6;             // 6회 × 15초 = 약 90초
+
 async function runScan() {
   const btn = document.getElementById('btn-scan');
   if (btn) { btn.disabled = true; }
@@ -610,11 +619,37 @@ async function runScan() {
     _scanStocks  = allStocks;
     const visibleTickers = new Set(allStocks.map(s => s.Ticker));
     _compareSet = new Set([..._compareSet].filter(ticker => visibleTickers.has(ticker)));
+    
+    // 서버가 워밍 중이고 결과가 없으면 자동 재시도 — 단, 영구 루프 방지를 위해 캡.
+    if (allStocks.length === 0 && res.headers.get('X-Warming-In-Progress') === 'true') {
+      if (_warmingRetries < _WARMING_MAX_RETRY) {
+        _warmingRetries += 1;
+        setStockListMsg(`데이터 준비 중… 자동으로 불러옵니다 (${_warmingRetries}/${_WARMING_MAX_RETRY})`);
+        setTimeout(() => { if (!document.hidden) runScan(); }, 15000);
+      } else {
+        // 캡 도달 — 명시적 실패 안내, 카운터 리셋(사용자가 직접 다시 시도하면 재개).
+        setStockListMsg('서버 준비가 지연되고 있습니다. 잠시 후 새로고침해 주세요.');
+        _warmingRetries = 0;
+      }
+      return;
+    }
+    _runScanAttempt = 0;  // 성공 시 카운터 리셋
+    _warmingRetries = 0;
     _refreshFilteredView();
   } catch (e) {
     console.error('runScan 실패:', e);
-    stopScanLoading();
-    setStockListMsg('스캔 실패. 서버 상태를 확인하세요.');
+    // 콜드 스타트 / 네트워크 흔들림 — 백오프하며 자동 재시도.
+    if (_runScanAttempt < _RUN_SCAN_MAX_RETRY) {
+      const delay = _RUN_SCAN_BACKOFF_MS[_runScanAttempt] || 12000;
+      _runScanAttempt += 1;
+      const secs = Math.round(delay / 1000);
+      setStockListMsg(`서버 준비 중… ${secs}초 후 자동으로 다시 시도합니다 (${_runScanAttempt}/${_RUN_SCAN_MAX_RETRY})`);
+      setTimeout(() => { if (!document.hidden) runScan(); }, delay);
+    } else {
+      // 재시도 다 소진 — 그제야 명시적 실패 안내.
+      setStockListMsg('서버에 연결하지 못했습니다. 새로고침하거나 서버 상태를 확인하세요.');
+      _runScanAttempt = 0;
+    }
   } finally {
     stopScanLoading();
     if (btn) btn.disabled = false;

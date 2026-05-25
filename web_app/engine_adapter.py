@@ -1,16 +1,22 @@
-﻿"""
+"""
 engine_adapter.py — quant_nexus_v20.py 엔진을 tkinter 없이 사용하는 어댑터
 Flask 웹앱이 이 클래스를 통해 스캔 기능을 호출한다.
 """
-from __future__ import annotations
-
 import sys
 import os
+import time
+import random
 import threading
 import logging
 import concurrent.futures
 from collections import OrderedDict
-from datetime import datetime, timedelta
+
+# ── 프로세스-전역 VIX 캐시 ────────────────────────────────────────────────
+# KR/US 어댑터가 거의 동시에 생성될 때 ^VIX 를 중복 호출해 429를 자초하던 문제 해결.
+# TTL 5분, 실패 시 한 번 지수 backoff 재시도.
+_VIX_CACHE: dict = {"value": None, "ts": 0.0}
+_VIX_CACHE_LOCK = threading.Lock()
+_VIX_TTL_SEC = 300.0
 
 # 프로젝트 경로 추가 (quant_nexus_v20.py가 있는 디렉토리)
 _BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -20,6 +26,7 @@ if _BASE not in sys.path:
 # quant_nexus_v20 import
 # Windows에서 tkinter는 import만으로 GUI를 띄우지 않음 — 안전하게 import 가능
 import quant_nexus_v20 as _qn
+from speculative_themes import apply_speculative_correction, apply_to_row
 
 
 class ScanAdapter:
@@ -76,14 +83,43 @@ class ScanAdapter:
 
         KR/US 모두 ^VIX를 사용한다 — 점수계의 VIX smooth band(12~45)는
         양쪽 시장에 동일하게 적용되며, ^VKOSPI는 Yahoo Finance에서 제거됨.
+
+        프로세스-전역 캐시(TTL 5분) — KR/US 어댑터가 거의 동시에 생성될 때
+        ^VIX 중복 호출로 자초한 429를 막는다. 실패 시 1회 backoff 재시도 후
+        그래도 실패면 직전 캐시값(없으면 20.0)을 반환.
         """
-        try:
-            import yfinance as _yf
-            v = _yf.Ticker("^VIX").history(period="5d")
-            if not v.empty:
-                return float(v["Close"].iloc[-1])
-        except Exception as e:
-            logging.warning("[Adapter] vol index fetch failed (%s): %s", market, e)
+        now = time.time()
+        with _VIX_CACHE_LOCK:
+            cached = _VIX_CACHE["value"]
+            cached_ts = _VIX_CACHE["ts"]
+            if cached is not None and (now - cached_ts) < _VIX_TTL_SEC:
+                return float(cached)
+
+        import yfinance as _yf
+        for attempt in range(3):
+            if attempt == 1:
+                time.sleep(random.uniform(3.0, 5.0))
+            elif attempt == 2:
+                time.sleep(random.uniform(8.0, 12.0))
+            try:
+                v = _yf.Ticker("^VIX").history(period="5d")
+                if not v.empty:
+                    val = float(v["Close"].iloc[-1])
+                    with _VIX_CACHE_LOCK:
+                        _VIX_CACHE["value"] = val
+                        _VIX_CACHE["ts"] = time.time()
+                    return val
+            except Exception as e:
+                msg = str(e)
+                if "rate" in msg or "Too Many" in msg or "429" in msg:
+                    logging.warning("[Adapter] vol index rate-limited (%s, attempt %d): %s", market, attempt, e)
+                else:
+                    logging.warning("[Adapter] vol index fetch failed (%s): %s", market, e)
+        if cached is not None and (now - cached_ts) < 900.0:
+            logging.info("[VIX] stale cache used (%.1fmin old)", (now - cached_ts) / 60.0)
+            return float(cached)
+        if cached is not None:
+            return float(cached)
         return 20.0
 
     def _build_sectors(self) -> None:
@@ -148,18 +184,22 @@ class ScanAdapter:
     def analyze_ticker(self, ticker: str, *, prefer_cache: bool = False, cache_only: bool = False) -> dict | None:
         """단일 종목 분석 — 캐시 우선/캐시 전용 모드를 지원한다."""
         if prefer_cache:
+            # _analyze_ticker(quant_nexus_v20.py:4684)와 동일한 dated 키 포맷.
+            # 최근 7일 내의 캐시가 있으면 일단 반환하여 무한 대기 및 누락을 방지합니다.
+            from datetime import datetime, timedelta
             base_key = f"{ticker}__{self._scan_strategy}"
             dated_keys = [
                 f"{base_key}__{(datetime.now() - timedelta(days=days)).strftime('%Y%m%d')}"
                 for days in range(7)
             ]
-            for cache_key in (*dated_keys, base_key):
+            for cache_key in dated_keys:
                 cached = self.cache.get(cache_key, max_age_minutes=60 * 24 * 7)
                 if cached:
-                    return cached
+                    return apply_to_row(cached)
             if cache_only:
                 return None
-        return _qn.QuantNexusApp._analyze_ticker(self, ticker)
+        result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
+        return apply_to_row(result) if result else result
 
     def scan_sector(self, sector: str, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "4")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:
         """특정 섹터 종목을 병렬 분석 후 TotalScore 내림차순 반환."""
@@ -179,6 +219,7 @@ class ScanAdapter:
                 except Exception as e:
                     logging.error("scan_sector error: %s", e)
         self._attach_sector_residual(results)
+        apply_speculative_correction(results)
         results.sort(key=lambda x: x.get("TotalScore", 0), reverse=True)
         return results
 
@@ -209,6 +250,7 @@ class ScanAdapter:
                 except Exception as e:
                     logging.error("scan_all [%s] error: %s", ticker, e)
         self._attach_sector_residual(results)
+        apply_speculative_correction(results)
         results.sort(key=lambda x: x.get("TotalScore", 0), reverse=True)
         return results
 

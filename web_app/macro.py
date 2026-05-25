@@ -16,6 +16,7 @@ import logging
 import re
 import threading
 import time
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone, timedelta
 
@@ -39,6 +40,13 @@ _RANGES = {
     "kospi":    (1.0, 100000.0),
     "usdkrw":   (100.0, 5000.0),
     "kr_rate":  (-5.0, 30.0),
+    "us_rate":  (-5.0, 30.0),
+    "us10y":    (0.0, 30.0),
+    "dxy":      (50.0, 200.0),
+    "gold":     (100.0, 10000.0),
+    "wti":      (0.0, 500.0),
+    "btc":      (1.0, 10_000_000.0),
+    "nasdaq":   (1.0, 100000.0),
 }
 
 
@@ -65,10 +73,16 @@ def _valid(key: str, val):
 
 # ── yfinance 배치 수집 ────────────────────────────────────────────────
 _YF_MAP = {
-    "^VIX":  "vix",
-    "^GSPC": "sp500",
-    "^KS11": "kospi",
-    "KRW=X": "usdkrw",
+    "^VIX":    "vix",
+    "^GSPC":   "sp500",
+    "^IXIC":   "nasdaq",
+    "^KS11":   "kospi",
+    "KRW=X":   "usdkrw",
+    "^TNX":    "us10y",     # 미국 10년물 국채 금리(%)
+    "DX-Y.NYB": "dxy",       # 달러인덱스
+    "GC=F":    "gold",       # 금 선물(USD/oz)
+    "CL=F":    "wti",        # WTI 원유(USD/bbl)
+    "BTC-USD": "btc",        # 비트코인(USD)
 }
 
 
@@ -106,23 +120,22 @@ def _fetch_yf() -> dict:
     return out
 
 
-# ── 네이버 검색 카드 — 한국은행 기준금리 스크래핑 ────────────────────
-# 네이버 통합검색 "한국은행 기준금리" → 중앙은행 기준금리 표 카드.
-# 표 구조: [발표일] [발표] [이전발표] — 최근 발표월은 미발표('- -')일 수 있어
-# 태그 제거 후 '기준금리 표' 이후 첫 실수 퍼센트(2.50%)를 최신 기준금리로 본다.
-_NAVER_RATE_URL = (
-    "https://search.naver.com/search.naver?query="
-    "%ED%95%9C%EA%B5%AD%EC%9D%80%ED%96%89%20%EA%B8%B0%EC%A4%80%EA%B8%88%EB%A6%AC"
-)
+# ── 네이버 검색 카드 — 한국/미국 기준금리 스크래핑 ────────────────────
+# 네이버 통합검색 "한국은행 기준금리" / "미국 기준금리" → 중앙은행 기준금리 표 카드.
+# 태그 제거 후 '기준금리 표' 이후 첫 실수 퍼센트를 최신 기준금리로 본다.
+# 미국 Fed funds rate는 범위(예: 4.00~4.25%)로 표기되며, 상단(upper bound)을 선호.
 _TAG_RE = re.compile(r"<[^>]+>")
 _RATE_PCT_RE = re.compile(r"(\d{1,2}\.\d{1,2})\s*%")
+_RATE_RANGE_RE = re.compile(r"(\d{1,2}\.\d{1,2})\s*[~∼\-–]\s*(\d{1,2}\.\d{1,2})\s*%")
 
 
-def _fetch_kr_rate() -> float | None:
-    """네이버 검색 카드에서 한국은행 기준금리(%) 스크래핑. 실패 시 None."""
+def _fetch_naver_rate(key: str, query: str) -> float | None:
+    """네이버 검색 카드에서 기준금리(%) 스크래핑. 실패 시 None."""
     try:
+        url = ("https://search.naver.com/search.naver?query="
+               + urllib.parse.quote(query))
         req = urllib.request.Request(
-            _NAVER_RATE_URL,
+            url,
             headers={"User-Agent":
                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) scanner-macro"},
         )
@@ -134,12 +147,24 @@ def _fetch_kr_rate() -> float | None:
         if anchor == -1:
             return None
         seg = _TAG_RE.sub(" ", htm[anchor:anchor + 1200])
+        # 범위(예: 4.00~4.25%) 우선 — 상단 사용
+        rng = _RATE_RANGE_RE.search(seg)
+        if rng:
+            return _valid(key, rng.group(2))
         m = _RATE_PCT_RE.search(seg)
         if m:
-            return _valid("kr_rate", m.group(1))
+            return _valid(key, m.group(1))
     except Exception as e:
-        _LOG.warning("macro: kr_rate scrape failed: %s", e)
+        _LOG.warning("macro: %s scrape failed: %s", key, e)
     return None
+
+
+def _fetch_kr_rate() -> float | None:
+    return _fetch_naver_rate("kr_rate", "한국은행 기준금리")
+
+
+def _fetch_us_rate() -> float | None:
+    return _fetch_naver_rate("us_rate", "미국 기준금리")
 
 
 # ── 신호등 계산 ───────────────────────────────────────────────────────
@@ -158,10 +183,18 @@ def _signal(vix, usdkrw) -> dict:
     return {"level": "stable", "emoji": "🟢", "label": "안정"}
 
 
+_ALL_KEYS = (
+    "vix", "sp500", "nasdaq", "kospi", "usdkrw",
+    "kr_rate", "us_rate", "us10y", "dxy",
+    "gold", "wti", "btc",
+)
+
+
 def _build() -> dict:
     """지표를 새로 수집해 payload 조립. 부분 실패 허용."""
     yf_data = _fetch_yf()
     kr_rate = _fetch_kr_rate()
+    us_rate = _fetch_us_rate()
 
     def cell(key):
         d = yf_data.get(key)
@@ -173,11 +206,18 @@ def _build() -> dict:
     usdkrw = (cell("usdkrw") or {}).get("value")
 
     indicators = {
-        "vix":    cell("vix"),
-        "sp500":  cell("sp500"),
-        "kospi":  cell("kospi"),
-        "usdkrw": cell("usdkrw"),
+        "vix":     cell("vix"),
+        "sp500":   cell("sp500"),
+        "nasdaq":  cell("nasdaq"),
+        "kospi":   cell("kospi"),
+        "usdkrw":  cell("usdkrw"),
+        "us10y":   cell("us10y"),
+        "dxy":     cell("dxy"),
+        "gold":    cell("gold"),
+        "wti":     cell("wti"),
+        "btc":     cell("btc"),
         "kr_rate": ({"value": kr_rate, "change_pct": None} if kr_rate is not None else None),
+        "us_rate": ({"value": us_rate, "change_pct": None} if us_rate is not None else None),
     }
     return {
         "signal": _signal(vix, usdkrw),
@@ -216,8 +256,7 @@ def get_macro(force: bool = False) -> dict:
                 return stale
         return {
             "signal": {"level": "unknown", "emoji": "⚪", "label": "정보없음"},
-            "indicators": {k: None for k in
-                           ("vix", "sp500", "kospi", "usdkrw", "kr_rate")},
+            "indicators": {k: None for k in _ALL_KEYS},
             "ts": datetime.now(_KST).isoformat(timespec="seconds"),
             "stale": True,
         }

@@ -1,5 +1,5 @@
 """
-종목스캐너
+슡목스캐너
 =============================================================
 윌리엄 오닐(William O'Neil) CAN SLIM 원칙 + 월가 퀀트 전략 융합
 
@@ -79,6 +79,7 @@ from datetime import datetime, timedelta
 import pickle
 import logging
 import time
+import random
 import traceback
 import hashlib
 import json
@@ -116,62 +117,49 @@ HOLDCO_HOLDINGS: dict[str, dict] = {
         "stakes": [("017670", 0.3057),           # SK텔레콤
                    ("096770", 0.3622),           # SK이노베이션
                    ("402340", 0.3055)],          # SK스퀘어
-        "buyback_yield": 0.02,
-    },
+        "buyback_yield": 0.02},
     "003550": {  # ㈜LG — LG그룹 지주
         "stakes": [("051910", 0.3006),           # LG화학
                    ("066570", 0.3047),           # LG전자
                    ("032640", 0.3766),           # LG유플러스
                    ("051900", 0.3000)],          # LG생활건강
-        "buyback_yield": 0.01,
-    },
+        "buyback_yield": 0.01},
     "000150": {  # 두산 — 두산그룹 지주
         "stakes": [("034020", 0.3039)],          # 두산에너빌리티
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "000880": {  # ㈜한화 — 한화그룹 지주
         "stakes": [("012450", 0.3395),           # 한화에어로스페이스
                    ("009830", 0.3631)],          # 한화솔루션
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "001040": {  # CJ — CJ그룹 지주
         "stakes": [("097950", 0.4455),           # CJ제일제당
                    ("035760", 0.4007)],          # CJ ENM
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "004990": {  # 롯데지주
         "stakes": [("011170", 0.2559),           # 롯데케미칼
                    ("023530", 0.4000),           # 롯데쇼핑
                    ("280360", 0.4840)],          # 롯데웰푸드
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "002790": {  # 아모레퍼시픽홀딩스
         "stakes": [("090430", 0.3706)],          # 아모레퍼시픽
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "008930": {  # 한미사이언스
         "stakes": [("128940", 0.4142)],          # 한미약품
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "180640": {  # 한진칼 — 한진그룹 지주
         "stakes": [("003490", 0.2606)],          # 대한항공
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "004800": {  # 효성 — 효성그룹 지주
         "stakes": [("298000", 0.2134),           # 효성첨단소재
                    ("298050", 0.2194),           # 효성티앤씨
                    ("298040", 0.3240)],          # 효성중공업
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "006260": {  # LS — LS그룹 지주
         "stakes": [("010120", 0.4600)],          # LS ELECTRIC
-        "buyback_yield": 0.0,
-    },
+        "buyback_yield": 0.0},
     "010060": {  # OCI홀딩스
         "stakes": [("456040", 0.4600)],          # OCI
-        "buyback_yield": 0.0,
-    },
-}
+        "buyback_yield": 0.0}}
 
 # ─── v21 Sprint 1 모듈 (안전 import — 실패해도 앱 구동) ──────────────────
 try:
@@ -200,11 +188,22 @@ except Exception:
     _notifier = None
 
 # ─── 로깅 설정 ──────────────────────────────────────────────────────────
-logging.basicConfig(
-    filename='quant_nexus_v20.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+from logging.handlers import RotatingFileHandler
+
+_root_logger = logging.getLogger()
+_root_logger.setLevel(logging.INFO)
+_LOG_FMT = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+# 중복 방지: 같은 baseFilename 핸들러가 이미 있으면 추가하지 않음
+_log_path_qn = 'quant_nexus_v20.log'
+_already = any(
+    isinstance(h, RotatingFileHandler) and getattr(h, 'baseFilename', '').endswith('quant_nexus_v20.log')
+    for h in _root_logger.handlers
 )
+if not _already:
+    _fh = RotatingFileHandler(_log_path_qn, maxBytes=5_000_000, backupCount=3, encoding='utf-8', errors='replace')
+    _fh.setLevel(logging.INFO)
+    _fh.setFormatter(_LOG_FMT)
+    _root_logger.addHandler(_fh)
 
 # ─── High DPI 인식 (Windows 고해상도 흐림 현상 해결) ────────────────────
 def _apply_dpi_awareness():
@@ -288,8 +287,7 @@ def _resolve_fonts() -> dict:
         "POPUP_SUB":   (kr,   13, "bold"),
         "POPUP_SCORE": (kr,   10, "bold"),
         "POPUP_SMALL": (kr,    9),
-        "POPUP_TINY":  (kr,    8),
-    }
+        "POPUP_TINY":  (kr,    8)}
 
 F = _resolve_fonts()   # 전역 폰트 딕셔너리 ─ 이하 코드에서 F["TITLE"] 등으로 참조
 
@@ -312,12 +310,74 @@ except ImportError:
     sys.exit(1)
 
 
+_FALLBACK_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+)
+
+
+def _fetch_yahoo_chart_history(ticker: str) -> pd.DataFrame | None:
+    """Direct Yahoo chart API — bypasses yfinance library's rate-limited path."""
+    sym = ticker.upper().replace(".", "-")
+    url = (
+        f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}"
+        "?range=2y&interval=1d&includePrePost=false&events=div%2Csplits"
+    )
+    last_err = None
+    for attempt, timeout_sec in enumerate((10, 15)):
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": _FALLBACK_UA,
+                "Accept": "application/json,*/*",
+                "Accept-Language": "en-US,en;q=0.9"})
+            with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+                payload = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            result = (payload.get("chart") or {}).get("result") or []
+            if not result:
+                return None
+            r0 = result[0]
+            ts = r0.get("timestamp") or []
+            indicators = r0.get("indicators") or {}
+            quote_list = indicators.get("quote") or [{}]
+            quote = quote_list[0] if quote_list else {}
+            adj_list = indicators.get("adjclose") or [{}]
+            adj = adj_list[0].get("adjclose") if adj_list else None
+            if not ts or not quote.get("close"):
+                return None
+            idx = pd.to_datetime(ts, unit="s", utc=True).tz_convert(None).normalize()
+            df = pd.DataFrame({
+                "Open":   quote.get("open")   or [None] * len(ts),
+                "High":   quote.get("high")   or [None] * len(ts),
+                "Low":    quote.get("low")    or [None] * len(ts),
+                "Close":  quote.get("close")  or [None] * len(ts),
+                "Volume": quote.get("volume") or [None] * len(ts)}, index=idx)
+            if adj and len(adj) == len(df):
+                df["Adj Close"] = adj
+            for col in ["Open", "High", "Low", "Close", "Volume"]:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+            df = df.dropna(subset=["Close"])
+            if df.empty or len(df) < 30:
+                return None
+            return df
+        except Exception as e:
+            last_err = e
+            if attempt == 0:
+                time.sleep(0.8 + random.random() * 0.7)
+                continue
+            break
+    logging.warning("[yahoo-chart] history failed %s: %s", ticker, last_err)
+    return None
+
+
 def _fetch_stooq_history(ticker: str) -> pd.DataFrame | None:
-    """Fetch daily US price history from Stooq as a Yahoo fallback."""
+    """Fetch daily US price history from Stooq (secondary fallback)."""
+    sym = ticker.upper().replace(".", "-")
+    url = f"https://stooq.com/q/d/l/?s={sym.lower()}.us&i=d"
     try:
-        sym = ticker.upper().replace(".", "-")
-        url = f"https://stooq.com/q/d/l/?s={sym.lower()}.us&i=d"
-        with urllib.request.urlopen(url, timeout=5) as resp:
+        req = urllib.request.Request(url, headers={
+            "User-Agent": _FALLBACK_UA,
+            "Accept": "text/csv,text/plain,*/*"})
+        with urllib.request.urlopen(req, timeout=8) as resp:
             raw = resp.read().decode("utf-8", errors="ignore")
         if not raw or "Date,Open,High,Low,Close,Volume" not in raw:
             return None
@@ -339,6 +399,14 @@ def _fetch_stooq_history(ticker: str) -> pd.DataFrame | None:
     except Exception as e:
         logging.warning("[stooq] history failed %s: %s", ticker, e)
         return None
+
+
+def _fetch_us_fallback_history(ticker: str) -> pd.DataFrame | None:
+    """US 폴백 체인: Yahoo chart API → stooq."""
+    df = _fetch_yahoo_chart_history(ticker)
+    if df is not None:
+        return df
+    return _fetch_stooq_history(ticker)
 
 # ============================================================
 # Toss Design System 컬러 팔레트
@@ -383,8 +451,7 @@ C = {
 
     # 트리뷰 선택
     "SELECT_BG":    "#E7F1FF",
-    "SELECT_FG":    "#007BFF",
-}
+    "SELECT_FG":    "#007BFF"}
 
 # ─── CAN SLIM 임계값 상수 (한 곳에서 조정) ────────────────────────────
 CANSLIM = {
@@ -416,8 +483,7 @@ _DEEPTECH_SECTORS: set[str] = {
     "원전·SMR",
     "신재생·ESS",
     "자율주행·전장",
-    "바이오 신약",
-}
+    "바이오 신약"}
 
 
 def _is_deeptech_story(ticker: str, row: dict) -> bool:
@@ -488,8 +554,7 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "cs_l":           0.00,   # 중복 제거 → rs 흡수
         "cs_i":           0.00,   # 중복 제거 → smart_money 흡수
         # 단타 팩터 (비활성)
-        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0,
-    },
+        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0},
 
     # ── MOMENTUM: 12개월 모멘텀·거래량·신고가 극대화 ────────────────────
     # NOTE(patch-01): cs_a/cs_s/cs_l/cs_i 흡수.
@@ -517,8 +582,7 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "cs_s":           0.00,   # 중복 제거
         "cs_l":           0.00,   # 중복 제거
         "cs_i":           0.00,   # 중복 제거
-        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0,
-    },
+        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0},
 
     # ── VALUE: 가치 팩터·ROE·저평가 극대화 ──────────────────────────────
     # NOTE(patch-01): cs_a/cs_s/cs_l/cs_i 흡수.
@@ -546,8 +610,7 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "cs_s":           0.00,   # 중복 제거
         "cs_l":           0.00,   # 중복 제거
         "cs_i":           0.00,   # 중복 제거
-        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0,
-    },
+        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0},
 
     # ── CAN_SLIM: 오닐 7원칙 집중 — C·A·L에 예산 집중 ──────────────────
     # NOTE(patch-01): cs_a/cs_s/cs_l/cs_i 흡수. A/S/L 원칙은 보조 퀀트(fama_french/volume/rs)로 흡수되어 그대로 반영.
@@ -575,8 +638,7 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "cs_s":           0.00,   # 중복 제거 → volume
         "cs_l":           0.00,   # 중복 제거 → rs
         "cs_i":           0.00,   # 중복 제거 → smart_money
-        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0,
-    },
+        "orb": 0.0, "nr7": 0.0, "bb_revert": 0.0},
 
     # ── SCALPING: 단타/스윙 종목 스크리닝 — ORB·NR7·BB반등 집중 ────────
     # NOTE(patch-01): cs_a/cs_s/cs_l/cs_i 흡수.
@@ -608,8 +670,7 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "orb":            0.14,   # ★★★ 전일 고가 돌파
         "nr7":            0.10,   # ★★ 변동폭 압축 돌파
         "bb_revert":      0.08,   # ★ BB 하단 반등
-    },
-}
+    }}
 
 # 런타임 합계 검증 (합≠1이면 즉시 오류 발생 — 개발 중 가중치 실수 방지)
 for _mode, _w in STRATEGY_WEIGHTS.items():
@@ -674,19 +735,29 @@ COLUMN_TOOLTIPS = {
                 "• 전문가: 성장주·가치주·모멘텀·리스크·섹터·퀀트·거시",
     "Reason":   "핵심 선별 이유 요약\n해당 종목이 왜 높은 점수를 받았는지 상위 요인.\n"
                 "예: '⭐ SUPER GROWTH × 1.14  [C✅ A✅ L✅]'\n"
-                "더블클릭 시 전체 CAN SLIM 상세 분석 창이 열립니다.",
-}
+                "더블클릭 시 전체 CAN SLIM 상세 분석 창이 열립니다."}
 
 
 # ============================================================
 # 유틸리티 함수
 # ============================================================
 def safe_get(val, default=0):
-    """None 또는 NaN 을 default 로 대체합니다."""
+    """None / NaN / 비수치 문자열 을 default 로 대체합니다.
+
+    default 가 수치형이면 결과도 수치로 강제 변환 (yfinance/Naver 가
+    'N/A', '-' 같은 문자열을 끼워넣어도 '<'/'>' 비교가 깨지지 않게).
+    """
     if val is None:
         return default
     if isinstance(val, float) and np.isnan(val):
         return default
+    if isinstance(default, (int, float)) and not isinstance(val, bool):
+        if isinstance(val, (int, float)):
+            return val
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return default
     return val
 
 
@@ -832,8 +903,7 @@ def _compute_entry_status(
             tr = pd.concat([
                 (h_ - l_).abs(),
                 (h_ - c_.shift()).abs(),
-                (l_ - c_.shift()).abs(),
-            ], axis=1).max(axis=1)
+                (l_ - c_.shift()).abs()], axis=1).max(axis=1)
             atr_series = (tr.rolling(14).mean() / c_) * 100
             _atr_avg30 = float(atr_series.rolling(30).mean().iloc[-1])
             _atr_squeeze = bool(_atr_p < _atr_avg30 * 0.8)
@@ -939,9 +1009,7 @@ def _compute_entry_status(
             "trend_pts": trend_pts, "trend_tag": trend_tag,
             "rsi": _rsi_v, "bb_pos": _bb_pos, "vwap_d": _vwap_d,
             "atr_p": _atr_p, "regime": _reg,
-            "macd_div": _macd_div, "pivot": _pivot, "s_conf": _s_conf,
-        },
-    }
+            "macd_div": _macd_div, "pivot": _pivot, "s_conf": _s_conf}}
 
 
 def _compute_entry_status_v2(
@@ -1005,8 +1073,7 @@ def _compute_entry_status_v2(
             tr = pd.concat([
                 (h_ - l_).abs(),
                 (h_ - c_.shift()).abs(),
-                (l_ - c_.shift()).abs(),
-            ], axis=1).max(axis=1)
+                (l_ - c_.shift()).abs()], axis=1).max(axis=1)
             atr_series = (tr.rolling(14).mean() / c_) * 100
             _atr_avg30 = float(atr_series.rolling(30).mean().iloc[-1])
             _atr_squeeze = bool(_atr_p < _atr_avg30 * 0.8)
@@ -1136,9 +1203,7 @@ def _compute_entry_status_v2(
             "atr_p": _atr_p, "regime": _reg,
             "macd_div": _macd_div, "pivot": _pivot, "s_conf": _s_conf,
             "version": "v2",
-            "degraded": _degraded,
-        },
-    }
+            "degraded": _degraded}}
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -1234,8 +1299,7 @@ def _apply_hysteresis_to_result(ticker: str, result: dict) -> dict:
     result["status"] = status
     result["label"] = label
     _ENTRY_STATUS_CACHE[ticker] = {
-        "score": score, "status": status, "consecutive": cons,
-    }
+        "score": score, "status": status, "consecutive": cons}
     return result
 
 
@@ -1283,8 +1347,7 @@ class DataCache:
     """
     REQUIRED_KEYS = {"Ticker", "Name", "Price", "TotalScore", "Signal", "_AvgVol20"}
     NAME_FIXUPS = {
-        "LITE": "루멘텀",
-    }
+        "LITE": "루멘텀"}
 
     def __init__(self, cache_dir: str = "./cache_v19"):
         self.cache_dir = cache_dir
@@ -1732,8 +1795,7 @@ class WallStreetQuantStrategies:
             "bb_position": 0.0, "bb_squeeze": False,
             "rsi": 50.0, "rsi_signal": "NEUTRAL",
             "macd_hist": 0.0, "macd_divergence": "NONE",
-            "z_score": 0.0, "score": 0, "signal": "NEUTRAL",
-        }
+            "z_score": 0.0, "score": 0, "signal": "NEUTRAL"}
         try:
             if len(hist) < 50:
                 return result
@@ -1934,8 +1996,7 @@ class WallStreetQuantStrategies:
             "atr_14": 0.0, "atr_percent": 0.0,
             "stop_loss_long": 0.0, "take_profit_1": 0.0, "take_profit_2": 0.0,
             "vol_regime": "NORMAL", "size_suggestion": "NORMAL",
-            "rr_ratio": 0.0, "stop_method": "ATR", "win_rate": 0.0,
-        }
+            "rr_ratio": 0.0, "stop_method": "ATR", "win_rate": 0.0}
         try:
             if len(hist) < 14:
                 return result
@@ -2108,8 +2169,7 @@ class WallStreetQuantStrategies:
             "score":        0,
             # CAN SLIM M 전용
             "m_bear_cap":   False,   # True → 최종 점수 50% Cap 발동
-            "m_label":      "[M] SIDEWAYS",
-        }
+            "m_label":      "[M] SIDEWAYS"}
         try:
             if len(hist) < 50:
                 return result
@@ -2232,8 +2292,7 @@ class WallStreetQuantStrategies:
             score += _smooth_band(result["mfi"], [
                 (10.0, 12.0), (20.0, 10.0), (35.0, 3.0),
                 (50.0, 0.0),
-                (65.0, -3.0), (80.0, -10.0), (90.0, -12.0),
-            ])
+                (65.0, -3.0), (80.0, -10.0), (90.0, -12.0)])
 
             result["score"] = score
             if score >= 15:   result["signal"] = "ACCUMULATION"
@@ -2441,8 +2500,7 @@ class WallStreetQuantStrategies:
             "rs_rating":     50,
             "is_leader":     False,
             "fail_safe_rs":  False,   # RS < 40 → Ceiling 트리거
-            "l_tag":         "NEUTRAL",
-        }
+            "l_tag":         "NEUTRAL"}
         try:
             if len(hist) < 60:
                 return result
@@ -2703,8 +2761,7 @@ class WallStreetQuantStrategies:
                 "shares_outstanding": safe_get(info.get("sharesOutstanding"), 0.0),
                 # EV → Equity bridge: 표준 3-stage DCF 마지막 단계
                 "cash":              safe_get(info.get("totalCash"),        0.0),
-                "debt":              safe_get(info.get("totalDebt"),        0.0),
-            }
+                "debt":              safe_get(info.get("totalDebt"),        0.0)}
             ticker = str(info.get("symbol") or info.get("ticker") or "")
             vr = valuation_engine.run(
                 ticker=ticker,
@@ -2766,8 +2823,7 @@ class WallStreetQuantStrategies:
                         "shares_outstanding": shares_n,
                         "fcf": financials["fcf"],
                         "cash": financials["cash"],
-                        "debt": financials["debt"],
-                    }
+                        "debt": financials["debt"]}
                     nr = valuation_engine.nomura_target_price(sector, nom_fin)
                     n_tp = float(nr.get("target_price") or 0.0)
                     result["nomura_target"] = n_tp
@@ -3167,16 +3223,16 @@ class WallStreetQuantStrategies:
 # ============================================================
 class QuantNexusApp:
     """
-    종목스캐너 메인 애플리케이션.
+    슡목스캐너 메인 애플리케이션.
 
     스큐어모피즘 UI + 전략 패턴 아키텍처.
     v20: High DPI 지원 / Malgun Gothic 한글 폰트 / 섹터 대규모 확장.
     """
 
     def __init__(self, root: tk.Tk):
-        logging.info("종목스캐너 시작")
+        logging.info("슡목스캐너 시작")
         self.root = root
-        self.root.title("종목스캐너")
+        self.root.title("슡목스캐너")
 
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         w, h   = min(int(sw * 0.88), 1650), min(int(sh * 0.90), 960)
@@ -3301,8 +3357,7 @@ class QuantNexusApp:
         try:
             for ep in [
                 f"https://m.stock.naver.com/api/stock/{code}/finance/research?pageSize=8",
-                f"https://m.stock.naver.com/api/stock/{code}/research?pageSize=8",
-            ]:
+                f"https://m.stock.naver.com/api/stock/{code}/research?pageSize=8"]:
                 req = urllib.request.Request(ep, headers=_ua)
                 with urllib.request.urlopen(req, timeout=5) as resp:
                     data = json.loads(resp.read().decode('utf-8'))
@@ -3395,8 +3450,7 @@ class QuantNexusApp:
                 '영업활동현금흐름': ('opcf_naver',       1e8),
                 'EBITDA':           ('ebitda_naver',     1e8),
                 '발행주식수':       ('shares_naver',     1.0),
-                '배당수익률':       ('div_yield_naver',  1.0),
-            }
+                '배당수익률':       ('div_yield_naver',  1.0)}
             for row in fi.get('rowList', []):
                 title = row['title']
                 if title in field_map:
@@ -3561,7 +3615,7 @@ class QuantNexusApp:
         # ─ 왼쪽: 타이틀
         left = tk.Frame(inner, bg=C["HEADER_BG"])
         left.pack(side=tk.LEFT, fill=tk.Y)
-        tk.Label(left, text="종목스캐너", font=F["TITLE"],
+        tk.Label(left, text="슡목스캐너", font=F["TITLE"],
                  bg=C["HEADER_BG"], fg=C["ACCENT"]).pack(side=tk.LEFT)
         tk.Label(left, text="  주식 스캐너",
                  font=F["BODY"], bg=C["HEADER_BG"], fg=C["GOLD"]).pack(side=tk.LEFT)
@@ -3846,8 +3900,7 @@ class QuantNexusApp:
             ("●", "#4ade80", "80+ LEADER"),
             ("●", "#3182F6", "70+ WATCH"),
             ("●", "#94a3b8", "50+ NEUTRAL"),
-            ("●", "#F04452", "<50 WEAK"),
-        ]
+            ("●", "#F04452", "<50 WEAK")]
         for sym, col_hex, lbl in _LEGEND:
             tk.Label(legend_bar, text=f" {sym} {lbl}", font=F["TINY"],
                      bg=C["SHADOW_DEEP"], fg=col_hex).pack(side=tk.LEFT, padx=2)
@@ -3892,8 +3945,7 @@ class QuantNexusApp:
             "NR7":      (3, 100, "center"),
             "BB":       (3, 100, "center"),
             "Score":    (2, 70, "center"),
-            "Signal":   (4, 130, "center"),
-        }
+            "Signal":   (4, 130, "center")}
         self.sca_tree.column("#0", width=80, minwidth=80, anchor="w", stretch=True)
         self.sca_tree.heading("#0", text="TICKER")
         for col in sca_cols:
@@ -3944,8 +3996,7 @@ class QuantNexusApp:
                 sash_x = self._sidebar_default_width
         cfg = {
             "geometry": self.root.geometry(),
-            "sash_x": max(int(sash_x), 0),
-        }
+            "sash_x": max(int(sash_x), 0)}
         try:
             with open(self._config_path, "w", encoding="utf-8") as f:
                 json.dump(cfg, f)
@@ -4156,8 +4207,7 @@ class QuantNexusApp:
             "shareholder_yield": sh_yield,
             "sub_count": n_ok,
             "unlisted_oku": unlisted_oku,
-            "discount": disc,
-        }
+            "discount": disc}
 
     def _nomura_sector_hint(self, ticker: str, info: dict) -> str:
         """
@@ -4232,8 +4282,7 @@ class QuantNexusApp:
             "ENERGY": "에너지",
             "UTILITIES": "유틸리티",
             "REAL ESTATE": "부동산",
-            "CONGLOMERATES": "지주·복합",
-        }
+            "CONGLOMERATES": "지주·복합"}
         fb = str(info.get("sector") or info.get("industry") or "").strip()
         return _GICS_KR.get(fb.upper(), fb) if fb else ""
 
@@ -4273,8 +4322,7 @@ class QuantNexusApp:
         market_map = {
             "US": (self.btn_us,  self.us_sectors),
             "KR": (self.btn_kr,  self.kr_sectors),
-            "EU": (self.btn_eu,  self.eu_sectors),
-        }
+            "EU": (self.btn_eu,  self.eu_sectors)}
         for key, (btn, _) in market_map.items():
             if key == market:
                 btn.config(bg=C["ACCENT"], fg=C["HIGHLIGHT"], relief="flat")
@@ -4526,8 +4574,7 @@ class QuantNexusApp:
                 fulfilled = sum([
                     r.get("EPSAcceleration", False) or (r.get("MomentumScore", 0) > 30),
                     r.get("QualityScore", 0) > 50,
-                    is_leader,
-                ])
+                    is_leader])
 
                 if fail_safe:
                     if _mom_ovr:       sig = "⚡ MOMENTUM (Fail-Safe 완화)"
@@ -4621,7 +4668,7 @@ class QuantNexusApp:
     @rate_limit(max_per_second=4)
     def _analyze_ticker(self, ticker: str) -> dict | None:
         """
-        종목스캐너 단일 티커 분석 진입점 (v20.1)
+        슡목스캐너 단일 티커 분석 진입점 (v20.1)
         ─────────────────────────────────────────────────────────────────
         점수 산출 순서 (예산 분배 아키텍처):
           1. 19개 전략 원점수 계산
@@ -4667,11 +4714,16 @@ class QuantNexusApp:
             except Exception:
                 _YFRL = Exception
             is_us = self._scan_market == "US"
-            for _attempt in range(1):
+            _yf_rate_limited = False
+            for _attempt in range(2):
                 try:
                     hist = stock.history(period="2y")
                     break
                 except _YFRL:
+                    _yf_rate_limited = True
+                    if _attempt == 0:
+                        time.sleep(2.0 + random.random() * 2.0)
+                        continue
                     logging.warning("[yf] rate-limited %s (US fast path)", ticker)
                     break
                 except Exception as _e:
@@ -4686,7 +4738,7 @@ class QuantNexusApp:
                     return stale
                 if is_us:
                     try:
-                        hist = _fetch_stooq_history(ticker)
+                        hist = _fetch_us_fallback_history(ticker)
                     except Exception:
                         hist = None
                 else:
@@ -4713,8 +4765,7 @@ class QuantNexusApp:
                     fi = stock.fast_info
                     info = {
                         "marketCap": getattr(fi, "market_cap", 0) or 0,
-                        "currentPrice": getattr(fi, "last_price", 0) or 0,
-                    }
+                        "currentPrice": getattr(fi, "last_price", 0) or 0}
                 except Exception:
                     info = {}
 
@@ -4766,19 +4817,25 @@ class QuantNexusApp:
                 day_chg = safe_div(cur - prev, prev)
 
             # ── 유동성 체크 (Low Liquidity Gate) ───────────────────
-            # 임계치 상향(2026-05): "관심 없는 종목" 제외 — US $1M→$20M, KR 5억→100억.
-            # EXCLUDE 기준은 그 1/2 (US $10M, KR 50억) 이하 — 스캔에서 아예 제외.
+            # 단위: US 는 USD 거래대금($), KR 은 KRW 거래대금(원) — cur 가 시장별
+            # 호가통화 가격이므로 결과 단위도 그대로 따라간다.
+            # 임계치(2026-05):
+            #   CAP    (저유동 페널티 시작) — US $20M       / KR 200억 원
+            #   EXCLUDE(스캔에서 제외)      — US $10M(CAP½) / KR 100억 원(CAP½)
+            # 단위 혼동을 막기 위해 변수명에 통화 표기.
             avg_vol_20 = float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else float(hist["Volume"].mean())
-            avg_dollar_vol = avg_vol_20 * cur
             _is_kr = self._scan_market == "KR"
-            _liq_cap_thr = 20_000_000_000 if _is_kr else 20_000_000
-            _liq_exclude_thr = 10_000_000_000 if _is_kr else 10_000_000
-            low_liquidity = avg_dollar_vol < _liq_cap_thr
-            if avg_dollar_vol < _liq_exclude_thr:
+            avg_turnover = avg_vol_20 * cur  # KR: 원, US: 달러
+            avg_dollar_vol = avg_turnover    # (호환용 alias — 기존 변수명 유지)
+            _liq_cap_thr     = 20_000_000_000 if _is_kr else 20_000_000  # KR 200억 / US $20M
+            _liq_exclude_thr = 10_000_000_000 if _is_kr else 10_000_000  # KR 100억 / US $10M
+            low_liquidity = avg_turnover < _liq_cap_thr
+            if avg_turnover < _liq_exclude_thr:
                 # 관심 없는 종목(거래대금 매우 낮음) — 스캔 결과에서 제외
+                _unit = "KRW" if _is_kr else "USD"
                 logging.info(
-                    f"[LiqGate] {ticker} excluded: avg_dollar_vol={avg_dollar_vol:,.0f} "
-                    f"< thr={_liq_exclude_thr:,.0f}"
+                    f"[LiqGate] {ticker} excluded: avg_turnover={avg_turnover:,.0f} {_unit} "
+                    f"< thr={_liq_exclude_thr:,.0f} {_unit}"
                 )
                 return None
 
@@ -4981,8 +5038,7 @@ class QuantNexusApp:
                     "cs_n": 0.01, "cs_s": 0.005, "cs_l": 0.005,
                     "fama_french": 0.0, "quality": 0.0, "cs_c": 0.0,
                     "cs_a": 0.0, "cs_i": 0.0, "orb": 0.0, "nr7": 0.0,
-                    "bb_revert": 0.0,
-                }
+                    "bb_revert": 0.0}
                 _hs = sum(_hw.values()) or 1.0
                 w = {k: v / _hs for k, v in _hw.items()}
 
@@ -5133,8 +5189,7 @@ class QuantNexusApp:
                 "SIDEWAYS_BULL":"M 시장이 횡보 중이지만 상승 쪽으로 기울어 있어요",
                 "STRONG_BEAR":  "M🚫 시장이 강한 하락 추세예요. 점수에 50% 상한이 걸려요",
                 "BEAR":         "M🚫 시장이 하락 추세예요. 점수에 50% 상한이 걸려요",
-                "SIDEWAYS":     "M 시장이 뚜렷한 방향 없이 횡보 중이에요",
-            }.get(regime.get("regime", "SIDEWAYS"),
+                "SIDEWAYS":     "M 시장이 뚜렷한 방향 없이 횡보 중이에요"}.get(regime.get("regime", "SIDEWAYS"),
                   "M 시장이 뚜렷한 방향 없이 횡보 중이에요")
             canslim_tags.append(_m_msg)
 
@@ -5155,8 +5210,7 @@ class QuantNexusApp:
                 (f_math, w["math"]), (f_sentiment, w["sentiment"]),
                 (f_cs_c, w["cs_c"]), (f_cs_a, w["cs_a"]), (f_cs_n, w["cs_n"]),
                 (f_cs_s, w["cs_s"]), (f_cs_l, w["cs_l"]), (f_cs_i, w["cs_i"]),
-                (f_orb, w["orb"]), (f_nr7, w["nr7"]), (f_bb_revert, w["bb_revert"]),
-            ]
+                (f_orb, w["orb"]), (f_nr7, w["nr7"]), (f_bb_revert, w["bb_revert"])]
             _all_f = [s for s, wt in _factor_pairs if wt > 0]
             if not _all_f:
                 _all_f = [s for s, _ in _factor_pairs]
@@ -5243,8 +5297,7 @@ class QuantNexusApp:
             _deeptech_row = {
                 "Sector": self._ticker_sector_map.get(ticker, "") if hasattr(self, "_ticker_sector_map") else "",
                 "_RevenueGrowth": safe_get(info.get("revenueGrowth"), 0.0),
-                "_MarketCap": safe_get(info.get("marketCap"), 0),
-            }
+                "_MarketCap": safe_get(info.get("marketCap"), 0)}
             _is_deeptech = _is_deeptech_story(ticker, _deeptech_row)
             fail_safe_triggered = (
                 (earn["fail_safe_eps"] and not _is_holdco and not _is_deeptech)
@@ -5278,8 +5331,7 @@ class QuantNexusApp:
             # ════════════════════════════════════════════════════════════
             vix_m = _smooth_band(self.vix_value, [
                 (12.0, 1.04), (15.0, 1.02), (20.0, 1.00),
-                (25.0, 0.93), (30.0, 0.86), (35.0, 0.80), (45.0, 0.75),
-            ])
+                (25.0, 0.93), (30.0, 0.86), (35.0, 0.80), (45.0, 0.75)])
             base = max(0.0, min(120.0, base * vix_m))
             # Re-clamp to fail-safe ceiling if it was set (VIX upmove must not bypass cap).
             if fail_safe_triggered:
@@ -5317,8 +5369,7 @@ class QuantNexusApp:
             super_growth_criteria = {
                 "C": earn["eps_growth"] >= CANSLIM["EPS_MIN_GROWTH"],
                 "A": ff["roe_pass"],
-                "L": rs["is_leader"],
-            }
+                "L": rs["is_leader"]}
             fulfilled = sum(super_growth_criteria.values())
 
             if not fail_safe_triggered and not bear_cap_applied:
@@ -5389,8 +5440,7 @@ class QuantNexusApp:
                 "cs_i":           f_cs_i,
                 "orb":            f_orb,
                 "nr7":            f_nr7,
-                "bb_revert":      f_bb_revert,
-            }
+                "bb_revert":      f_bb_revert}
             all_scores: dict[str, float] = {}
             for _mode, _w in STRATEGY_WEIGHTS.items():
                 # 지주사 평가는 전략(공격/방어 등) 무관 — NAV-할인 가중으로 통일
@@ -5607,8 +5657,7 @@ class QuantNexusApp:
                   f"현재 신호는 '{sent['signal']}'이에요. "
                   f"상승 거래량 비중 {sent['up_vol_ratio']:.0%}, "
                   f"갭 방향 {'+위' if sent['gap_bias'] > 0 else '아래'}, "
-                  f"종가 강도 {sent['close_strength']:.0%}예요.")),
-            ]
+                  f"종가 강도 {sent['close_strength']:.0%}예요."))]
 
             # SCALPING 전용 단타 팩터 — 가중치>0 일 때만 Breakdown에 노출
             if w.get("orb", 0) > 0 or w.get("nr7", 0) > 0 or w.get("bb_revert", 0) > 0:
@@ -5621,8 +5670,7 @@ class QuantNexusApp:
                      f"NR7 신호: '{nr7.get('signal', 'NONE')}' (점수 {nr7.get('score', 0):.1f})"),
                     ("[Scalp] BB 반등",
                      round(f_bb_revert * w["bb_revert"], 1),
-                     f"BB 반등 신호: '{bb_rv.get('signal', 'NONE')}' (점수 {bb_rv.get('score', 0):.1f})"),
-                ])
+                     f"BB 반등 신호: '{bb_rv.get('signal', 'NONE')}' (점수 {bb_rv.get('score', 0):.1f})")])
 
             # CAN SLIM 원칙 요약을 Breakdown 첫 줄에 삽입
             principle_summary = "\n".join(canslim_tags)
@@ -5667,8 +5715,7 @@ class QuantNexusApp:
                 "[Sentiment]":      (f_sentiment,      _w.get("sentiment", 0)),
                 "[Scalp] ORB":      (f_orb,            _w.get("orb", 0)),
                 "[Scalp] NR7":      (f_nr7,            _w.get("nr7", 0)),
-                "[Scalp] BB":       (f_bb_revert,      _w.get("bb_revert", 0)),
-            }
+                "[Scalp] BB":       (f_bb_revert,      _w.get("bb_revert", 0))}
             _detail_inputs = {
                 "[C]": (c_raw, f"_n01({c_raw:.1f}, best=60)",
                     f"• EPS 성장률: {earn['eps_growth']:+.0%}\n"
@@ -5729,8 +5776,7 @@ class QuantNexusApp:
                 "[Sentiment]": (sent["sentiment_score"], f"_n({sent['sentiment_score']:.1f}, scale=2.5)",
                     f"• 심리 신호: {sent['signal']}\n"
                     f"• 상승 거래량 비중: {sent['up_vol_ratio']:.0%}\n"
-                    f"• 종가 강도: {sent['close_strength']:.0%}"),
-            }
+                    f"• 종가 강도: {sent['close_strength']:.0%}")}
             for idx in range(1, len(breakdown)):
                 lbl, sc, desc = breakdown[idx][:3]
                 detail = ""
@@ -5931,8 +5977,7 @@ class QuantNexusApp:
                 # 파생 표시 필드 (프론트는 그대로 표시만)
                 "headline_action": headline_action,
                 "confidence_band": confidence_band,
-                "one_reason": one_reason,
-            }
+                "one_reason": one_reason}
 
             result = {
                 "Ticker":           ticker,
@@ -6027,8 +6072,7 @@ class QuantNexusApp:
                 "_MACDHist":        mr.get("macd_hist", 0),
                 "_DivYield":        _normalize_div_yield(info.get("dividendYield")),
                 "_AvgVol20":        float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else 0.0,
-                "_AvgDollarVol20":  float((hist["Close"] * hist["Volume"]).tail(20).mean()) if len(hist) >= 20 else 0.0,
-            }
+                "_AvgDollarVol20":  float((hist["Close"] * hist["Volume"]).tail(20).mean()) if len(hist) >= 20 else 0.0}
 
             # 한국 종목: 네이버 증권 재무 데이터로 보강
             if _is_kr:
@@ -6110,8 +6154,7 @@ class QuantNexusApp:
                     macd_h > 0,             # MACD 골든크로스
                     45 <= rsi <= 80,
                     _chk(mcap, lo=5e10),    # 시총 500억+
-                    day_chg <= 15,
-                ])
+                    day_chg <= 15])
             elif strategy == "VALUE":
                 return all([
                     _chk(pbr, lo=0.01, hi=1.5),  # 저PBR (데이터 있을 때만)
@@ -6121,8 +6164,7 @@ class QuantNexusApp:
                     _chk(debt, hi=80),             # 부채비율 80% 이하
                     25 <= rsi <= 55,
                     eps is None or eps >= 0,       # 적자 제외
-                    _chk(mcap, lo=5e10),
-                ])
+                    _chk(mcap, lo=5e10)])
             elif strategy == "BALANCED":
                 return all([
                     _chk(op_mar, lo=0.10),  # 영업이익률 10%+
@@ -6131,29 +6173,25 @@ class QuantNexusApp:
                     adx >= 15,              # 최소 추세
                     40 <= rsi <= 70,
                     mom3m >= 0,             # 하락 제외
-                    _chk(mcap, lo=1e11),
-                ])
+                    _chk(mcap, lo=1e11)])
             elif strategy == "SCALPING":
                 orb_pass = all([
                     d.get("ORBSignal", "NONE") != "NONE",
                     vol_r >= 2.0,
                     40 <= rsi <= 70,
                     1.5 <= day_chg <= 10,
-                    _chk(mcap, lo=3e10),
-                ])
+                    _chk(mcap, lo=3e10)])
                 nr7_pass = all([
                     d.get("NR7Signal", "NONE") != "NONE",
                     vol_r >= 1.5,
                     0.5 <= day_chg <= 15,
-                    _chk(mcap, lo=3e10),
-                ])
+                    _chk(mcap, lo=3e10)])
                 bb_pass = all([
                     bb_pos <= -0.8,         # BB 하단 근접
                     rsi <= 35,
                     vol_r >= 1.2,
                     day_chg >= -3,
-                    _chk(mcap, lo=5e10),
-                ])
+                    _chk(mcap, lo=5e10)])
                 return orb_pass or nr7_pass or bb_pass
             return True
         except Exception:
@@ -6472,8 +6510,7 @@ class QuantNexusApp:
             f"  [BB 볼린저 반등]",
             f"    시그널: {d.get('BBSignal','NONE')}  점수: {d.get('BBScore',0)}",
             f"    BB위치: {d.get('BBPosition',0):.0%}",
-            f"{'─'*40}",
-        ]
+            f"{'─'*40}"]
         txt.insert("1.0", "\n".join(lines))
         txt.config(state="disabled")
 
@@ -6678,7 +6715,7 @@ class QuantNexusApp:
     def _parse_sort_val(text: str):
         """셀 텍스트에서 숫자만 추출하여 정렬용 float로 변환."""
         # 첫 번째 숫자(부호, 소수점 포함)를 추출
-        m = re.search(r'[+-]?\d[\d,]*\.?\d*', text.replace(",", ""))
+        m = re.search(r'[+-]?\d[\d]*\.?\d*', text.replace(",", ""))
         if m:
             return float(m.group())
         return float('-inf')
@@ -6792,8 +6829,7 @@ class QuantNexusApp:
             ("Regime",    data.get("Regime", "—")),
             ("RSI",       f"{data.get('RSI', 0):.0f}"),
             ("12M Mom",   f"{data.get('Mom12M', 0):+.1%}"),
-            ("Drawdown",  f"{data.get('Drawdown', 0):.1%}"),
-        ]
+            ("Drawdown",  f"{data.get('Drawdown', 0):.1%}")]
         _KPI_GREEN  = "#1a4a2e"
         _KPI_ORANGE = "#4a3010"
         _KPI_RED    = "#4a1a1a"
@@ -7103,8 +7139,7 @@ class QuantNexusApp:
             "[Sentiment]":  "가격·거래량 기반 심리 지수",
             "[Scalp] ORB":  "전일 고가 돌파 단타 신호",
             "[Scalp] NR7":  "7일 최소 변동폭 압축 돌파",
-            "[Scalp] BB":   "볼린저밴드 하단 반등 신호",
-        }
+            "[Scalp] BB":   "볼린저밴드 하단 반등 신호"}
 
         def _get_brief(name: str) -> str:
             for prefix, brief in _FACTOR_BRIEF.items():
@@ -7744,8 +7779,7 @@ class QuantNexusApp:
                 # current_data 미스: ticker 기반 최소 dict 로 표시
                 self._show_detail_data({
                     "Ticker": ticker,
-                    "Name": self._resolve_display_name(ticker, ticker),
-                })
+                    "Name": self._resolve_display_name(ticker, ticker)})
             return
         sel = self.tree.selection()
         if sel:
@@ -7797,8 +7831,7 @@ class QuantNexusApp:
             ("", ""),
             ("── 캐시 ──",               ""),
             ("캐시 히트",                self.stats["cache_hits"]),
-            ("API 호출",                 self.stats["cache_misses"]),
-        ]
+            ("API 호출",                 self.stats["cache_misses"])]
 
         body = tk.Frame(win, bg=C["PANEL"])
         body.pack(fill=tk.BOTH, expand=True, padx=28, pady=4)
@@ -7826,10 +7859,10 @@ class QuantNexusApp:
     # ─────────────────────────────────────────────────────────────────────
     def _show_guide(self):
         win = tk.Toplevel(self.root)
-        win.title("📘 종목스캐너 가이드")
+        win.title("📘 슡목스캐너 가이드")
         win.geometry("900x960")
         win.configure(bg=C["PANEL"])
-        tk.Label(win, text="⭐  종목스캐너",
+        tk.Label(win, text="⭐  슡목스캐너",
                  font=F["POPUP_SUB"], bg=C["PANEL"], fg=C["ACCENT"], pady=14).pack()
         tk.Label(win, text="윌리엄 오닐(William O'Neil) 7원칙 + 월가 퀀트 19전략 융합",
                  font=F["BODY"], bg=C["PANEL"], fg=C["GOLD"]).pack()
@@ -7960,8 +7993,7 @@ class QuantNexusApp:
             ("⏸ NEUTRAL — Hold",          "48점↑ 중립."),
             ("⚠️ CAUTION — Reduce",        "35점↑ 주의. 또는 Fail-Safe 발동."),
             ("📉 SELL / AVOID",            "35점 미만. 매도 또는 회피."),
-            ("🚫 BEAR MARKET — AVOID",     "[M] Bear Cap 발동 종목. 시장 방향 역행 금지."),
-        ]
+            ("🚫 BEAR MARKET — AVOID",     "[M] Bear Cap 발동 종목. 시장 방향 역행 금지.")]
         for sig, desc in signals:
             txt.insert(tk.END, f"  {sig}\n", "h2")
             txt.insert(tk.END, f"    → {desc}\n", "body")
@@ -7984,8 +8016,7 @@ class QuantNexusApp:
             ("Short Interest",       "공매도 비율 리스크 평가."),
             ("Hurst Exponent",       "R/S 분석. 주가 특성(추세/랜덤/평균회귀) 분류."),
             ("Kalman Filter",        "NASA 알고리즘. 노이즈 제거 후 진짜 추세 파악."),
-            ("Stat Arb Z-Score",     "2σ 이탈 고확률 반등/과매수 구간 식별."),
-        ]
+            ("Stat Arb Z-Score",     "2σ 이탈 고확률 반등/과매수 구간 식별.")]
         for title, desc in quant:
             txt.insert(tk.END, f"  ▸ {title}\n", "h2")
             txt.insert(tk.END, f"    {desc}\n", "body")
@@ -8011,7 +8042,7 @@ class QuantNexusApp:
             messagebox.showwarning("데이터 없음", "먼저 스캔을 실행해 주세요.")
             return
         try:
-            fname = f"종목스캐너_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            fname = f"슡목스캐너_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             wb    = xlsxwriter.Workbook(fname)
             ws    = wb.add_worksheet("분석_결과")
 
@@ -8085,7 +8116,7 @@ class QuantNexusApp:
         # ── AI 인프라 ──────────────────────────────────────────────────────
         "035420.KS": "NAVER",             "035720.KS": "카카오",
         "034220.KS": "LG디스플레이",       "066570.KS": "LG전자",
-        "267250.KS": "HD현대",              "018260.KS": "삼성SDS",  # 267250=HD현대(현대글로비스=086280)
+        "267250.KS": "HD현대",              "018260.KS": "삼성에스디에스",  # 267250=HD현대(현대글로비스=086280)
         "047050.KS": "포스코인터내셔널",   "030530.KQ": "원익홀딩스",  # 047050은 포스코인터내셔널(포스코DX는 022100)
         "009150.KS": "삼성전기",            "052710.KQ": "아모텍",
         "030200.KS": "KT",                 "017670.KS": "SK텔레콤",
@@ -8107,7 +8138,7 @@ class QuantNexusApp:
         "009830.KS": "한화솔루션",            "096770.KS": "SK이노베이션",
         # ── K-방산 ────────────────────────────────────────────────────────
         "012450.KS": "한화에어로스페이스",    "064350.KS": "현대로템",
-        "047810.KS": "한국항공우주",          "079550.KS": "LIG넥스원",
+        "047810.KS": "한국항공우주",          "079550.KS": "LIG디펜스앤에어로스페이스",
         "003570.KS": "SNT다이내믹스",         "042660.KS": "한화오션",  # SNT모티브는 064960
         "282720.KQ": "금양그린파워",           # 114570 방산테크 매핑 미확인 삭제
         # 048260 오스템임플란트는 2023 상장폐지, 014070은 성창오토텍(파이오링크=170790 매핑 오류 삭제)
@@ -8143,9 +8174,8 @@ class QuantNexusApp:
         "018670.KS": "SK가스",                  "009420.KS": "한올바이오파마",  # SK케미칼은 285130, 한독은 002390
         "950210.KS": "프레스티지바이오파마",
         "417840.KQ": "저스템",
-        "017810.KS": "E1",                       "005090.KS": "SGC에너지",
-        "009160.KS": "SIMPAC",                   "222040.KQ": "바이넥스",
-        "011760.KS": "현대코퍼레이션",
+        "017940.KS": "E1",                       "005090.KS": "SGC에너지",
+        "009160.KS": "SIMPAC",                   "011760.KS": "현대코퍼레이션",
         "278470.KS": "에이피알",                 "382800.KQ": "지앤비에스 에코",
         "214150.KQ": "클래시스",                 # 335890 지씨씨바이오텍 매핑 미확인 삭제
         "043150.KQ": "바텍",                    "145020.KQ": "휴젤",
@@ -8165,7 +8195,7 @@ class QuantNexusApp:
         # ── K-소비재 ──────────────────────────────────────────────────────
         "192820.KS": "코스맥스",                  "483650.KS": "달바글로벌",
         "090430.KS": "아모레퍼시픽",              "161890.KS": "한국콜마",
-        "241710.KQ": "코스메카코리아",           "051900.KS": "LG생건",
+        "241710.KQ": "코스메카코리아",           "051900.KS": "LG생활건강",
         "237820.KQ": "플레이디",             # 030960은 양지사(한국화장품=123690.KS 매핑 오류 삭제)
         "257720.KQ": "실리콘투",  # 실리콘웍스는 LX세미콘으로 사명변경(108320.KS)
         "003230.KS": "삼양식품",                  "097950.KS": "CJ제일제당",
@@ -8185,12 +8215,12 @@ class QuantNexusApp:
         "000810.KS": "삼성화재",                   "005830.KS": "DB손해보험",
         # 000060 메리츠화재는 2022 메리츠금융지주(138040)로 흡수합병(매핑 삭제)
         # ── 콘텐츠·엔터 ────────────────────────────────────────────────────
-        "352820.KS": "하이브",                    "035900.KQ": "JYP엔터",
-        "041510.KQ": "SM엔터",                    "122870.KQ": "와이지엔터",
+        "352820.KS": "하이브",                    "035900.KQ": "JYP Ent.",
+        "041510.KQ": "에스엠",                    "122870.KQ": "와이지엔터테인먼트",
         "373200.KQ": "엑스플러스",                    "253450.KQ": "스튜디오드래곤",
         "035760.KQ": "CJ ENM",                    "067160.KQ": "SOOP",
         "462870.KS": "시프트업",                    "259960.KS": "크래프톤",
-        "251270.KS": "넷마블",                    "036570.KS": "NC소프트",
+        "251270.KS": "넷마블",                    "036570.KS": "NC",
         "263750.KQ": "펄어비스",                   "293490.KQ": "카카오게임즈",
         "112040.KQ": "위메이드",
         # ── 건설·건자재 ──────────────────────────────────────────────────
@@ -8199,7 +8229,7 @@ class QuantNexusApp:
         "028260.KS": "삼성물산",                    "028050.KS": "삼성E&A",
         "047040.KS": "대우건설",                    "000210.KS": "DL",
         "002380.KS": "KCC",                        # 006390 한일현대시멘트 매핑 미확인 삭제
-        "004090.KS": "한국석유공업",                 "010780.KS": "아이에스동서",
+        "004090.KS": "한국석유",                 "010780.KS": "아이에스동서",
         "003070.KS": "코오롱글로벌",                 "014820.KS": "동원시스템즈",
         # ── 철강·화학 ────────────────────────────────────────────────────
         "005490.KS": "POSCO홀딩스",                 "004020.KS": "현대제철",
@@ -8232,7 +8262,7 @@ class QuantNexusApp:
         "016360.KS": "삼성증권",
         "017960.KS": "한국카본",
         "022100.KS": "포스코DX",
-        "025540.KS": "한국단자공업",
+        "025540.KS": "한국단자",
         "031980.KQ": "피에스케이홀딩스",
         "036930.KQ": "주성엔지니어링",
         "039130.KS": "하나투어",
@@ -8312,7 +8342,7 @@ class QuantNexusApp:
         "003550.KS": "LG",
         # ── 사이버보안 ─────────────────────────────────────────────────────────
         "136540.KQ": "윈스테크넷",
-        "150900.KQ": "파수",                    "488280.KQ": "S2W",
+        "150900.KQ": "파수AI",                    "488280.KQ": "에스투더블유",
         "411080.KQ": "샌즈랩",
         # ── 우주·위성 ──────────────────────────────────────────────────────────
         "189300.KQ": "인텔리안테크",              "211270.KQ": "AP위성",
@@ -8399,7 +8429,7 @@ class QuantNexusApp:
         # 015350 부산가스 FDR 미확인(상폐 의심) — 매핑 삭제
         # ── 팹리스·AI반도체 보강 ──────────────────────────────────────────
         "394280.KQ": "오픈엣지테크놀로지",  # AI 반도체 IP·뉴럴 프로세서
-        "361390.KQ": "모빌린트",            # 엣지AI 비전 반도체
+        # 엣지AI 비전 반도체
         "102120.KQ": "어보브반도체",        # MCU 팹리스
         "123860.KQ": "아나패스",            # Display IC 팹리스
         "029780.KS": "삼성카드",            # 신용카드
@@ -8429,9 +8459,9 @@ class QuantNexusApp:
         "357550.KQ": "석경에이티",          # 세라믹·치과재료
         "950140.KQ": "잉글우드랩",          # 화장품 ODM(미국법인)
         # ── 2026-05 바이오 추가: kr_sectors 추가분 (yfinance 확인) ────────────
-        "302440.KQ": "이뮨온시아",            # 면역항암 바이오
-        "048530.KQ": "인투셀",                # ADC 항체약물접합체
-        "950200.KQ": "파멥신",                # ADC·이중항체 바이오
+        "424870.KQ": "이뮨온시아",            # 면역항암 바이오
+        "287840.KQ": "인투셀",                # ADC 항체약물접합체
+        # ADC·이중항체 바이오
         "389030.KQ": "지니너스",              # 유전체분석·진단
         # ── 2026-05 7차 추가: 시총 상위 누락 대형주 보강 (FDR 확인) ───────────
         "402340.KS": "SK스퀘어",            # SK ICT 투자 지주
@@ -8560,23 +8590,68 @@ class QuantNexusApp:
         "030520.KQ": "한글과컴퓨터",       # AI오피스SW
         "402030.KQ": "코난테크놀로지",     # AI자연어처리
         "315640.KQ": "딥노이드",           # AI의료영상
-        "119650.KS": "가온전선",           # 전력케이블
-        "094820.KQ": "비나텍",             # 슈퍼커패시터
-        "302380.KS": "파워로직스",         # DC-DC컨버터 (302380.KS, 전력기기)
-        "094850.KQ": "아이쓰리시스템",     # 적외선센서·방산
-        "048830.KQ": "세일전자",           # 군용통신장비
+        # 전력케이블
+        # 슈퍼커패시터
+        # DC-DC컨버터 (302380.KS, 전력기기)
+        # 적외선센서·방산
+        # 군용통신장비
         "073010.KQ": "케이에스피",         # 선박축계부품
-        "006370.KS": "대한조선",           # 중형조선소
+        # 중형조선소
         "003850.KS": "보령",               # 제약(카나브)
         "170900.KS": "동아에스티",         # 제약(DA-5512)
-        "365550.KQ": "오가노이드사이언스", # 오가노이드플랫폼
-        "380440.KQ": "뉴로메카",           # 협동로봇
+        "476040.KQ": "오가노이드사이언스", # 오가노이드플랫폼
+        # 협동로봇
         "270660.KQ": "에브리봇",           # 가정용청소로봇
         "018290.KQ": "브이티",             # 리들샷마스크
         "439090.KQ": "마녀공장",           # 비건뷰티
-        "000060.KS": "메리츠화재",         # 손해보험·밸류업
-        "041140.KQ": "넥슨지티",           # 캐주얼게임
-        "014620.KS": "성우하이텍",         # 자동차차체부품
+        # 손해보험·밸류업
+        # 캐주얼게임
+        # 자동차차체부품
+        # ── 2026-05 10차 추가: kr_sectors에 있으나 KR_NAMES 누락이던 잔여분 ────
+        "322310.KQ": "오킨스전자",          # 반도체 테스트소켓
+        "058970.KS": "엠로",                # 공급망 SCM SW
+        "035890.KQ": "서희건설",            # 중견건설
+        "090460.KQ": "비에이치",            # 스마트폰 FPCB
+        "049070.KQ": "인탑스",              # 모바일·로봇 케이스
+        "248070.KQ": "솔루엠",              # 전자부품·ESL
+        "009290.KS": "광동제약",            # 비타500·헛개차
+        "075180.KS": "새론오토모티브",      # 자동차 브레이크패드
+        "020000.KS": "한섬",                # 패션(타임·마인·시스템)
+        "093050.KS": "LF",                  # 패션(닥스·헤지스)
+        "200130.KQ": "콜마비앤에이치",      # 건기식 ODM
+        "194700.KQ": "노바렉스",            # 건기식 ODM
+        # 식품
+        "003960.KS": "사조대림",            # 수산·식품
+        # ── 2026-05 11차 추가: 섹터 20+ 충원 ───────────────────────────────
+        "108670.KS": "LX하우시스",          # 건자재
+        "002900.KS": "TYM",                 # 농기계
+        "090350.KS": "노루페인트",          # 페인트
+        "001680.KS": "대상",                # 종합식품
+        "049770.KS": "동원F&B",             # 종합식품
+        "000400.KS": "롯데손해보험",        # 손해보험
+        "041920.KQ": "메디아나",            # 의료기기
+        "007210.KS": "벽산",                # 건자재
+        "000390.KS": "삼화페인트",          # 페인트
+        "131090.KQ": "시큐브",              # 보안
+        "183190.KS": "아세아시멘트",        # 시멘트
+        "053350.KQ": "이니텍",              # 보안·인증
+        "099750.KQ": "이지케어텍",          # 헬스케어EMR
+        "249420.KS": "일동제약",            # 제약
+        "067000.KQ": "조이시티",            # 게임
+        "045970.KQ": "코아시아",            # 시스템반도체
+        "282880.KQ": "코윈테크",            # 배터리장비
+        "091700.KQ": "파트론",              # 카메라모듈
+        "017810.KS": "풀무원",              # 식품
+        "014790.KS": "한라",                # 건설·기계
+        "025750.KS": "한솔홈데코",          # 건자재
+        "004960.KS": "한신공영",            # 건설
+        "379640.KQ": "한싹",                # 보안
+        "300720.KS": "한일시멘트",          # 시멘트
+        "139130.KS": "DGB금융지주",         # 금융지주 (iM과 동일계열)
+        "139480.KS": "이마트",              # 유통
+        "001680.KS": "대상",                # (중복방지)
+        "035500.KQ": "비비안",              # 패션 (보강)
+        "067160.KQ": "SOOP",                # 라이브플랫폼 (중복방지)
     }
 
 
@@ -8683,7 +8758,6 @@ class QuantNexusApp:
         "036540.KQ": "반도체후공정·패키징",      # SFA반도체
         "036810.KQ": "BMS·배터리보호회로",
         "178920.KS": "PI필름·배터리절연소재",
-        "950170.KQ": "반도체후공정소재",
         "011790.KS": "FC-BGA기판·동박",          # SKC
         "131290.KQ": "반도체식각액·세정소재",   # 이엔에프테크놀로지
         "222800.KQ": "메모리모듈기판",            # 심텍
@@ -8750,10 +8824,10 @@ class QuantNexusApp:
         "302440.KS": "백신CMO·바이오",                  # SK바이오사이언스
         "950210.KS": "바이오CDMO·위탁생산",              # 프레스티지바이오파마
         "417840.KQ": "반도체장비·소재",                  # 저스템
-        "017810.KS": "LPG유통·에너지",                  # E1
+        "017940.KS": "LPG유통·에너지",                  # E1
         "005090.KS": "집단에너지·발전",                  # SGC에너지
         "009160.KS": "프레스·산업기계",                  # SIMPAC
-        "222040.KQ": "항체CDMO·위탁생산",               # 바이넥스
+        # 바이넥스
         "011760.KS": "종합상사·물류",                    # 현대코퍼레이션
         "069620.KS": "나보타보툴리눔·신약",            # 대웅제약
         "095700.KQ": "바이오CMO·원료의약품",
@@ -9003,9 +9077,8 @@ class QuantNexusApp:
         "310210.KQ": "표적항암제", "214450.KQ": "리쥬란·필러",
         "226950.KQ": "RNAi치료제",
         # 바이오 추가분
-        "302440.KQ": "면역항암·T세포치료",
-        "048530.KQ": "ADC항체약물접합체",
-        "950200.KQ": "ADC·이중항체바이오",
+        "424870.KQ": "면역항암·T세포치료",
+        "287840.KQ": "ADC항체약물접합체",
         "389030.KQ": "유전체분석·NGS진단",
         # 기타 보강
         "365550.KS": "물류센터리츠", "014620.KQ": "관이음쇠·피팅",
@@ -9076,19 +9149,12 @@ class QuantNexusApp:
         "122640.KQ": "반도체·DP장비", "448900.KQ": "자동차부품",
         "493280.KQ": "이중항체신약", "093320.KQ": "인터넷연동(IX)",
         "457370.KQ": "반도체·전자소재화학",
-        "394280.KQ": "AI반도체IP", "361390.KQ": "엣지AI비전반도체",
-        "102120.KQ": "MCU팹리스", "123860.KQ": "DisplayIC팹리스",
+        "394280.KQ": "AI반도체IP", "102120.KQ": "MCU팹리스", "123860.KQ": "DisplayIC팹리스",
         # ── 2026-05 9차 추가 DESC ────────────────────────────────────────────
         "030520.KQ": "AI오피스SW", "402030.KQ": "AI자연어처리",
-        "315640.KQ": "AI의료영상", "119650.KS": "전력케이블",
-        "094820.KQ": "슈퍼커패시터", "302380.KS": "DC-DC컨버터",
-        "094850.KQ": "적외선센서·방산", "048830.KQ": "군용통신장비",
-        "073010.KQ": "선박축계부품", "006370.KS": "중형조선소",
-        "003850.KS": "제약(카나브)", "170900.KS": "제약(DA-5512)",
-        "365550.KQ": "오가노이드플랫폼", "380440.KQ": "협동로봇",
-        "270660.KQ": "가정용청소로봇", "018290.KQ": "리들샷마스크",
-        "439090.KQ": "비건뷰티", "000060.KS": "손해보험·밸류업",
-        "041140.KQ": "캐주얼게임", "014620.KS": "자동차차체부품",
+        "315640.KQ": "AI의료영상", "073010.KQ": "선박축계부품", "003850.KS": "제약(카나브)", "170900.KS": "제약(DA-5512)",
+        "476040.KQ": "오가노이드플랫폼", "270660.KQ": "가정용청소로봇", "018290.KQ": "리들샷마스크",
+        "439090.KQ": "비건뷰티",
     }
 
     # ─────────────────────────────────────────────────────────────────────
@@ -10030,8 +10096,123 @@ class QuantNexusApp:
         "RUM":  "럼블",
         "RDFN": "레드핀",
         "SES":  "SES AI",
-        "GRRR": "고릴라 테크놀로지",
-    }
+        # ── 2026-05 추가: us_sectors 누락 보강 ───────────────
+        "A": "애질런트",
+        "ACB": "오로라카나비스",
+        "ACHC": "아카디아 헬스케어",
+        "AEE": "아메렌",
+        "AES": "AES",
+        "ALLE": "알리지온",
+        "ALSN": "앨리슨 트랜스미션",
+        "ANF": "아베크롬비&피치",
+        "AOS": "AO 스미스",
+        "AR": "안테로 리소시즈",
+        "ARE": "알렉산드리아 리얼티",
+        "ASH": "애슐랜드",
+        "ATO": "애트모스 에너지",
+        "AVNT": "아벤트",
+        "BAX": "백스터 인터내셔널",
+        "BBWI": "배스&바디웍스",
+        "BBY": "베스트 바이",
+        "BIRK": "버켄스탁",
+        "BMNR": "비트마인",
+        "BRO": "브라운앤브라운",
+        "BWX": "BWX 테크놀로지스",
+        "BYD": "보이드 게이밍",
+        "BYND": "비욘드미트",
+        "CCL": "카니발",
+        "CGC": "캐노피 그로스",
+        "CHK": "체사피크 에너지",
+        "CIVI": "시비타스 리소시즈",
+        "CMA": "코메리카",
+        "CMS": "CMS 에너지",
+        "CNP": "센터포인트 에너지",
+        "CRGY": "크레센트 에너지",
+        "CROX": "크록스",
+        "CTLT": "캐털런트",
+        "CTRA": "코테라 에너지",
+        "CZR": "시저스 엔터테인먼트",
+        "DKS": "딕스 스포팅 굿즈",
+        "DOC": "헬스피크 프로퍼티즈",
+        "DTE": "DTE 에너지",
+        "EC": "에코페트롤",
+        "EG": "에버레스트 그룹",
+        "EIX": "에디슨 인터내셔널",
+        "ELF": "엘프 뷰티",
+        "EPAM": "EPAM 시스템즈",
+        "ES": "에버소스 에너지",
+        "EXP": "이글 머티리얼즈",
+        "FE": "퍼스트에너지",
+        "FND": "플로어&데코",
+        "FUL": "H.B. 풀러",
+        "GFL": "GFL 인바이런멘털",
+        "GGG": "그라코",
+        "GIL": "길단 액티브웨어",
+        "H": "하얏트 호텔",
+        "HEI": "헤이코",
+        "HSIC": "헨리 셰인",
+        "HUN": "헌츠맨",
+        "IFF": "인터내셔널 플레이버",
+        "INDI": "인디 세미컨덕터",
+        "IQV": "IQVIA 홀딩스",
+        "JBLU": "젯블루 항공",
+        "JKHY": "잭 헨리",
+        "KRC": "킬로이 리얼티",
+        "LKQ": "LKQ 코퍼레이션",
+        "MAS": "마스코",
+        "MGM": "MGM 리조트",
+        "MMC": "마쉬앤맥레난",
+        "MPW": "메디컬 프로퍼티즈",
+        "MTB": "M&T 뱅크",
+        "MTD": "메틀러 톨레도",
+        "MTDR": "마타도르 리소시즈",
+        "NCLH": "노르위전 크루즈",
+        "NI": "니소스",
+        "NWSA": "뉴스 코퍼레이션",
+        "OHI": "오메가 헬스케어",
+        "OUST": "오우스터",
+        "PARA": "파라마운트 글로벌",
+        "PB": "프로스페리티 뱅크",
+        "PBA": "펨비나 파이프라인",
+        "PCOR": "프로코어 테크놀로지스",
+        "PEN": "페넘브라",
+        "PENN": "펜 엔터테인먼트",
+        "PNFP": "파인내클 파이낸셜",
+        "PNR": "펜테어",
+        "PNW": "피너클 웨스트",
+        "POOL": "풀 코퍼레이션",
+        "RH": "RH",
+        "RMD": "레스메드",
+        "RNG": "링센트럴",
+        "RNR": "리뉴어런스",
+        "RPM": "RPM 인터내셔널",
+        "RRC": "레인지 리소시즈",
+        "RVTY": "리바티",
+        "SAVA": "카사바 사이언스",
+        "SIRI": "시리우스XM",
+        "SNA": "스냅온",
+        "SNDL": "선들 그로어",
+        "SNV": "시너버스 파이낸셜",
+        "STE": "스테리스",
+        "SWK": "스탠리 블랙앤데커",
+        "TCEHY": "텐센트 (ADR)",
+        "TFX": "테레플렉스",
+        "TLRY": "틸레이 브랜즈",
+        "TPL": "텍사스 퍼시픽 랜드",
+        "TPX": "템퍼실리 인터내셔널",
+        "TTC": "토로",
+        "TYL": "타일러 테크놀로지스",
+        "URBN": "어반 아웃피터스",
+        "WAL": "웨스턴 얼라이언스",
+        "WAT": "워터스",
+        "WRB": "W.R. 벌리",
+        "WSM": "윌리엄스 소노마",
+        "WTRG": "에센셜 유틸리티스",
+        "ZIM": "ZIM 인티그레이티드",
+        "ZION": "자이언스 뱅코프",
+        "ZTS": "조에티스",
+
+        "GRRR": "고릴라 테크놀로지"}
 
     # US_DESC — 미국 종목 한글 설명 (Name 컬럼 옆에 표시)
     # ─────────────────────────────────────────────────────────────────────
@@ -10760,62 +10941,62 @@ class QuantNexusApp:
         "FLEX": "전자 장비 · 부품",
         "MDLN": "의료 장비 · 유통",
         "BIDU": "온라인 서비스 · 플랫폼",
-        "FITB": "은행",
-        "CCEP": "음료",
-        "JD": "백화점",
-        "KDP": "음료",
+        "FITB": "오하이오 기반 중서부 지역은행",
+        "CCEP": "서유럽 코카콜라 보틀링 · 음료 유통",
+        "JD": "중국 2위 자체배송 종합 이커머스",
+        "KDP": "K-Cup 캡슐커피 · 닥터페퍼 · 스내플",
         "ERIC": "통신 · 네트워크 장비",
         "GFS": "반도체 장비 · 테스트",
         "ESLT": "항공우주 · 방산",
         "VOD": "무선 통신",
-        "ACGL": "손해보험",
+        "ACGL": "버뮤다 본사 특수보험 · 재보험",
         "TCOM": "레저 · 엔터테인먼트",
         "CPRT": "온라인 서비스 · 플랫폼",
         "ONC": "바이오 · 신약 연구",
-        "HBAN": "은행",
+        "HBAN": "오하이오 본사 미드웨스트 지역은행",
         "CASY": "식품 소매 · 유통",
         "NTRS": "자산운용 · 투자",
-        "RPRX": "제약",
-        "RYAAY": "항공사",
-        "TSEM": "반도체",
+        "RPRX": "바이오 로열티 펀딩 · 신약 매출 권리",
+        "RYAAY": "유럽 최대 저비용 항공사",
+        "TSEM": "이스라엘 특수공정 파운드리(RF·전력)",
         "SYM": "산업 기계 · 장비",
         "GEHC": "첨단 의료 장비",
-        "MTSI": "반도체",
+        "MTSI": "RF·아날로그 반도체 · 데이터센터 광통신",
         "VRSN": "IT 서비스 · 컨설팅",
-        "CINF": "손해보험",
+        "CINF": "재산·상해 보험 · 독립 대리점 채널",
         "STRL": "건설 · 엔지니어링",
         "WTW": "보험 · 중개",
         "FTAI": "항공우주 · 방산",
-        "UTHR": "제약",
+        "UTHR": "폐고혈압(레모듈린·티베소) 희귀질환",
         "TW": "금융 시장 운영",
         "CTSH": "IT 서비스 · 컨설팅",
         "EXE": "오일 · 가스 E&P",
         "PFG": "생명 · 건강 보험",
         "FFIV": "IT 서비스 · 컨설팅",
         "WWD": "항공우주 · 방산",
-        "FCNCA": "은행",
+        "FCNCA": "노스캐롤라이나 본사 · SVB 인수 통합 은행",
         "FWONK": "방송 · 미디어",
-        "ROIV": "제약",
-        "VTRS": "제약",
-        "FUTU": "핀테크",
+        "ROIV": "Vant 자회사 분산 모델 신약개발사",
+        "VTRS": "복제약·바이오시밀러 글로벌 제네릭",
+        "FUTU": "홍콩·아시아 온라인 증권 · 부유층 타겟",
         "EVRG": "전력 유틸리티",
         "LNT": "전력 유틸리티",
         "WMG": "엔터테인먼트 제작",
         "VNOM": "오일 · 가스 E&P",
-        "TTMI": "반도체",
+        "TTMI": "PCB 제조 · 항공우주·국방용 기판",
         "LOGI": "컴퓨터 하드웨어",
         "PTC": "소프트웨어",
-        "EWBC": "은행",
+        "EWBC": "캘리포니아 기반 미·중 가교 상업은행",
         "SSNC": "IT 서비스 · 컨설팅",
         "TPG": "자산운용 · 투자",
         "GMAB": "바이오 · 신약 연구",
-        "NBIX": "제약",
+        "NBIX": "신경·내분비 희귀질환 신약(인그레자)",
         "NDSN": "산업 기계 · 장비",
         "LAMR": "리츠 · 부동산",
         "HST": "리츠 · 부동산",
         "ASND": "바이오 · 신약 연구",
         "GRAB": "소프트웨어",
-        "JAZZ": "제약",
+        "JAZZ": "수면장애·종양 희귀질환 의약품",
         "AUR": "소프트웨어",
         "LECO": "산업 기계 · 장비",
         "RGC": "바이오 · 신약 연구",
@@ -10824,7 +11005,7 @@ class QuantNexusApp:
         "AAOI": "전자 장비 · 부품",
         "HAS": "완구 · 키즈 제품",
         "ARCC": "자산운용 · 투자",
-        "RMBS": "반도체",
+        "RMBS": "메모리 인터페이스 IP · DDR/HBM 라이선스",
         "TIGO": "무선 통신",
         "GLPI": "리츠 · 부동산",
         "FOXA": "방송 · 미디어",
@@ -10835,9 +11016,9 @@ class QuantNexusApp:
         "SMMT": "바이오 · 신약 연구",
         "WSE": "온라인 서비스 · 플랫폼",
         "GH": "의료 장비 · 유통",
-        "BBIO": "제약",
+        "BBIO": "희귀질환 정밀의학 파이프라인",
         "EXEL": "바이오 · 신약 연구",
-        "SMTC": "반도체",
+        "SMTC": "데이터센터·자동차 반도체(시그널 인테그리티)",
         "ZBRA": "전자 장비 · 부품",
         "FRVO": "전력 유틸리티",
         "IONS": "바이오 · 신약 연구",
@@ -10846,12 +11027,12 @@ class QuantNexusApp:
         "AGNC": "리츠 · 부동산",
         "COO": "의료 장비 · 유통",
         "MDGL": "바이오 · 신약 연구",
-        "AXSM": "제약",
+        "AXSM": "중추신경계(우울증·편두통) 신약",
         "VIAV": "통신 · 네트워크 장비",
         "VICR": "전기 부품 · 장비",
         "ENLT": "민자 발전",
-        "COKE": "음료",
-        "ERIE": "손해보험",
+        "COKE": "남부·중서부 미국 코카콜라 보틀링",
+        "ERIE": "자동차·주택보험 · 대리점 네트워크",
         "LFUS": "전자 장비 · 부품",
         "DRS": "항공우주 · 방산",
         "BTSG": "의료 시설 · 서비스",
@@ -10867,68 +11048,68 @@ class QuantNexusApp:
         "WYNN": "카지노 · 게이밍",
         "SFD": "식품 가공",
         "FCFS": "소비자 금융",
-        "WTFC": "은행",
+        "WTFC": "시카고 기반 부유층 타겟 지역은행",
         "BRK-A": "복합 소비재 대기업",
         "BABA": "온라인 서비스 · 플랫폼",
-        "HSBC": "은행",
-        "SMFG": "은행",
-        "RY": "은행",
+        "HSBC": "글로벌 상업은행 · 아시아 자산관리",
+        "SMFG": "일본 3대 메가뱅크 · 아시아 진출",
+        "RY": "캐나다 최대 은행 · 글로벌 자산관리",
         "SHEL": "통합 오일 · 가스",
-        "MUFG": "은행",
+        "MUFG": "일본 최대 종합금융그룹",
         "BHP": "광물 채굴",
         "TTE": "통합 오일 · 가스",
         "SAP": "소프트웨어",
-        "TD": "은행",
-        "SAN": "은행",
+        "TD": "캐나다 빅5 은행 · 미 동부 리테일 확장",
+        "SAN": "스페인 글로벌 상업은행 · 중남미 강세",
         "UBS": "자산운용 · 투자",
         "WELL": "리츠 · 부동산",
         "APH": "전자 장비 · 부품",
-        "BTI": "담배",
+        "BTI": "글로벌 담배(Dunhill, Lucky Strike) · 차세대 제품",
         "RIO": "광물 채굴",
-        "HDB": "은행",
+        "HDB": "인도 최대 민간은행 · 소매금융",
         "UL": "생활 필수 소비재",
-        "BBVA": "은행",
+        "BBVA": "스페인 · 멕시코 상업은행",
         "ENB": "오일 · 가스 수송",
         "BP": "정유 · 가스 마케팅",
         "BN": "자산운용 · 투자",
-        "BMO": "은행",
-        "MFG": "은행",
-        "CM": "은행",
+        "BMO": "캐나다 5대 은행 · 북미 자산관리",
+        "MFG": "일본 3대 메가뱅크 · 글로벌 IB",
+        "CM": "캐나다 빅5 은행 · 자산관리",
         "CNQ": "오일 · 가스 E&P",
         "EQNR": "통합 오일 · 가스",
-        "BNS": "은행",
-        "IBN": "은행",
+        "BNS": "캐나다 빅5 은행 · 중남미 진출",
+        "IBN": "인도 2위 민간은행 · 디지털뱅킹",
         "WM": "환경 서비스",
         "JCI": "전기 부품 · 장비",
         "EPD": "오일 · 가스 수송",
-        "ING": "은행",
+        "ING": "네덜란드 본사 유럽 직불은행",
         "E": "통합 오일 · 가스",
         "NGG": "복합 유틸리티",
         "SU": "정유 · 가스 마케팅",
         "AMX": "통합 통신",
         "MRSH": "보험 · 중개",
-        "BCS": "은행",
+        "BCS": "영국 글로벌 IB · 소비자 금융",
         "NOK": "통신 · 네트워크 장비",
         "CP": "화물 · 물류",
-        "LYG": "은행",
+        "LYG": "영국 1위 리테일 은행 · 주택대출",
         "CVNA": "자동차 부품 · 소매",
         "PBR": "통합 오일 · 가스",
         "EMR": "전기 부품 · 장비",
         "HLT": "호텔 · 크루즈",
         "TRP": "오일 · 가스 수송",
         "RCL": "호텔 · 크루즈",
-        "VALE": "철강",
+        "VALE": "브라질 세계 1위 철광석 · 니켈",
         "AON": "보험 · 중개",
         "ASX": "반도체 장비 · 테스트",
         "CRH": "건설 자재",
-        "B": "금 채굴",
+        "B": "북미 · 라틴 금광 채굴 메이저",
         "CNI": "화물 · 물류",
         "FIX": "건설 · 엔지니어링",
         "RSG": "환경 서비스",
         "RACE": "자동차 · 트럭 제조",
-        "NWG": "은행",
+        "NWG": "영국 리테일·기업금융 은행(舊 RBS)",
         "URI": "경영 지원 서비스",
-        "DB": "은행",
+        "DB": "독일 최대 투자은행 · 자산관리",
         "GWW": "산업 기계 · 장비",
         "TEL": "전자 장비 · 부품",
         "KEYS": "전자 장비 · 부품",
@@ -10936,29 +11117,29 @@ class QuantNexusApp:
         "CVE": "오일 · 가스 E&P",
         "AZO": "자동차 부품 · 소매",
         "AJG": "보험 · 중개",
-        "TAK": "제약",
+        "TAK": "일본 1위 제약 · 희귀질환·소화기",
         "PSA": "리츠 · 부동산",
         "INFY": "IT 서비스 · 컨설팅",
         "ABEV": "양조 · 주류",
-        "CAH": "제약",
-        "MT": "철강",
+        "CAH": "의약품·의료기기 유통 도매",
+        "MT": "글로벌 1위 철강 메이커 · 자동차강판",
         "WAB": "중장비 · 차량",
         "GRMN": "통신 · 네트워크 장비",
         "WDS": "오일 · 가스 E&P",
-        "UMC": "반도체",
+        "UMC": "대만 2위 파운드리 · 성숙공정 특화",
         "FERG": "건설 자재 · 비품",
         "AMP": "자산운용 · 투자",
-        "ITUB": "은행",
+        "ITUB": "브라질 최대 민간은행",
         "VTR": "리츠 · 부동산",
         "IX": "소비자 금융",
-        "HLN": "제약",
-        "TEVA": "제약",
+        "HLN": "센소다인·파나돌 OTC 컨슈머 헬스",
+        "TEVA": "글로벌 제네릭 의약품 1위 · 자가면역",
         "WCN": "환경 서비스",
         "BDX": "의료 장비 · 유통",
         "PUK": "생명 · 건강 보험",
         "VIK": "레저 · 엔터테인먼트",
         "PEG": "복합 유틸리티",
-        "KB": "은행",
+        "KB": "한국 1위 금융지주 · KB국민은행",
         "TKO": "엔터테인먼트 제작",
         "UI": "통신 · 네트워크 장비",
         "EQT": "오일 · 가스 E&P",
@@ -10971,7 +11152,7 @@ class QuantNexusApp:
         "LVS": "카지노 · 게이밍",
         "CHT": "통합 통신",
         "MLM": "건설 자재",
-        "Q": "반도체",
+        "Q": "위성통신·반도체 · 美 국방 사업",
         # ── 2026-05-20 누락 보강: 펨코·레딧 바이럴 종목 ───────────────
         "PGY":  "AI 신용평가 · 자산담보대출 핀테크",
         "OPEN": "부동산 iBuying · AI 가격결정",
@@ -10991,8 +11172,123 @@ class QuantNexusApp:
         # ── 2026-05-20 핫 종목 추가 ──────────────────────────
         "AEHR": "SiC 웨이퍼 번인 테스트 장비",
         "LEU":  "HALEU 우라늄 농축 · SMR 연료",
-        "PL":   "초소형 위성 군집 · 지구 관측",
-    }
+        # ── 2026-05 추가: us_sectors 누락 보강 ───────────────
+        "A": "분석기기 · 라이프 사이언스",
+        "ACB": "캐나다 의료용 대마",
+        "ACHC": "행동 건강 · 정신과 시설",
+        "AEE": "미주리 · 일리노이 전력",
+        "AES": "글로벌 전력 · 신재생",
+        "ALLE": "보안 · 도어록 솔루션",
+        "ALSN": "상용 변속기 제조",
+        "ANF": "캐주얼 패션 리테일",
+        "AOS": "온수기 · 정수 시스템",
+        "AR": "천연가스 E&P",
+        "ARE": "바이오 R&D 오피스 리츠",
+        "ASH": "특수 화학 첨가제",
+        "ATO": "천연가스 유틸리티",
+        "AVNT": "특수 폴리머 · 컬러",
+        "BAX": "의료 기기 · 신장투석",
+        "BBWI": "퍼스널케어 리테일",
+        "BBY": "전자제품 양판점",
+        "BIRK": "프리미엄 샌들",
+        "BMNR": "비트코인 트레저리 · 이더리움",
+        "BRO": "보험 중개",
+        "BWX": "원자력 부품 · 해군",
+        "BYD": "지역 카지노 · 호텔",
+        "BYND": "식물성 대체육",
+        "CCL": "크루즈 라인",
+        "CGC": "캐나다 대마초",
+        "CHK": "셰일 천연가스",
+        "CIVI": "DJ분지 · 퍼미안 E&P",
+        "CMA": "텍사스 기반 지역은행",
+        "CMS": "미시간 전력 · 가스",
+        "CNP": "휴스턴 전력 · 가스",
+        "CRGY": "독립 E&P",
+        "CROX": "캐주얼 풋웨어",
+        "CTLT": "제약 CDMO",
+        "CTRA": "퍼미안·마르셀러스 E&P",
+        "CZR": "카지노 · 호텔",
+        "DKS": "스포츠 용품 리테일",
+        "DOC": "의료 리츠",
+        "DTE": "미시간 전력 · 가스",
+        "EC": "콜롬비아 국영 석유",
+        "EG": "재보험 · 손해보험",
+        "EIX": "서던 캘리포니아 전력",
+        "ELF": "프리스티지 화장품",
+        "EPAM": "디지털 엔지니어링 컨설팅",
+        "ES": "뉴잉글랜드 전력 · 가스",
+        "EXP": "시멘트 · 골재",
+        "FE": "오하이오 · 펜실베이니아 전력",
+        "FND": "타일·바닥재 양판",
+        "FUL": "산업용 접착제",
+        "GFL": "캐나다 환경·폐기물",
+        "GGG": "유체이송 장비",
+        "GIL": "베이직 의류 OEM",
+        "H": "글로벌 호텔 체인",
+        "HEI": "항공 부품 · MRO",
+        "HSIC": "치과·의료 유통",
+        "HUN": "MDI · 특수 화학",
+        "IFF": "향료 · 향수",
+        "INDI": "자동차 ADAS 칩",
+        "IQV": "헬스케어 CRO · 데이터",
+        "JBLU": "저비용 항공",
+        "JKHY": "은행 코어뱅킹 SW",
+        "KRC": "서부 해안 오피스 리츠",
+        "LKQ": "자동차 애프터마켓 부품",
+        "MAS": "주거용 인테리어",
+        "MGM": "라스베이거스 카지노",
+        "MMC": "보험 중개 · 컨설팅",
+        "MPW": "병원 부동산 리츠",
+        "MTB": "뉴욕 기반 지역은행",
+        "MTD": "정밀 계측 기기",
+        "MTDR": "퍼미안 E&P",
+        "NCLH": "크루즈 라인",
+        "NI": "인디애나 가스·전력",
+        "NWSA": "월스트리트저널 · WSJ",
+        "OHI": "전문 요양시설 리츠",
+        "OUST": "디지털 라이다 센서",
+        "PARA": "미디어 · 스트리밍",
+        "PB": "텍사스 지역은행",
+        "PBA": "캐나다 미드스트림",
+        "PCOR": "건설 관리 SW",
+        "PEN": "뇌졸중·혈관 의료기기",
+        "PENN": "지역 카지노 · ESPN BET",
+        "PNFP": "테네시 지역은행",
+        "PNR": "수처리 · 풀 장비",
+        "PNW": "애리조나 전력",
+        "POOL": "수영장 용품 유통",
+        "RH": "프리미엄 홈퍼니싱",
+        "RMD": "수면 무호흡 의료기기",
+        "RNG": "클라우드 통신 · UCaaS",
+        "RNR": "재보험 · 손해보험",
+        "RPM": "특수 코팅 · 실란트",
+        "RRC": "마르셀러스 천연가스",
+        "RVTY": "라이프 사이언스 분석기기",
+        "SAVA": "알츠하이머 신약 개발",
+        "SIRI": "위성 라디오 · 팟캐스트",
+        "SNA": "프로용 공구",
+        "SNDL": "캐나다 대마 · 주류",
+        "SNV": "조지아 지역은행",
+        "STE": "감염 예방 · 멸균",
+        "SWK": "전동공구 · 보안",
+        "TCEHY": "중국 빅테크 · 위챗·게임",
+        "TFX": "일회용 의료기기",
+        "TLRY": "캐나다 대마 · 주류",
+        "TPL": "퍼미안 토지 로열티",
+        "TPX": "프리미엄 매트리스",
+        "TTC": "잔디·조경 장비",
+        "TYL": "정부·공공 SaaS",
+        "URBN": "라이프스타일 패션",
+        "WAL": "애리조나 지역은행",
+        "WAT": "분석기기 · LC/MS",
+        "WRB": "전문 보험사",
+        "WSM": "홈퍼니싱 리테일",
+        "WTRG": "수도 · 천연가스 유틸리티",
+        "ZIM": "컨테이너 해운",
+        "ZION": "유타 지역은행",
+        "ZTS": "동물 의약품",
+
+        "PL":   "초소형 위성 군집 · 지구 관측"}
 
     # ─────────────────────────────────────────────────────────────────────
     # 섹터 데이터 초기화 (원본 종목 리스트 유지)
@@ -11010,7 +11306,7 @@ class QuantNexusApp:
                 "Mag 7":              ["AAPL","AMZN","GOOGL","META","MSFT","NVDA","TSLA"],
 
                 # AI 플랫폼·클라우드·엔터프라이즈
-                "AI Platform & Cloud":["ADBE","AI","AMZN","BBAI","BOX","CFLT","CRM","DDOG",
+                "AI Platform & Cloud":["ADBE","AI","AMZN","BBAI","BOX","CRM","DDOG",
                                        "DOCN","ESTC","GOOGL","GRRR","GTLB","HUBS","IBM","INTU",
                                        "MDB","MNDY","MSFT","NOW","NTNX","ORCL","PATH","PLTR",
                                        "RBRK","SNOW","SOUN","TEAM","TEM","WDAY"],
@@ -11026,11 +11322,10 @@ class QuantNexusApp:
                                        "OKTA","PANW","QLYS","RPD","S","TENB","VRNS","ZS"],
 
                 # SaaS·소프트웨어 고성장
-                "SaaS & Software":    ["ADBE","ADSK","ANSS","APP","BILL","CDNS","CRM","CTSH","DOCU","DUOL",
+                "SaaS & Software":    ["ADBE","ADSK","APP","BILL","CDNS","CRM","CTSH","DOCU","DUOL",
                                        "EPAM","FFIV","GLOB","GTLB","HUBS","JKHY","MGNI","MNDY","NOW",
                                        "PCOR","PCTY","PTC","RAMP","RNG","SHOP","SNPS","TRMB","TWLO",
-                                       "TTD","TYL","VEEV","ZBRA","ZM"],
-            },
+                                       "TTD","TYL","VEEV","ZBRA","ZM"]},
 
             # ── 2. AI 반도체 ──────────────────────────────────────────────
             "🔬 AI Semiconductors": {
@@ -11049,8 +11344,7 @@ class QuantNexusApp:
 
                 # 메모리·스토리지·패키징
                 "Memory & Packaging": ["AMKR","CEVA","MU","NTAP","NVTS","PSTG","SIMO",
-                                       "SMCI","SNDK","STX","WDC"],
-            },
+                                       "SMCI","SNDK","STX","WDC"]},
 
             # ── 3. 핀테크 & 금융 ──────────────────────────────────────────
             "💰 Finance & Fintech": {
@@ -11079,8 +11373,7 @@ class QuantNexusApp:
                 # 보험·보험중개 (브로커 포함 — Russell 1000 핵심)
                 "Insurance":          ["ACGL","AFL","AIG","AJG","ALL","AON","BRK-B","BRO","CB","CINF",
                                        "EG","EQH","ERIE","GL","HIG","MET","MFC","MMC","PGR","PRU",
-                                       "RNR","SLF","TRV","WRB","WTW"],
-            },
+                                       "RNR","SLF","TRV","WRB","WTW"]},
 
             # ── 4. 산업 & 방산 ────────────────────────────────────────────
             "🏭 Industrial & Defense": {
@@ -11102,8 +11395,7 @@ class QuantNexusApp:
 
                 # 물류·운송·해운 (ZIM 고배당 컨테이너선 포함)
                 "Transportation":     ["AAL","CHRW","CSX","DAL","FDX","JBHT","JBLU","LUV","LYFT",
-                                       "NSC","ODFL","SAIA","UAL","UBER","UNP","UPS","XPO","ZIM"],
-            },
+                                       "NSC","ODFL","SAIA","UAL","UBER","UNP","UPS","XPO","ZIM"]},
 
             # ── 5. 에너지 ────────────────────────────────────────────────
             "⚡ Energy": {
@@ -11126,8 +11418,7 @@ class QuantNexusApp:
                 # 유틸리티 (Russell 1000 전면 보강)
                 "Utilities":          ["AEE","AEP","AES","ATO","AWK","CMS","CNP","D","DTE","DUK","ED",
                                        "EIX","ES","ETR","EVRG","EXC","FE","LNT","NEE","NI","NRG",
-                                       "PCG","PEG","PNW","PPL","SO","SRE","WEC","WTRG","XEL"],
-            },
+                                       "PCG","PEG","PNW","PPL","SO","SRE","WEC","WTRG","XEL"]},
 
             # ── 6. 헬스케어 & 바이오 ──────────────────────────────────────
             "🧬 Healthcare & Biotech": {
@@ -11152,8 +11443,7 @@ class QuantNexusApp:
 
                 # 헬스케어 서비스·PBM·CRO·CDMO·정신건강 (Acadia 행동건강 포함)
                 "Healthcare Services":["ACHC","CI","CNC","COR","CTLT","CVS","DVA","ELV","HCA","HIMS",
-                                       "HUM","IQV","MCK","MOH","OSCR","THC","UHS","UNH"],
-            },
+                                       "HUM","IQV","MCK","MOH","OSCR","THC","UHS","UNH"]},
 
             # ── 7. 소비재 & 리테일 ────────────────────────────────────────
             "🛍️ Consumer & Retail": {
@@ -11180,8 +11470,7 @@ class QuantNexusApp:
 
                 # 호텔·카지노·크루즈 (여행 리오프닝 + 일본·마카오 카지노 재개)
                 "Hotels & Gaming":    ["BYD","CCL","CZR","H","HLT","LVS","MAR","MGM","NCLH","PENN",
-                                       "RCL","WYNN"],
-            },
+                                       "RCL","WYNN"]},
 
             # ── 8. 소비자 필수재 & 식음료 (신규) ─────────────────────────────
             "🥤 Consumer Staples": {
@@ -11196,8 +11485,7 @@ class QuantNexusApp:
                 "Cannabis":           ["ACB","CGC","SNDL","TLRY"],
 
                 # 비료·농업·식량 (식량안보 테마)
-                "Agriculture & Agri": ["ADM","BG","CF","CTVA","FMC","MOS","NTR","SMG"],
-            },
+                "Agriculture & Agri": ["ADM","BG","CF","CTVA","FMC","MOS","NTR","SMG"]},
 
             # ── 9. 미디어 & 엔터테인먼트 ─────────────────────────────────
             "🎮 Media & Entertainment": {
@@ -11210,8 +11498,7 @@ class QuantNexusApp:
 
                 # 스트리밍·콘텐츠·미디어 (전통 미디어 보강)
                 "Streaming & Content":["AMC","CHTR","CNK","DIS","FOX","FOXA","FUBO","IMAX","LYV",
-                                       "NFLX","NWSA","PARA","ROKU","SIRI","SONY","SPOT","WBD"],
-            },
+                                       "NFLX","NWSA","PARA","ROKU","SIRI","SONY","SPOT","WBD"]},
 
             # ── 10. 부동산 ───────────────────────────────────────────────
             "🏠 Real Estate": {
@@ -11234,8 +11521,7 @@ class QuantNexusApp:
 
                 # 주택건설·모기지
                 "Homebuilders":       ["CVCO","DHI","KBH","LEN","MHO","MTH","NVR","OPEN",
-                                       "PHM","RDFN","RKT","SKY","TOL","UWM"],
-            },
+                                       "PHM","RDFN","RKT","SKY","TOL","UWM"]},
 
             # ── 11. 소재 & 원자재 ─────────────────────────────────────────
             "🧪 Materials & Commodities": {
@@ -11258,8 +11544,7 @@ class QuantNexusApp:
                                        "KGC","NEM","OR","PAAS","RGLD","WPM"],
 
                 # 리튬·배터리 소재 (EV·ESS 수요)
-                "Lithium & Battery":  ["ALB","ENVX","LAC","QS","SES","SLDP","SQM"],
-            },
+                "Lithium & Battery":  ["ALB","ENVX","LAC","QS","SES","SLDP","SQM"]},
 
             # ── 12. 통신 & 5G ─────────────────────────────────────────────
             "📡 Telecom & 5G": {
@@ -11269,8 +11554,7 @@ class QuantNexusApp:
 
                 # 5G·네트워크 장비·위성통신
                 "5G & Satellite":     ["ASTS","CALX","CIEN","CSCO","EXTR","GSAT",
-                                       "JNPR","MSI","NOK","QCOM","SATS","SPOK","VSAT"],
-            },
+                                       "JNPR","MSI","NOK","QCOM","SATS","SPOK","VSAT"]},
 
             # ── 13. 비즈니스 서비스 & 데이터 (신규) ──────────────────────────
             "💼 Business & Data Services": {
@@ -11284,9 +11568,7 @@ class QuantNexusApp:
                 "Data & Analytics":   ["EFX","EXLS","FDS","MCO","SPGI","TRI","VRSK"],
 
                 # 기업 프로세스·결제인프라
-                "Business Process":   ["BR","CBRE","CSGP","FIS","FISV","GPN","WEX"],
-            },
-        }
+                "Business Process":   ["BR","CBRE","CSGP","FIS","FISV","GPN","WEX"]}}
         self.us_sector_category_kr = {
             "AI & Mega Tech": "AI·메가테크",
             "AI Semiconductors": "AI 반도체",
@@ -11300,8 +11582,7 @@ class QuantNexusApp:
             "Real Estate": "부동산",
             "Materials & Commodities": "소재·원자재",
             "Telecom & 5G": "통신·5G",
-            "Business & Data Services": "비즈니스·데이터 서비스",
-        }
+            "Business & Data Services": "비즈니스·데이터 서비스"}
         self.us_sector_labels_kr = {
             "Mag 7": "매그니피센트 7",
             "AI Platform & Cloud": "AI 플랫폼·클라우드",
@@ -11358,8 +11639,7 @@ class QuantNexusApp:
             "HR & Payroll": "HR·급여",
             "Consulting & IT Svc": "컨설팅·IT 서비스",
             "Data & Analytics": "데이터·애널리틱스",
-            "Business Process": "비즈니스 프로세스",
-        }
+            "Business Process": "비즈니스 프로세스"}
 
         # ─────────────────────────────────────────────────────────────────
         # kr_sectors v20.1 — 전면 재검증
@@ -11369,444 +11649,113 @@ class QuantNexusApp:
         #         ③ 이종업종 혼입·의미없는 중복 제거
         # ─────────────────────────────────────────────────────────────────
         self.kr_sectors = {
-
-            # ── 1. 반도체 ────────────────────────────────────────────────
-            "🔬 반도체": {
-                # SK하이닉스 HBM·삼성전자 메모리 + 후공정 핵심 밸류체인
-                "메모리·HBM":         [                                       "000660.KS","000990.KS",
-                                       "005930.KS","007660.KS",
-                                       "110990.KQ","402340.KS",
-                                       "166090.KQ","168360.KQ",
-                                       "067310.KQ"],  # 하나마이크론(HBM 후공정 패키징), SK스퀘어(SK하이닉스 지주)
-
-                # 팹리스(설계) + 파운드리 수혜
-                "시스템반도체":       [                                       "031980.KQ","033640.KQ",
-                                       "054450.KQ","080220.KQ",
-                                       "089030.KQ","200710.KQ",
-                                       "240810.KQ","396270.KQ",   # 넥스트칩, 아이닉스
-                                       "440110.KQ","394280.KQ",   # 파두(SSD컨트롤러), 오픈엣지(AI IP)
-                                       "399720.KQ","094360.KQ",   # 가온칩스(AI ASIC), 칩스앤미디어(비디오IP)
-                                       "361390.KQ","102120.KQ",   # 모빌린트(엣지AI), 어보브반도체(MCU)
-                                       "123860.KQ"],               # 아나패스(Display IC)
-
-                # 장비·소재 — 노광·식각·세정·CVD + 포토레지스트·CMP + 테스트소켓 (오킨스전자)
-                "반도체장비·소재":    [                                       "005290.KQ","014680.KS","322310.KQ",
-                                       "036540.KQ","036810.KQ",
-                                       "036930.KQ","178920.KS",
-                                       "281820.KS","357780.KQ",
-                                       "403870.KQ","950170.KQ",
-                                       "240810.KQ","272290.KQ","357550.KQ",
-                                       "058470.KQ","104830.KQ","140860.KQ",
-                                       "108320.KS","095340.KQ","108860.KQ",
-                                       "228760.KQ","064760.KQ","039030.KQ",
-                                       "317330.KQ","112290.KQ","064290.KQ",
-                                       "084370.KQ","053610.KQ",
-                                       "098460.KQ","095610.KQ","218410.KQ","067390.KQ","195870.KS",
-                                       "042700.KS","089030.KQ","131290.KQ",
-                                       "083450.KQ","170920.KQ","327260.KQ",
-                                       "039440.KQ","058970.KS",
-                                       "417840.KQ"],              # GST, 엘티씨, RF머트리얼즈, 에스티아이, LX세미콘, 저스템
-
-                # AI 서버·HBM용 기판·패키징
-                "AI서버기판·패키징":  [                                       "008060.KS","009150.KS",
-                                       "011070.KS","011790.KS",
-                                       "131290.KQ","222800.KQ"],  # 대덕전자(AI서버기판), SKC(FC-BGA)
+            '🔬 반도체': {
+                '메모리·HBM': ['000660.KS', '000990.KS', '005930.KS', '007660.KS', '110990.KQ', '402340.KS', '166090.KQ', '168360.KQ', '067310.KQ', '356860.KQ', '042700.KS', '089030.KQ', '131290.KQ', '222800.KQ', '195870.KS', '036540.KQ', '033640.KQ', '432720.KQ', '252990.KQ', '080220.KQ', '102120.KQ', '319660.KQ', '031980.KQ'],
+                '시스템반도체': ['031980.KQ', '033640.KQ', '054450.KQ', '080220.KQ', '089030.KQ', '200710.KQ', '240810.KQ', '396270.KQ', '440110.KQ', '394280.KQ', '399720.KQ', '094360.KQ', '102120.KQ', '123860.KQ', '000990.KS', '108320.KS', '094170.KQ', '490470.KQ', '424980.KQ', '456010.KQ', '045970.KQ'],
+                '반도체장비·소재': ['005290.KQ', '014680.KS', '322310.KQ', '036540.KQ', '036810.KQ', '036930.KQ', '178920.KS', '281820.KS', '357780.KQ', '403870.KQ', '240810.KQ', '272290.KQ', '357550.KQ', '058470.KQ', '104830.KQ', '140860.KQ', '108320.KS', '095340.KQ', '108860.KQ', '228760.KQ', '064760.KQ', '039030.KQ', '417840.KQ', '098460.KQ', '095610.KQ', '084370.KQ', '112290.KQ', '064290.KQ', '053610.KQ', '089890.KQ', '089970.KQ', '122640.KQ', '348210.KQ', '101490.KQ', '131970.KQ', '457370.KQ', '054620.KQ', '083450.KQ', '030530.KQ', '327260.KQ', '170920.KQ'],
+                'AI서버기판·패키징': ['008060.KS', '009150.KS', '011070.KS', '011790.KS', '353200.KS', '131290.KQ', '222800.KQ', '007810.KS', '252990.KQ', '420770.KQ', '007660.KS', '195870.KS', '178920.KS', '036540.KQ', '067310.KQ', '018260.KS', '033640.KQ', '272290.KQ', '317330.KQ', '213420.KQ', '356860.KQ', '171090.KQ', '092190.KQ'],
             },
-
-            # ── 2. AI 인프라 ─────────────────────────────────────────────
-            "🤖 AI 인프라": {
-                # AI 클라우드·데이터센터·엔터프라이즈 AI·전자결제
-                "AI플랫폼·클라우드":  [                                       "012510.KS","018260.KS",
-                                       "022100.KS","035420.KS",
-                                       "035720.KS","053800.KQ",
-                                       "304100.KQ",
-                                       "030520.KQ","402030.KQ",
-                                       "315640.KQ","035600.KQ","035890.KQ"],  # 한글과컴퓨터, 코난테크놀로지, 딥노이드, KG이니시스(PG결제), 서희건설
-
-                # 온디바이스AI·엣지AI 핵심 부품 + AI 가전·전장 + FPCB·OLED 소재
-                "온디바이스AI":       [                                       "052710.KQ","054450.KQ",
-                                       "323280.KQ","377480.KQ",
-                                       "405100.KQ","432720.KQ",
-                                       "066570.KS","011070.KS",
-                                       "034220.KS","090460.KQ","213420.KQ",
-                                       "049070.KQ","248070.KQ"],  # LG전자, LG이노텍, LG디스플레이, 비에이치(FPCB), 덕산네오룩스(OLED소재), 인탑스(모바일·로봇), 솔루엠(전자부품)
-
-                # 5G·광통신·AI 네트워크 인프라 (KMW RF필터 포함)
-                "통신·광네트워크":    [                                       "010170.KQ","017670.KS",
-                                       "030200.KS","032640.KS",
-                                       "084730.KQ","187790.KQ","056360.KQ","122990.KQ",
-                                       "032500.KQ"],              # 뷰웍스, 대한광통신, 코위버, 와이솔, KMW(5G RF필터)
+            '🤖 AI 인프라': {
+                'AI플랫폼·클라우드': ['012510.KS', '018260.KS', '022100.KS', '035420.KS', '035720.KS', '053800.KQ', '064400.KS', '304100.KQ', '030520.KQ', '402030.KQ', '315640.KQ', '035600.KQ', '035890.KQ', '023590.KS', '377480.KQ', '032190.KQ', '093320.KQ', '060250.KQ', '377300.KS', '067160.KQ', '486990.KQ', '377330.KQ', '058970.KS', '052400.KQ', '124500.KQ', '086960.KQ', '037460.KQ'],
+                '온디바이스AI': ['052710.KQ', '054450.KQ', '323280.KQ', '377480.KQ', '405100.KQ', '432720.KQ', '066570.KS', '011070.KS', '034220.KS', '090460.KQ', '213420.KQ', '049070.KQ', '248070.KQ', '005930.KS', '009150.KS', '091700.KQ', '097520.KS', '122990.KQ', '045970.KQ', '060720.KQ', '053450.KQ', '047310.KQ', '033640.KQ'],
+                '통신·광네트워크': ['010170.KQ', '017670.KS', '030200.KS', '032640.KS', '084730.KQ', '187790.KQ', '056360.KQ', '122990.KQ', '032500.KQ', '039560.KQ', '037560.KS', '218410.KQ', '050890.KQ', '368770.KQ', '007660.KS', '060370.KQ', '443060.KS', '011070.KS', '018260.KS', '064400.KS', '035000.KS', '032190.KQ'],
             },
-
-            # ── 3. 전력 인프라 ───────────────────────────────────────────
-            "⚡ 전력 인프라": {
-                # 변압기·차단기·배전반·GIS — 글로벌 수주 사상 최대
-                "변압기·전력기기":    [                                       "010120.KS","025540.KS",
-                                       "033100.KQ","062040.KS",
-                                       "103590.KS","199820.KQ",
-                                       "267260.KS","298040.KS",
-                                       "094820.KQ","302380.KS"],  # 제일일렉트릭, 한국단자공업, 비나텍(슈퍼커패시터), 파워로직스(DC-DC컨버터)
-
-                # 초고압·해저·지중 전력케이블
-                "전선·케이블":        [                                       "000500.KS","001440.KS",
-                                       "006260.KS","006340.KS",
-                                       "007610.KS","229640.KS",
-                                       "119650.KS"],  # 대원전선, 선도전기, 가온전선
-
-                # 원전 EPC·기자재·SMR
-                "원전·SMR":           [                                       "015760.KS","034020.KS",
-                                       "051600.KS","052690.KS",
-                                       "083650.KQ","105840.KS"],  # 비에이치아이, 우진
-
-                # 태양광·풍력·ESS·수소연료전지
-                "신재생·ESS":         [                                       "009830.KS","096770.KS",
-                                       "112610.KS","322000.KS",
-                                       "336260.KS","373220.KS",
-                                       "456040.KS","475150.KS",
-                                       "100090.KQ"],  # 두산퓨얼셀(수소), 씨에스윈드(풍력), SK오션플랜트(해상풍력)
-
-                # EV충전 인프라·수소모빌리티
-                "EV충전·수소모빌리티":[                                       "120110.KS","234300.KQ",
-                                       "271940.KS","298040.KS",
-                                       "382900.KQ","462520.KS"],  # 코오롱인더(수소MEA), 효성중공업(수소충전소)
+            '⚡ 전력 인프라': {
+                '변압기·전력기기': ['010120.KS', '025540.KS', '033100.KQ', '062040.KS', '103590.KS', '199820.KQ', '267260.KS', '298040.KS', '417200.KQ', '229640.KS', '009470.KS', '332570.KQ', '032820.KQ', '007610.KS', '160190.KQ', '006260.KS', '001440.KS', '000500.KS', '006340.KS', '034020.KS', '052690.KS', '051600.KS', '015760.KS'],
+                '전선·케이블': ['000500.KS', '001440.KS', '006260.KS', '006340.KS', '007610.KS', '229640.KS', '199820.KQ', '060370.KQ', '332570.KQ', '010120.KS', '010170.KQ', '103590.KS', '009470.KS', '368770.KQ', '025540.KS', '267260.KS', '298040.KS', '062040.KS', '033100.KQ', '417200.KQ', '007660.KS', '032500.KQ'],
+                '원전·SMR': ['015760.KS', '034020.KS', '051600.KS', '052690.KS', '083650.KQ', '105840.KS', '032820.KQ', '103590.KS', '271940.KS', '267260.KS', '036460.KS', '272210.KS', '475150.KS', '382900.KQ', '336260.KS', '298040.KS', '010120.KS', '028050.KS', '000720.KS', '329180.KS', '000150.KS'],
+                '신재생·ESS': ['009830.KS', '096770.KS', '112610.KS', '322000.KS', '336260.KS', '373220.KS', '456040.KS', '475150.KS', '178320.KQ', '011930.KS', '298040.KS', '272210.KS', '010060.KS', '382900.KQ', '383310.KQ', '282720.KQ', '229640.KS', '093370.KS', '298050.KS', '271940.KS', '060370.KQ', '950140.KS'],
+                'EV충전·수소모빌리티': ['120110.KS', '234300.KQ', '271940.KS', '298040.KS', '382900.KQ', '462520.KS', '475150.KS', '373220.KS', '336260.KS', '009830.KS', '096770.KS', '322000.KS', '105840.KS', '010120.KS', '417200.KQ', '012450.KS', '006400.KS', '009470.KS', '025540.KS', '012330.KS', '204320.KS', '018880.KS'],
             },
-
-            # ── 4. K-방산 ────────────────────────────────────────────────
-            "🛡️ K-방산": {
-                # 방산 수출 대형주
-                "방산 대형주":        [                                       "000880.KS","012450.KS",
-                                       "047810.KS","064350.KS",
-                                       "064960.KS","079550.KS"],  # SNT모티브, 한화
-
-                # 탄약·전자전·방산부품
-                "방산 부품·전자전":   [                                       "005810.KS","005870.KS",
-                                       "010820.KS","065450.KQ",
-                                       "103140.KS","272210.KS",
-                                       "094850.KQ","048830.KQ"],  # 퍼스텍, 빅텍, 아이쓰리시스템(적외선센서), 세일전자(군용통신)
-
-                # 드론·소형위성·우주발사체
-                "드론·우주":          [                                       "047810.KS","099320.KQ",
-                                       "274090.KQ","321370.KQ",
-                                       "377330.KQ","437730.KQ"],  # 이지트로닉스(항공전자), 센서뷰
+            '🛡️ K-방산': {
+                '방산 대형주': ['000880.KS', '012450.KS', '047810.KS', '064350.KS', '064960.KS', '079550.KS', '272210.KS', '103140.KS', '005810.KS', '005870.KS', '003570.KS', '489790.KS', '329180.KS', '042660.KS', '017960.KS', '010820.KS', '065450.KQ', '125490.KQ', '437730.KQ', '099320.KQ'],
+                '방산 부품·전자전': ['005810.KS', '005870.KS', '010820.KS', '065450.KQ', '103140.KS', '272210.KS', '099320.KQ', '274090.KQ', '321370.KQ', '437730.KQ', '489790.KS', '017960.KS', '125490.KQ', '010170.KQ', '214430.KQ', '082920.KQ', '211270.KQ', '189300.KQ', '474170.KQ', '047810.KS', '003570.KS', '064960.KS'],
+                '드론·우주': ['047810.KS', '099320.KQ', '274090.KQ', '321370.KQ', '377330.KQ', '437730.KQ', '211270.KQ', '189300.KQ', '474170.KQ', '064350.KS', '272210.KS', '012450.KS', '079550.KS', '489790.KS', '214430.KQ', '003490.KS', '010170.KQ', '082920.KQ', '017960.KS', '010820.KS', '065450.KQ', '125490.KQ', '005870.KS'],
             },
-
-            # ── 5. 조선·해운 ─────────────────────────────────────────────
-            "⚓ 조선·해운": {
-                # LNG선·암모니아선·군함 — 빅3 수주 잔고 최대
-                "대형 조선":          [                                       "009540.KS","010140.KS",
-                                       "042660.KS","097230.KS",
-                                       "329180.KS","439260.KS"],  # 대한조선, HJ중공업
-
-                # 선박 엔진·기자재·서비스 + LNG보냉재 + 중형조선
-                "조선 기자재":        [                                       "009070.KS","017960.KS",
-                                       "071970.KS","077970.KS",
-                                       "082740.KS","443060.KS",
-                                       "073010.KQ","006370.KS",
-                                       "033500.KS","010620.KS"],  # 동성화인텍(LNG보냉재 대장주), 현대미포조선(MR탱커·PC선)
-
-                # 컨테이너·벌크·LNG 해운
-                "해운·물류":          [                                       "000120.KS","005880.KS",
-                                       "011200.KS","014160.KS"],  # 대한해운, CJ대한통운
+            '⚓ 조선·해운': {
+                '대형 조선': ['009540.KS', '010140.KS', '042660.KS', '097230.KS', '329180.KS', '439260.KS', '077970.KS', '073010.KQ', '443060.KS', '071970.KS', '082740.KS', '460930.KQ', '282720.KQ', '033500.KQ', '017960.KS', '014620.KQ', '060370.KQ', '229640.KS', '005880.KS', '011200.KS', '028670.KS'],
+                '조선 기자재': ['009070.KS', '017960.KS', '071970.KS', '077970.KS', '082740.KS', '443060.KS', '073010.KQ', '460930.KQ', '382900.KQ', '097230.KS', '439260.KS', '014620.KQ', '033500.KQ', '060370.KQ', '282720.KQ', '229640.KS', '082920.KQ', '125490.KQ', '009540.KS', '042660.KS', '010140.KS', '329180.KS'],
+                '해운·물류': ['000120.KS', '005880.KS', '011200.KS', '014160.KS', '002320.KS', '004140.KS', '009180.KS', '086280.KS', '267250.KS', '120030.KS', '028670.KS', '180640.KS', '009070.KS', '073240.KS', '003490.KS', '020560.KS', '272450.KS', '089590.KS', '124560.KQ', '001120.KS', '047050.KS', '001740.KS', '011760.KS'],
             },
-
-            # ── 6. 이차전지·ESS ──────────────────────────────────────────
-            "🔋 이차전지·ESS": {
-                # 배터리 셀 제조
-                "배터리 셀":          [                                       "006400.KS","096770.KS",
-                                       "247540.KQ","373220.KS"],  # SK이노베이션(SK온), 에코프로비엠
-
-                # 양극재·음극재·전해질·분리막 + 전지박 (솔루스첨단소재)
-                "배터리 소재":        [                                       "003670.KS","005070.KS",
-                                       "051910.KS","066970.KS",
-                                       "086520.KQ","278280.KQ",
-                                       "361610.KS","450080.KS",
-                                       "042940.KQ","005420.KS","008730.KS",
-                                       "093370.KS","348370.KQ","336370.KS"],  # 솔루스첨단소재(동박·전지박), 엔켐(전해액)
-
-                # 배터리 장비·리사이클
-                "배터리 장비·리사이클":[                                       "137400.KQ","259630.KQ",
-                                       "365340.KQ","372170.KQ",
-                                       "121850.KQ","020150.KS"],  # 윤성에프앤씨, 성일하이텍(리사이클), 코윈테크, 롯데에너지머티리얼즈
+            '🔋 이차전지·ESS': {
+                '배터리 셀': ['006400.KS', '096770.KS', '247540.KQ', '373220.KS', '086520.KQ', '450080.KS', '383310.KQ', '003670.KS', '005070.KS', '361610.KS', '066970.KS', '051910.KS', '402340.KS', '065350.KQ', '336370.KS', '278280.KQ', '093370.KS', '348370.KQ', '020150.KS', '014680.KS', '457190.KS', '078600.KQ'],
+                '배터리 소재': ['003670.KS', '005070.KS', '051910.KS', '066970.KS', '086520.KQ', '278280.KQ', '361610.KS', '450080.KS', '042940.KQ', '005420.KS', '008730.KS', '093370.KS', '348370.KQ', '336370.KS', '247540.KQ', '020150.KS', '078600.KQ', '014680.KS', '121600.KQ', '457190.KS', '393890.KQ'],
+                '배터리 장비·리사이클': ['137400.KQ', '259630.KQ', '365340.KQ', '372170.KQ', '121850.KQ', '020150.KS', '278280.KQ', '005420.KS', '008730.KS', '093370.KS', '039440.KQ', '282880.KQ', '222080.KQ', '377330.KQ', '382800.KQ', '078600.KQ', '361610.KS', '126340.KQ', '065350.KQ', '014680.KS', '348370.KQ', '005070.KS', '336370.KS'],
             },
-
-            # ── 7. 바이오·헬스케어 ───────────────────────────────────────
-            "🧬 바이오·헬스케어": {
-                # 항체·ADC·이중항체·GLP-1 신약 개발 + 셀트리온제약·광동제약
-                "바이오 신약":        [                                       "000100.KS","028300.KQ",
-                                       "068270.KS","141080.KQ",
-                                       "196170.KQ","207940.KS",
-                                       "298380.KQ","326030.KS",
-                                       "069620.KS","003090.KS","086450.KQ","009420.KS",
-                                       "145020.KQ",
-                                       "086900.KQ","008930.KS","102710.KQ","092040.KQ",
-                                       "302440.KQ","048530.KQ","039200.KQ","174900.KQ",
-                                       "397030.KQ","085660.KQ","195940.KQ","048410.KQ",
-                                       "950200.KQ","389030.KQ",
-                                       "003850.KS","170900.KS","365550.KQ",
-                                       "068760.KQ","009290.KS"],  # 셀트리온제약, 광동제약(비타500·헛개차)
-
-                # 위탁생산(CMO)·위탁개발생산(CDMO)
-                "CMO·CDMO":           [                                       "006280.KS","053030.KQ",
-                                       "068270.KS","128940.KS",
-                                       "145020.KQ","185750.KS",
-                                       "207940.KS","302440.KS"],  # SK바이오사이언스, 휴젤
-
-                # 비만치료제(GLP-1) — 2026 글로벌 메가테마
-                "비만치료제·GLP-1":   [                                       "000100.KS","069620.KS",
-                                       "087010.KQ","095700.KQ",
-                                       "128940.KS","214370.KQ",
-                                       "263720.KQ"],              # 제넥신, 유한양행, 디앤디파마텍(GLP-1 신약)
-
-                # 의료기기·미용기기·체외진단 + 필러·에스테틱 (휴메딕스)
-                "의료기기·디지털헬스":[                                       "039840.KQ","041830.KQ",
-                                       "059090.KQ","145020.KQ",
-                                       "145720.KS","214150.KQ",
-                                       "137310.KS","064550.KQ","200670.KQ"],  # 인바디, 에스디바이오센서, 바이오니아, 휴메딕스(HA필러·에스테틱)
+            '🧬 바이오·헬스케어': {
+                '바이오 신약': ['000100.KS', '028300.KQ', '068270.KS', '141080.KQ', '196170.KQ', '207940.KS', '298380.KQ', '326030.KS', '069620.KS', '003090.KS', '086450.KQ', '009420.KS', '145020.KQ', '086900.KQ', '008930.KS', '102710.KQ', '092040.KQ', '424870.KQ', '287840.KQ', '039200.KQ', '174900.KQ', '397030.KQ', '085660.KQ', '007390.KQ', '082270.KQ', '226950.KQ', '310210.KQ', '358570.KQ', '456160.KQ', '389470.KQ', '102940.KQ', '048410.KQ', '347850.KQ', '493280.KQ'],
+                'CMO·CDMO': ['006280.KS', '053030.KQ', '068270.KS', '128940.KS', '145020.KQ', '185750.KS', '207940.KS', '302440.KS', '326030.KS', '068760.KQ', '069620.KS', '003850.KS', '237690.KQ', '950210.KS', '397030.KQ', '000250.KQ', '087010.KQ', '009290.KS', '008930.KS', '170900.KS', '476040.KQ', '445680.KQ', '298060.KQ'],
+                '비만치료제·GLP-1': ['000100.KS', '069620.KS', '087010.KQ', '095700.KQ', '128940.KS', '214370.KQ', '263720.KQ', '068270.KS', '326030.KS', '170900.KS', '249420.KS', '009290.KS', '003850.KS', '009420.KS', '185750.KS', '006280.KS', '195940.KQ', '000250.KQ', '397030.KQ', '207940.KS', '008930.KS', '068760.KQ', '196170.KQ'],
+                '의료기기·디지털헬스': ['039840.KQ', '041830.KQ', '059090.KQ', '145020.KQ', '145720.KS', '214150.KQ', '137310.KS', '064550.KQ', '086900.KQ', '099190.KQ', '328130.KQ', '338220.KQ', '043150.KQ', '214450.KQ', '207940.KS', '028300.KQ', '140860.KQ', '108860.KQ', '336570.KQ', '424980.KQ', '253840.KQ', '127120.KQ'],
             },
-
-            # ── 8. 로봇·자동화 ───────────────────────────────────────────
-            "🦾 로봇·자동화": {
-                # 산업용·협동 로봇·물류 자동화
-                "산업로봇·물류자동화":[                                       "056190.KQ","058610.KQ",
-                                       "090360.KQ","108490.KQ",
-                                       "348340.KQ","454910.KS",
-                                       "060280.KQ",
-                                       "380440.KQ","270660.KQ"],  # 로보스타, 로보티즈, 큐렉소(의료로봇), 뉴로메카(협동로봇), 에브리봇(청소로봇)
-
-                # 휴머노이드·모빌리티 로봇 핵심 부품
-                "휴머노이드 부품":    [                                       "117730.KQ","125490.KQ",
-                                       "277810.KQ","389500.KQ",
-                                       "455900.KQ","459510.KQ"],  # 티로보틱스, 한라캐스트
-
-                # 자율주행·전장 (한온시스템·HL만도·에스엘 차량 핵심부품 보강)
-                "자율주행·전장":      [                                       "000270.KS","005380.KS",
-                                       "009150.KS","011070.KS",
-                                       "012330.KS","307950.KS","051360.KQ",
-                                       "161390.KS","018880.KS","204320.KS","005850.KS","075180.KS",
-                                       "267270.KS","014620.KS"],  # 한온시스템(공조), HL만도(ADAS), 에스엘(헤드램프), 새론오토모티브(브레이크)
+            '🦾 로봇·자동화': {
+                '산업로봇·물류자동화': ['056190.KQ', '058610.KQ', '090360.KQ', '108490.KQ', '348340.KQ', '454910.KS', '060280.KQ', '270660.KQ', '056080.KQ', '319400.KQ', '388720.KQ', '277810.KQ', '466100.KQ', '090710.KQ', '439960.KQ', '459510.KQ', '455900.KQ', '389500.KQ', '125490.KQ', '117730.KQ'],
+                '휴머노이드 부품': ['117730.KQ', '125490.KQ', '277810.KQ', '389500.KQ', '455900.KQ', '459510.KQ', '090710.KQ', '466100.KQ', '056080.KQ', '270660.KQ', '439960.KQ', '058610.KQ', '348340.KQ', '108490.KQ', '090360.KQ', '454910.KS', '388720.KQ', '056190.KQ', '025540.KS', '010120.KS', '009470.KS'],
+                '자율주행·전장': ['000270.KS', '005380.KS', '009150.KS', '011070.KS', '012330.KS', '307950.KS', '051360.KQ', '161390.KS', '018880.KS', '204320.KS', '005850.KS', '075180.KS', '267270.KS', '097520.KS', '396270.KQ', '054450.KQ', '053450.KQ', '047310.KQ', '084730.KQ', '011210.KS', '007340.KS', '025540.KS', '094170.KQ', '123040.KQ'],
             },
-
-            # ── 9. K-소비재 ──────────────────────────────────────────────
-            "🛍️ K-소비재": {
-                # K-뷰티·K-패션·K-건기식 — 인디 브랜드·글로벌 OEM·ODM
-                "K-뷰티":             [                                       "003350.KS","051900.KS",
-                                       "090430.KS","192820.KS",
-                                       "237880.KQ","278470.KS",
-                                       "352480.KQ","483650.KS",
-                                       "161890.KS","002790.KS","950140.KS","241710.KQ","123690.KS",
-                                       "257720.KQ","018290.KQ","439090.KQ",
-                                       "383220.KS","020000.KS","093050.KS",
-                                       "200130.KQ","194700.KQ"],  # F&F, 한섬(패션 대장), LF(닥스·헤지스), 콜마비앤에이치·노바렉스(건기식 ODM)
-
-                # K-푸드·음료 — 글로벌 K-컬처 확산 직접 수혜
-                "K-푸드·음료":        [                                       "003230.KS","004370.KS",
-                                       "005180.KS","007310.KS",
-                                       "033780.KS",
-                                       "097950.KS","271560.KS",
-                                       "280360.KS","475560.KS",
-                                       "005740.KS","339770.KS",
-                                       "005440.KS","049770.KS","003960.KS"],  # KT&G, 현대그린푸드, 동원F&B, 사조대림
-
-                # 면세·여행·항공·LCC
-                "면세·여행":          [                                       "003490.KS","008770.KS",
-                                       "039130.KS","079160.KS",
-                                       "023530.KS","004170.KS","282330.KS",
-                                       "035250.KS","114090.KS",
-                                       "020560.KS","089590.KS","272450.KQ"],  # 아시아나항공, 제주항공, 진에어(LCC)
+            '🛍️ K-소비재': {
+                'K-뷰티': ['003350.KS', '051900.KS', '090430.KS', '192820.KS', '237880.KQ', '278470.KS', '352480.KQ', '483650.KS', '161890.KS', '002790.KS', '241710.KQ', '123690.KS', '257720.KQ', '018290.KQ', '439090.KQ', '383220.KS', '020000.KS', '093050.KS', '200130.KQ', '194700.KQ', '214150.KQ', '950140.KQ', '214450.KQ', '044820.KS', '035500.KQ'],
+                'K-푸드·음료': ['003230.KS', '004370.KS', '005180.KS', '007310.KS', '033780.KS', '097950.KS', '271560.KS', '280360.KS', '475560.KS', '005740.KS', '339770.KS', '005440.KS', '003960.KS', '001800.KS', '005300.KS', '049770.KS', '003380.KQ', '006040.KS', '007070.KS', '282330.KS', '027410.KS', '000080.KS', '001680.KS'],
+                '면세·여행': ['003490.KS', '008770.KS', '039130.KS', '079160.KS', '023530.KS', '004170.KS', '282330.KS', '035250.KS', '114090.KS', '020560.KS', '089590.KS', '272450.KS', '032350.KS', '034230.KS', '027410.KS', '069960.KS', '007070.KS', '139480.KS', '021240.KS', '950170.KQ'],
             },
-
-            # ── 10. 금융·밸류업 ──────────────────────────────────────────
-            "💰 금융·밸류업": {
-                # 은행·금융지주
-                "은행·금융지주":      [                                       "024110.KS","055550.KS",
-                                       "071050.KS","086790.KS",
-                                       "105560.KS","138040.KS",
-                                       "175330.KS",  # 279570 매핑 오류 제거
-                                       "316140.KS","323410.KS",
-                                       "377300.KS","138930.KS","139130.KS"],  # 카카오페이(핀테크), BNK금융지주, DGB금융지주(iM뱅크)
-
-                # 증권·자산운용
-                "증권·자산운용":      [                                       "001500.KS","003540.KS",
-                                       "005940.KS","006800.KS",
-                                       "016360.KS","039490.KS"],  # 대신증권, 현대차증권
-
-                # 손해·생명 보험
-                "보험":               [                                       "000810.KS","001450.KS",
-                                       "005830.KS","032830.KS",
-                                       "082640.KS","088350.KS",
-                                       "000060.KS"],  # 삼성생명, 동양생명, 메리츠화재(손해보험·밸류업)
+            '💰 금융·밸류업': {
+                '은행·금융지주': ['024110.KS', '055550.KS', '071050.KS', '086790.KS', '105560.KS', '138040.KS', '175330.KS', '316140.KS', '323410.KS', '377300.KS', '138930.KS', '139130.KS', '279570.KS', '000240.KS', '029780.KS', '088980.KS', '030210.KS', '003530.KS', '001500.KS', '001720.KS', '030610.KS'],
+                '증권·자산운용': ['001500.KS', '003540.KS', '005940.KS', '006800.KS', '016360.KS', '039490.KS', '001720.KS', '030210.KS', '003530.KS', '030610.KS', '088980.KS', '071050.KS', '100790.KQ', '027360.KQ', '138040.KS', '316140.KS', '105560.KS', '055550.KS', '086790.KS', '402340.KS', '138930.KS', '030190.KS'],
+                '보험': ['000810.KS', '001450.KS', '005830.KS', '032830.KS', '082640.KS', '088350.KS', '000370.KS', '085620.KS', '138040.KS', '003690.KS', '031210.KS', '000400.KS', '105560.KS', '055550.KS', '086790.KS', '071050.KS', '000240.KS', '316140.KS', '029780.KS', '138930.KS'],
             },
-
-            # ── 11. 콘텐츠·엔터 ──────────────────────────────────────────
-            "🎮 콘텐츠·엔터": {
-                # K-팝·드라마·IP
-                "K-엔터·IP":          [                                       "035760.KQ","035900.KQ",
-                                       "041510.KQ","122870.KQ",
-                                       "253450.KQ","352820.KS",
-                                       "376300.KQ"],              # 스튜디오드래곤, CJ ENM, 디어유(팬덤플랫폼)
-
-                # 게임
-                "게임":               [                                       "036570.KS","069080.KQ",
-                                       "112040.KQ","251270.KS",
-                                       "259960.KS","263750.KQ",
-                                       "293490.KQ","462870.KS",
-                                       "192080.KQ","095660.KQ","225570.KQ",
-                                       "078340.KQ","194480.KQ",
-                                       "041140.KQ"],  # 더블유게임즈·네오위즈·넥슨게임즈·컴투스·데브시스터즈, 넥슨지티(캐주얼게임)
+            '🎮 콘텐츠·엔터': {
+                'K-엔터·IP': ['035760.KQ', '035900.KQ', '041510.KQ', '122870.KQ', '253450.KQ', '352820.KS', '376300.KQ', '035250.KS', '225570.KQ', '067160.KQ', '373200.KQ', '462870.KS', '263750.KQ', '251270.KS', '259960.KS', '035720.KS', '035420.KS', '293490.KQ', '078340.KQ', '095660.KQ', '069080.KQ', '030000.KS', '089600.KQ', '237820.KQ', '302920.KQ'],
+                '게임': ['036570.KS', '069080.KQ', '112040.KQ', '251270.KS', '259960.KS', '263750.KQ', '293490.KQ', '462870.KS', '095660.KQ', '225570.KQ', '078340.KQ', '194480.KQ', '192080.KS', '067000.KQ', '067160.KQ', '376300.KQ', '352820.KS', '373200.KQ', '035900.KQ', '041510.KQ', '122870.KQ', '035760.KQ', '253450.KQ'],
             },
-
-            # ── 12. 양자컴퓨팅 ──────────────────────────────────────────
-            "🔮 양자컴퓨팅": {
-                # 양자암호·양자보안 — PQC(양자내성암호) 상용화
-                "양자보안·암호":      [                                       "042510.KQ","053300.KQ",
-                                       "054940.KQ","115500.KQ",
-                                       "203650.KQ","456010.KQ"],  # 엑스게이트(양자VPN), 한국정보인증
-
-                # 양자센서·양자컴퓨팅 하드웨어·소재
-                "양자센서·하드웨어":  [                                       "066310.KQ","078150.KQ",
-                                       ],  # 217190(그린플러스)·950160(코오롱티슈진) 매핑 오류 제거
+            '🔮 양자컴퓨팅': {
+                '양자보안·암호': ['042510.KQ', '053300.KQ', '054940.KQ', '115500.KQ', '203650.KQ', '456010.KQ', '411080.KQ', '488280.KQ', '136540.KQ', '170790.KQ', '053350.KQ', '053800.KQ', '150900.KQ', '131090.KQ', '379640.KQ', '023590.KS', '032190.KQ', '304100.KQ', '377480.KQ', '402030.KQ', '093320.KQ', '064400.KS', '018260.KS'],
+                '양자센서·하드웨어': ['066310.KQ', '078150.KQ', '042510.KQ', '053300.KQ', '054940.KQ', '115500.KQ', '203650.KQ', '456010.KQ', '411080.KQ', '488280.KQ', '140860.KQ', '099320.KQ', '321370.KQ', '105840.KS', '474170.KQ', '211270.KQ', '189300.KQ', '437730.KQ', '073010.KQ', '033640.KQ', '039030.KQ', '424980.KQ', '432720.KQ'],
             },
-
-            # ── 13. 건설·건자재 ────────────────────────────────────────────
-            "🏗️ 건설·건자재": {
-                # 대형 건설사
-                "대형 건설":          [                                       "000210.KS","000720.KS",
-                                       "006360.KS","028050.KS",
-                                       "028260.KS","047040.KS",
-                                       "294870.KS","375500.KS"],  # 대우건설, DL
-
-                # 건자재·시멘트·인테리어
-                "건자재·시멘트":      [                                       "002380.KS","003070.KS",
-                                       "004090.KS","004980.KS",
-                                       "010780.KS","014820.KS"],  # 코오롱글로벌, 동원시스템즈
+            '🏗️ 건설·건자재': {
+                '대형 건설': ['000210.KS', '000720.KS', '006360.KS', '028050.KS', '028260.KS', '047040.KS', '294870.KS', '375500.KS', '001230.KS', '017960.KS', '003070.KS', '004960.KS', '002990.KS', '009410.KS', '097230.KS', '012630.KS', '014790.KS', '042940.KQ', '035890.KQ', '000150.KS', '000880.KS', '034730.KS', '003550.KS'],
+                '건자재·시멘트': ['002380.KS', '003070.KS', '004090.KS', '004980.KS', '010780.KS', '014820.KS', '038500.KQ', '009240.KS', '462520.KS', '015020.KS', '300720.KS', '183190.KS', '090350.KS', '000390.KS', '108670.KS', '007210.KS', '025750.KS', '014680.KS', '008730.KS', '009450.KS', '120030.KS', '003830.KS'],
             },
-
-            # ── 14. 철강·화학 ──────────────────────────────────────────────
-            "⚙️ 철강·화학": {
-                # 철강·비철금속
-                "철강·비철":          [                                       "001230.KS","001430.KS",
-                                       "002710.KS","004020.KS",
-                                       "005490.KS","008350.KS",
-                                       "010130.KS","058430.KS","004560.KS"],  # TCC스틸, 남선알미늄, 현대비앤지스틸(STS냉연) (076600 미확인 제거)
-
-                # 석유화학·정밀화학
-                "석유화학·정밀화학":  [                                       "003830.KS","006120.KS",
-                                       "011170.KS","011780.KS",
-                                       "024060.KQ","051910.KS",
-                                       "069260.KS","298000.KS",
-                                       "014830.KS","010060.KS"],  # 흥구석유, 대한화섬, 유니드(가성칼륨), OCI홀딩스(화학지주)
+            '⚙️ 철강·화학': {
+                '철강·비철': ['001230.KS', '001430.KS', '002710.KS', '004020.KS', '005490.KS', '008350.KS', '010130.KS', '058430.KS', '004560.KS', '006110.KS', '354320.KQ', '103140.KS', '005810.KS', '017960.KS', '005290.KQ', '010780.KS', '014820.KS', '006340.KS', '026960.KS', '120030.KS', '021040.KQ', '009450.KS', '009520.KQ'],
+                '석유화학·정밀화학': ['003830.KS', '006120.KS', '011170.KS', '011780.KS', '024060.KQ', '051910.KS', '069260.KS', '298000.KS', '014830.KS', '010060.KS', '004000.KS', '120110.KS', '457190.KS', '005420.KS', '014680.KS', '093370.KS', '006650.KS', '456040.KS', '096770.KS', '004090.KS', '298050.KS', '298020.KS', '004830.KS', '033790.KQ'],
             },
-
-            # ── 15. 유틸리티·가스 ──────────────────────────────────────────
-            "🔥 유틸리티·가스": {
-                # 가스·에너지 유틸리티
-                "가스·에너지":        [                                       "004690.KS","017390.KS",
-                                       "018670.KS","034590.KS",
-                                       "036460.KS"],              # 삼천리, 서울가스 (005030 부산주공 상폐 제거)
-
-                # 생활인프라·환경
-                "생활인프라·환경":    [                                       "007070.KS","015020.KS",
-                                       "021240.KS","069960.KS"],  # 현대백화점, GS리테일
+            '🔥 유틸리티·가스': {
+                '가스·에너지': ['004690.KS', '017390.KS', '018670.KS', '034590.KS', '036460.KS', '015760.KS', '267250.KS', '010950.KS', '017940.KS', '005090.KS', '052690.KS', '051600.KS', '336260.KS', '298040.KS', '475150.KS', '322000.KS', '456040.KS', '010060.KS', '009830.KS', '034020.KS', '382900.KQ', '096770.KS'],
+                '생활인프라·환경': ['007070.KS', '015020.KS', '021240.KS', '069960.KS', '005300.KS', '004170.KS', '139480.KS', '027410.KS', '280360.KS', '005440.KS', '023530.KS', '282330.KS', '271560.KS', '382800.KQ', '095720.KS', '383310.KQ', '004370.KS', '007310.KS', '003230.KS', '001800.KS', '005740.KS', '114090.KS', '035250.KS'],
             },
-
-            # ── 16. 사이버보안 ──────────────────────────────────────────────────
-            "🔒 사이버보안": {
-                # 엔드포인트·네트워크·정보보호
-                "엔드포인트·네트워크보안":[                                       "042510.KQ","053800.KQ",
-                                       "136540.KQ",
-                                       "150900.KQ","203650.KQ","170790.KQ"], # 라온시큐어, 드림시큐리티, 파이오링크(L4/L7 보안스위치)
-
-                # AI 기반 위협분석·제로트러스트
-                "AI위협분석·제로트러스트":[                                       "053300.KQ","054940.KQ",
-                                       "115500.KQ","411080.KQ",
-                                       "456010.KQ","488280.KQ"], # 엑스게이트(양자VPN), 한국정보인증
+            '🔒 사이버보안': {
+                '엔드포인트·네트워크보안': ['042510.KQ', '053800.KQ', '136540.KQ', '150900.KQ', '203650.KQ', '170790.KQ', '053300.KQ', '054940.KQ', '411080.KQ', '456010.KQ', '053350.KQ', '488280.KQ', '131090.KQ', '379640.KQ', '064400.KS', '018260.KS', '022100.KS', '023590.KS', '032190.KQ', '093320.KQ', '304100.KQ', '377480.KQ', '402030.KQ', '012750.KS'],
+                'AI위협분석·제로트러스트': ['053300.KQ', '054940.KQ', '115500.KQ', '411080.KQ', '456010.KQ', '488280.KQ', '042510.KQ', '203650.KQ', '136540.KQ', '150900.KQ', '053800.KQ', '053350.KQ', '170790.KQ', '379640.KQ', '131090.KQ', '064400.KS', '018260.KS', '022100.KS', '023590.KS', '304100.KQ', '377480.KQ', '402030.KQ', '093320.KQ'],
             },
-
-            # ── 17. 우주·위성 ──────────────────────────────────────────────────
-            "🛰️ 우주·위성": {
-                # 위성 제조·통신·발사체 부품
-                "위성·발사체":        [                                       "099320.KQ","189300.KQ",
-                                       "211270.KQ","274090.KQ",
-                                       "437730.KQ","474170.KQ"],  # 켄코아에어로스페이스, 삼현(발사체부품)
-
-                # 항공기 제조·MRO·부품
-                "항공MRO·부품":       [                                       "003490.KS",
-                                       "047810.KS","077970.KS"],  # 대한항공(MRO), STX엔진(항공엔진)
+            '🛰️ 우주·위성': {
+                '위성·발사체': ['099320.KQ', '189300.KQ', '211270.KQ', '274090.KQ', '437730.KQ', '474170.KQ', '047810.KS', '005870.KS', '064350.KS', '272210.KS', '321370.KQ', '377330.KQ', '347700.KQ', '007660.KS', '012450.KS', '489790.KS', '079550.KS', '214430.KQ', '010170.KQ', '082920.KQ', '017960.KS', '010820.KS', '065450.KQ'],
+                '항공MRO·부품': ['003490.KS', '047810.KS', '077970.KS', '089590.KS', '020560.KS', '272450.KS', '079550.KS', '012450.KS', '067390.KQ', '065450.KQ', '437730.KQ', '274090.KQ', '272210.KS', '489790.KS', '017960.KS', '003570.KS', '064960.KS', '125490.KQ', '321370.KQ', '010820.KS', '005870.KS', '103140.KS', '005810.KS'],
             },
-
-            # ── 18. 물류·유통 ──────────────────────────────────────────────────
-            "🚚 물류·유통": {
-                # 택배·종합물류·SCM
-                "택배·종합물류":      [                                       "000120.KS","002320.KS",
-                                       "004140.KS","009180.KS",
-                                       "267250.KS"],              # 동방(항만하역)
-
-                # 유통·이커머스·대형마트·편의점지주·가격비교
-                "유통·이커머스":      [                                       "005300.KS","007070.KS",
-                                       "015020.KS","035080.KQ",
-                                       "069960.KS",
-                                       "139480.KS","027410.KS","119860.KQ"],  # 이마트, BGF(편의점지주), 다나와(가격비교)
+            '🚚 물류·유통': {
+                '택배·종합물류': ['000120.KS', '002320.KS', '004140.KS', '009180.KS', '086280.KS', '267250.KS', '005880.KS', '011200.KS', '014160.KS', '120030.KS', '180640.KS', '009070.KS', '028670.KS', '124560.KQ', '003490.KS', '020560.KS', '089590.KS', '272450.KS', '001120.KS', '047050.KS', '001740.KS', '011760.KS', '073240.KS', '365550.KS'],
+                '유통·이커머스': ['005300.KS', '007070.KS', '015020.KS', '035080.KQ', '069960.KS', '139480.KS', '027410.KS', '023530.KS', '004170.KS', '282330.KS', '005440.KS', '271560.KS', '280360.KS', '004370.KS', '007310.KS', '033780.KS', '049770.KS', '005740.KS', '003230.KS', '097950.KS', '005180.KS', '001800.KS', '021240.KS'],
             },
-
-            # ── 19. 스마트팜·애그테크 ────────────────────────────────────────
-            "🌾 스마트팜·애그테크": {
-                # 스마트온실·수직농장·농기계ICT
-                "스마트팜·농기계":    [                                       "000490.KS","004370.KS",
-                                       "054050.KQ","097950.KS",
-                                       "186230.KQ","403490.KQ"],  # 농심(식품R&D), CJ제일제당(식품바이오)
+            '🌾 스마트팜·애그테크': {
+                '스마트팜·농기계': ['000490.KS', '004370.KS', '054050.KQ', '097950.KS', '186230.KQ', '403490.KQ', '050860.KQ', '005180.KS', '271560.KS', '005440.KS', '017810.KS', '002900.KS', '004140.KS', '145990.KS', '049770.KS', '003380.KQ', '006040.KS', '007310.KS', '280360.KS', '282330.KS', '007070.KS', '139480.KS', '023530.KS'],
             },
-
-            # ── 20. 디지털헬스·AI의료 ────────────────────────────────────────
-            "💊 디지털헬스·AI의료": {
-                # AI 의료영상·진단·신약발견
-                "AI의료영상·진단":    [                                       "099190.KQ","214150.KQ",
-                                       "328130.KQ","338220.KQ"],  # 바이오인프라(디지털의료), 클래시스(에너지기반치료)
-
-                # 헬스케어 플랫폼·병원IT·EMR
-                "헬스케어플랫폼·EMR": [                                       "032620.KQ","032850.KQ",
-                                       "033230.KQ"],              # 인성정보(원격의료)
+            '💊 디지털헬스·AI의료': {
+                'AI의료영상·진단': ['099190.KQ', '214150.KQ', '328130.KQ', '338220.KQ', '041830.KQ', '059090.KQ', '064550.KQ', '039840.KQ', '137310.KS', '053030.KQ', '108860.KQ', '096530.KQ', '228760.KQ', '214370.KQ', '041920.KQ', '424980.KQ', '140860.KQ', '389030.KQ', '024850.KQ', '043150.KQ', '145720.KS', '039200.KQ', '086900.KQ'],
+                '헬스케어플랫폼·EMR': ['032620.KQ', '032850.KQ', '033230.KQ', '108860.KQ', '064550.KQ', '137310.KS', '059090.KQ', '145020.KQ', '099190.KQ', '389030.KQ', '228760.KQ', '096530.KQ', '078160.KQ', '338220.KQ', '328130.KQ', '099750.KQ', '214370.KQ', '041920.KQ', '376900.KQ', '458870.KQ', '041830.KQ', '086900.KQ', '214450.KQ'],
             },
-
-            # ── 21. 지주사·종합상사 ──────────────────────────────────────────
-            "🏢 지주사·종합상사": {
-                # 대형 지주사
-                "대형 지주사":        [                                       "003550.KS","034730.KS",
-                                       "078930.KS","004800.KS",
-                                       "004990.KS","180640.KS",
-                                       "028260.KS","000150.KS"],  # LG, SK, GS, 효성, 롯데지주, 한진칼, 삼성물산, 두산
-
-                # 종합상사·무역
-                "종합상사·무역":      [                                       "047050.KS","001120.KS",
-                                       "001740.KS","011760.KS"],  # 포스코인터내셔널, LX인터내셔널, SK네트웍스, 현대코퍼레이션
+            '🏢 지주사·종합상사': {
+                '대형 지주사': ['003550.KS', '034730.KS', '078930.KS', '004800.KS', '004990.KS', '180640.KS', '028260.KS', '000150.KS', '002790.KS', '005740.KS', '402340.KS', '006260.KS', '000880.KS', '001040.KS', '001230.KS', '010060.KS', '036830.KQ', '005810.KS', '001800.KS', '009970.KS', '008930.KS', '298050.KS', '003090.KS'],
+                '종합상사·무역': ['047050.KS', '001120.KS', '001740.KS', '011760.KS', '004800.KS', '002320.KS', '000150.KS', '035250.KS', '005870.KS', '267250.KS', '028260.KS', '180640.KS', '086280.KS', '111770.KS', '009970.KS', '298050.KS', '298020.KS', '298000.KS', '078930.KS', '034730.KS', '003550.KS', '004990.KS', '001040.KS'],
             },
-
-            # ── 22. 정유·에너지 ──────────────────────────────────────────────
-            "⛽ 정유·에너지": {
-                # 정유·정제
-                "정유":               [                                       "010950.KS","096770.KS",
-                                       "267250.KS"],              # S-Oil, SK이노베이션, HD현대(오일뱅크)
-
-                # 에너지유통·화학
-                "에너지유통·화학":    [                                       "017810.KS","006650.KS",
-                                       "005090.KS"],              # E1(LPG유통), 대한유화, SGC에너지(집단에너지)
+            '⛽ 정유·에너지': {
+                '정유': ['010950.KS', '096770.KS', '267250.KS', '011170.KS', '011780.KS', '006120.KS', '010060.KS', '006650.KS', '010130.KS', '298000.KS', '078930.KS', '456040.KS', '024060.KQ', '004000.KS', '120110.KS', '004090.KS', '069260.KS', '014830.KS', '003830.KS', '005090.KS', '017940.KS'],
+                '에너지유통·화학': ['017940.KS', '006650.KS', '005090.KS', '011780.KS', '010060.KS', '298000.KS', '069260.KS', '011170.KS', '024060.KQ', '014830.KS', '018670.KS', '456040.KS', '006120.KS', '003830.KS', '004090.KS', '010950.KS', '096770.KS', '009830.KS', '051910.KS', '120110.KS', '014680.KS'],
             },
-
-            # ── 24. 건설기계·중공업 ──────────────────────────────────────────
-            "🏗️ 건설기계·중공업": {
-                # 굴착기·건설장비
-                "건설기계":           [                                       "267270.KS","241560.KS"],  # HD현대건설기계, 두산밥캣
-
-                # 중공업·산업기계 (두산에너빌리티는 원전·SMR 섹터로 분류 — 딥테크 보정 적용)
-                "중공업·플랜트":      [                                       "298040.KS",
-                                       "017800.KS","009160.KS"],  # 효성중공업, 현대엘리베이, SIMPAC(프레스)
+            '🏗️ 건설기계·중공업': {
+                '건설기계': ['267270.KS', '241560.KS', '058430.KS', '005490.KS', '017960.KS', '267260.KS', '009160.KS', '017800.KS', '298040.KS', '034020.KS', '267250.KS', '012450.KS', '000150.KS', '011210.KS', '097230.KS', '082740.KS', '329180.KS', '071970.KS', '010140.KS', '042660.KS', '489790.KS', '019210.KQ', '043260.KQ'],
+                '중공업·플랜트': ['298040.KS', '017800.KS', '009160.KS', '034020.KS', '267270.KS', '241560.KS', '272210.KS', '000150.KS', '105560.KS', '000880.KS', '329180.KS', '017960.KS', '489790.KS', '010120.KS', '267250.KS', '015760.KS', '052690.KS', '051600.KS', '012450.KS', '028050.KS', '000720.KS', '097230.KS', '042660.KS', '076080.KQ'],
             },
-
-            # ── 23. 바이오 CDMO ──────────────────────────────────────────────
-            "💉 바이오 CDMO": {
-                # CDMO·위탁생산 전문
-                "CDMO 전문":          [                                       "950210.KS","237690.KQ",
-                                       "222040.KQ","207940.KS",
-                                       "302440.KS"],              # 프레스티지바이오파마, 에스티팜(올리고CDMO), 바이넥스(항체CDMO), 삼성바이오로직스, SK바이오사이언스
+            '💉 바이오 CDMO': {
+                'CDMO 전문': ['950210.KS', '237690.KQ', '207940.KS', '302440.KS', '068760.KQ', '326030.KS', '128940.KS', '185750.KS', '006280.KS', '068270.KS', '008930.KS', '145020.KQ', '069620.KS', '003850.KS', '170900.KS', '053030.KQ', '397030.KQ', '424870.KQ', '087010.KQ', '000250.KQ', '009290.KS'],
             },
         }
         self.eu_sectors = {
@@ -11816,15 +11765,13 @@ class QuantNexusApp:
                 "Luxury Houses":    ["MC.PA","RMS.PA","KER.PA","CFR.SW","OR.PA","MONC.MI","ADS.DE","PUM.DE"],
                 # 프리미엄 자동차 — 페라리·포르셰·BMW·벤츠
                 "Premium Auto":     ["RACE.MI","P911.DE","BMW.DE","MBG.DE","VOW3.DE","STLAM.MI",
-                                     "VOLVB.ST","VOLCAR-B.ST"],
-            },
+                                     "VOLVB.ST","VOLCAR-B.ST"]},
             # ── 2. 헬스케어 ────────────────────────────────────────────────────
             "🧬 Healthcare": {
                 # 유럽 빅파마 — 노보노디스크(GLP-1)·로슈·노바티스
                 "European Pharma":  ["NOVO-B.CO","ROG.SW","NOVN.SW","SAN.PA","GSK.L","AZN.L","BAYN.DE","UCB.BR"],
                 # 의료기기·진단 — 지멘스헬시니어스·필립스·프레지니우스
-                "MedTech & Devices":["SHL.DE","PHG.AS","FRE.DE","FME.DE","STMN.SW"],
-            },
+                "MedTech & Devices":["SHL.DE","PHG.AS","FRE.DE","FME.DE","STMN.SW"]},
             # ── 3. 테크·반도체 ──────────────────────────────────────────────────
             "🤖 Tech & Semi": {
                 # AI 핵심 공급망 — ASML 독점 EUV 노광장비
@@ -11832,22 +11779,19 @@ class QuantNexusApp:
                 # 엔터프라이즈 소프트웨어 — SAP·Dassault·Adyen
                 "IT Software":      ["SAP.DE","DSY.PA","TEMN.SW","ADYEN.AS","CAP.PA"],
                 # 5G 네트워크 장비 — 노키아·에릭슨
-                "Telecom Equip":    ["NOKIA.HE","ERIC-B.ST"],
-            },
+                "Telecom Equip":    ["NOKIA.HE","ERIC-B.ST"]},
             # ── 4. 산업·방산 ────────────────────────────────────────────────────
             "🏭 Industrial & Defense": {
                 # 방산 수출 급증 — 라인메탈·에어버스·BAE·롤스로이스
                 "Defense":          ["RHM.DE","AIR.PA","BAES.L","RR.L","SAF.PA","LDO.MI","SAAB-B.ST"],
                 # 중장비·자동화 — 지멘스·ABB·아틀라스코프코
-                "Engineering":      ["SIE.DE","ABB.SW","ALFA.ST","SAND.ST","SKF-B.ST","ANDR.VI","ATCO-A.ST"],
-            },
+                "Engineering":      ["SIE.DE","ABB.SW","ALFA.ST","SAND.ST","SKF-B.ST","ANDR.VI","ATCO-A.ST"]},
             # ── 5. 에너지 ────────────────────────────────────────────────────────
             "⚡ Energy": {
                 # 오일메이저 — 토탈·셸·BP·에쿼노르
                 "Oil & Gas":        ["TTE.PA","SHEL.L","BP.L","EQNR.OL","ENI.MI","GALP.LS","OMV.VI"],
                 # 클린에너지·그리드 — E.ON·RWE·외르스테드
-                "Clean Energy":     ["EOAN.DE","RWE.DE","ORSTED.CO","VER.VI","EDPR.LS","EDP.LS","SOLARIA.MC"],
-            },
+                "Clean Energy":     ["EOAN.DE","RWE.DE","ORSTED.CO","VER.VI","EDPR.LS","EDP.LS","SOLARIA.MC"]},
             # ── 6. 금융 ──────────────────────────────────────────────────────────
             "💰 Finance": {
                 # 유럽 주요 은행 — BNP·도이체·산탄데르·ING·HSBC
@@ -11855,31 +11799,26 @@ class QuantNexusApp:
                                      "ISP.MI","GLE.PA","NDA-SE.ST","CABK.MC"],
                 # 보험·자산운용 — 알리안츠·AXA·취리히·뮌헨리
                 "Insurance & AM":   ["AXA.PA","ALV.DE","ZURN.SW","MUV2.DE","SCOR.PA",
-                                     "SAMPO.HE","NN.AS","ASR.AS"],
-            },
+                                     "SAMPO.HE","NN.AS","ASR.AS"]},
             # ── 7. 소비재·식음료 ───────────────────────────────────────────────
             "🛍️ Consumer & Food": {
                 # 글로벌 식음료 — 네슬레·하이네켄·AB인베브·디아지오
                 "Food & Beverage":  ["NESN.SW","HEIA.AS","ABI.BR","BN.PA","RI.PA",
                                      "DGE.L","CARL-B.CO","CARR.PA","CPG.L"],
                 # 생활용품·리테일 — 유니레버·바이어스도르프·인디텍스
-                "FMCG & Retail":    ["ULVR.L","BEI.DE","RKT.L","ITX.MC","WPP.L","PRX.AS"],
-            },
+                "FMCG & Retail":    ["ULVR.L","BEI.DE","RKT.L","ITX.MC","WPP.L","PRX.AS"]},
             # ── 8. 통신 ──────────────────────────────────────────────────────────
             "📡 Telecom": {
                 # 유럽 통신 대형주 — 도이체텔레콤·오렌지·보다폰·텔레포니카
                 "Telecom Giants":   ["DTE.DE","ORA.PA","VOD.L","TEF.MC","SCMN.SW",
-                                     "TELIA.ST","BT-A.L","PROX.BR"],
-            },
+                                     "TELIA.ST","BT-A.L","PROX.BR"]},
             # ── 9. 소재·화학 ──────────────────────────────────────────────────
             "🧪 Materials": {
                 # 특수화학 — BASF·아케마·솔베이·린데
                 "Chemicals":        ["BAS.DE","AKE.PA","SOLB.BR","LIN.DE","DSM.AS","GIVN.SW"],
                 # 광업·금속 — 글렌코어·리오틴토·앵글로아메리칸·BHP
                 "Mining & Metals":  ["CRH","GLEN.L","RIO.L","AAL.L","BHP.L",
-                                     "BOLIDEN.ST","AURUBIS.DE","SSAB-A.ST"],
-            },
-        }
+                                     "BOLIDEN.ST","AURUBIS.DE","SSAB-A.ST"]}}
 
         self.sectors = self.us_sectors
 
@@ -11889,7 +11828,7 @@ class QuantNexusApp:
 # ============================================================
 if __name__ == "__main__":
     try:
-        logging.info("종목스캐너 시작")
+        logging.info("슡목스캐너 시작")
         root = tk.Tk()
         app  = QuantNexusApp(root)
         root.mainloop()

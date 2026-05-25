@@ -3014,7 +3014,12 @@ document.addEventListener('click', function(e) {
     });
   });
   socket.on('chat', (data) => { addMsg(data.nick, data.msg, data.ts, data.id); });
-  socket.on('system', (data) => { addSys(data.msg); onlineEl.textContent = data.online + '명 접속'; });
+  // 입장/퇴장 알림은 실제 대화를 덮어버리므로 메시지로 띄우지 않고 접속 수만 갱신.
+  // (차단/공지 등 다른 시스템 메시지는 그대로 표시)
+  socket.on('system', (data) => {
+    if (typeof data.online === 'number') onlineEl.textContent = data.online + '명 접속';
+    if (!/(입장|퇴장)$/.test(String(data.msg || ''))) addSys(data.msg);
+  });
   socket.on('announce', (data) => { addAnnounce(data.msg, data.ts); });
   socket.on('msg_deleted', (data) => {
     const el = msgs.querySelector('.msg[data-id="' + data.id + '"]');
@@ -3075,6 +3080,172 @@ document.addEventListener('click', function(e) {
     panel.classList.toggle('open', isOpen);
     if (isOpen) { unread = 0; badge.style.display = 'none'; input.focus(); scrollBottom(); }
   });
+})();
+</script>
+
+<!-- 스크롤 맨 위로 가기 FAB -->
+<button id="scroll-top-fab" class="scroll-top-fab" onclick="document.getElementById('mobile-stock-list').scrollTo({top:0,behavior:'smooth'})" aria-label="맨 위로">↑</button>
+
+<!-- 운영자 정보 / 면책 푸터 -->
+<footer class="site-footer" role="contentinfo">
+  <div class="sf-row sf-disclaimer">
+    <b>면책</b>
+    <span>본 사이트는 정보 제공 목적의 알고리즘 스크리닝 결과이며, 투자 권유·자문이 아닙니다. 모든 투자 판단·손익 책임은 사용자 본인에게 있습니다. 데이터 지연·오류·누락이 발생할 수 있습니다.</span>
+  </div>
+  <div class="sf-row sf-meta">
+    <span>운영: 종목스캐너 (개인 운영) · <a href="mailto:hyan.narek@gmail.com">hyan.narek@gmail.com</a></span>
+    <span>데이터: Yahoo Finance · Naver 증권 · DART · Finnhub · SEC EDGAR</span>
+    <span>AI: OpenAI · Gemini · Anthropic · Grok (한줄평/심층분석)</span>
+  </div>
+  <div class="sf-row sf-meta">
+    <span>본 서비스는 자본시장법상 투자자문업·투자일임업·금융투자상품 판매업이 아닙니다.</span>
+    <span><a href="mailto:hyan.narek@gmail.com?subject=%5B%EC%A2%85%EB%AA%A9%EC%8A%A4%EC%BA%90%EB%84%88%5D%20%EC%98%A4%EB%A5%98%20%EC%A0%9C%EB%B3%B4">오류 제보</a></span>
+  </div>
+</footer>
+
+<style>
+/* ── Hover Sparkline Tooltip ───────────────────────────────────
+ * 종목 행/카드에 마우스 오버 시 표시되는 30일 점수 추이 미니차트.
+ * 사이버펑크 글래스모피즘: 다크 배경 + 네온 글로우 보더.
+ */
+#hover-sparkline-tip {
+  position: fixed;
+  z-index: 9999;
+  pointer-events: none;
+  width: 240px;
+  padding: 10px 12px;
+  background: rgba(14, 18, 28, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(120, 180, 255, 0.18);
+  border-radius: 10px;
+  box-shadow:
+    0 10px 28px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 24px rgba(49, 130, 246, 0.08);
+  color: #E4E9F2;
+  font-family: -apple-system, 'Pretendard', system-ui, sans-serif;
+  opacity: 0;
+  transform: translateY(4px) scale(0.98);
+  transition: opacity 140ms var(--ease-out, ease-out), transform 140ms var(--ease-out, ease-out);
+}
+#hover-sparkline-tip.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+#hover-sparkline-tip .hst-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+#hover-sparkline-tip .hst-ticker {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #B7C5DE;
+  font-variant-numeric: tabular-nums;
+}
+#hover-sparkline-tip .hst-delta {
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+#hover-sparkline-tip .hst-svg {
+  display: block;
+  width: 100%;
+  height: 56px;
+  margin: 2px 0 4px;
+}
+#hover-sparkline-tip .hst-meta {
+  font-size: 10.5px;
+  color: #7B8AAB;
+  letter-spacing: 0.1px;
+  font-variant-numeric: tabular-nums;
+}
+@media (hover: none), (max-width: 768px) {
+  #hover-sparkline-tip { display: none !important; }
+}
+
+/* Scroll-to-top FAB */
+.scroll-top-fab {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  font-size: 18px;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(49, 130, 246, 0.35);
+  cursor: pointer;
+  z-index: 99;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s, transform 0.2s;
+}
+.scroll-top-fab.visible {
+  display: block;
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 운영자 정보 / 면책 푸터 */
+.site-footer {
+  margin-top: 24px;
+  padding: 16px 24px 32px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+.site-footer .sf-row { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 6px; }
+.site-footer .sf-disclaimer { color: var(--text-secondary); }
+.site-footer .sf-disclaimer b { color: var(--warning, #f59e0b); margin-right: 6px; }
+.site-footer a { color: var(--brand); text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
+@media (max-width: 768px) { .site-footer { padding: 12px 16px 24px; font-size: 10.5px; } }
+</style>
+
+<script>
+/* ── Scroll-to-top FAB ─────────────────────────────────────── */
+(function() {
+  var fab = document.getElementById('scroll-top-fab');
+  var list = document.getElementById('mobile-stock-list');
+  if (!fab || !list) return;
+  list.addEventListener('scroll', function() {
+    if (list.scrollTop > 200) { fab.classList.add('visible'); }
+    else { fab.classList.remove('visible'); }
+  }, { passive: true });
+})();
+
+/* ── Swipe left/right on detail panel to switch tabs ───────── */
+(function() {
+  var panel = document.getElementById('detail-panel');
+  if (!panel) return;
+  var _sx = 0, _sy = 0;
+  panel.addEventListener('touchstart', function(e) {
+    _sx = e.touches[0].clientX;
+    _sy = e.touches[0].clientY;
+  }, { passive: true });
+  panel.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - _sx;
+    var dy = e.changedTouches[0].clientY - _sy;
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+    var tabs = Array.from(document.querySelectorAll('.dp-tab-btn')).filter(function(b) {
+      return b.style.display !== 'none' && b.offsetParent !== null;
+    });
+    var cur = tabs.findIndex(function(b) { return b.classList.contains('active'); });
+    if (cur < 0) return;
+    var next = dx < 0 ? Math.min(cur + 1, tabs.length - 1) : Math.max(cur - 1, 0);
+    if (next !== cur) tabs[next].click();
+  }, { passive: true });
 })();
 </script>
 </body>

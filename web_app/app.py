@@ -1,5 +1,5 @@
 """
-app.py — 종목분석기 Flask 웹 서버
+app.py — 슡목분석기 Flask 웹 서버
 engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더링한다.
 
 실행: python web_app/app.py
@@ -28,12 +28,33 @@ if _BASE not in sys.path:
 
 from flask import Flask, request, jsonify, render_template, Response
 from chat import socketio
-from config_manager import (
-    SETTINGS_SCHEMA, load_config, save_config,
-    apply_to_environ, get_masked, get_connection_status,
-)
+from config_manager import apply_to_environ
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+from logging.handlers import RotatingFileHandler
+
+_root_logger = logging.getLogger()
+_root_logger.setLevel(logging.INFO)
+_app_fmt = logging.Formatter("%(levelname)s %(message)s")
+
+# RotatingFileHandler (UTF-8) — 중복 방지
+_app_log_path = 'quant_nexus_v20.log'
+_app_fh_exists = any(
+    isinstance(h, RotatingFileHandler) and getattr(h, 'baseFilename', '').endswith('quant_nexus_v20.log')
+    for h in _root_logger.handlers
+)
+if not _app_fh_exists:
+    _app_fh = RotatingFileHandler(_app_log_path, maxBytes=5_000_000, backupCount=3, encoding='utf-8', errors='replace')
+    _app_fh.setLevel(logging.INFO)
+    _app_fh.setFormatter(_app_fmt)
+    _root_logger.addHandler(_app_fh)
+
+# StreamHandler (콘솔) — 중복 방지
+_app_sh_exists = any(isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler) for h in _root_logger.handlers)
+if not _app_sh_exists:
+    _app_sh = logging.StreamHandler(sys.stderr)
+    _app_sh.setLevel(logging.INFO)
+    _app_sh.setFormatter(_app_fmt)
+    _root_logger.addHandler(_app_sh)
 
 # 앱 시작 시 저장된 설정을 환경변수에 반영
 apply_to_environ()
@@ -45,6 +66,20 @@ app = Flask(
     template_folder="templates",
     static_folder="static",
 )
+
+# Gzip 압축 — JSON API 응답 크기 60~70% 절감
+# (스캔 응답이 10MB+ 가 될 수 있어 모바일/원거리 클라이언트에서 비압축 시 타임아웃 발생)
+_FLASK_COMPRESS_OK = False
+try:
+    from flask_compress import Compress as _Compress
+    _Compress(app)
+    _FLASK_COMPRESS_OK = True
+except ImportError:
+    logging.warning(
+        "flask_compress NOT installed — JSON responses are not gzip compressed. "
+        "11MB+ scan payloads may timeout on mobile/slow networks. "
+        "Run: pip install -r requirements.txt"
+    )
 
 
 def _render_deployment() -> bool:
@@ -64,7 +99,7 @@ _consensus_cache: dict[str, dict] = {}
 _consensus_cache_lock = threading.Lock()
 
 # ── 티커 상세 응답 캐시 (드로어 재오픈 시 즉시 응답) ──
-_TICKER_DETAIL_TTL_SEC = 300  # 5분
+_TICKER_DETAIL_TTL_SEC = 1800  # 30분
 _TICKER_DETAIL_MAX = 200
 _ticker_detail_cache: dict[str, dict] = {}
 _ticker_detail_cache_lock = threading.Lock()
@@ -89,6 +124,23 @@ def _configure_yf_cache() -> None:
         logging.warning("yfinance cache init failed: %s", e)
 
 
+def _resolve_kr_suffix(code6: str) -> str | None:
+    """KR_NAMES 사전을 이용해 6자리 코드 → 정확한 접미사(.KS/.KQ) 결정.
+    lookup miss 면 None — 폴백을 시도해야 할 종목."""
+    try:
+        from quant_nexus_v20 import QuantNexusApp
+        names = getattr(QuantNexusApp, "KR_NAMES", {}) or {}
+    except Exception:
+        return None
+    ks = f"{code6}.KS"
+    kq = f"{code6}.KQ"
+    if ks in names:
+        return ".KS"
+    if kq in names:
+        return ".KQ"
+    return None
+
+
 def _build_yf_candidates(ticker: str, market: str) -> list[str]:
     raw = (ticker or "").strip()
     market = (market or "US").upper()
@@ -109,7 +161,15 @@ def _build_yf_candidates(ticker: str, market: str) -> list[str]:
                 base = base[:-len(suf)]
                 break
         t6 = base.zfill(6) if base.isdigit() else base
-        if kept_suf in (".KS", ".KQ"):
+        # KR_NAMES lookup 으로 접미사를 결정 — 호출자가 .KS 를 줬어도
+        # 사전이 .KQ 라고 알면 .KQ 로 정정 (반대도 동일).
+        resolved = _resolve_kr_suffix(t6) if t6.isdigit() and len(t6) == 6 else None
+        if resolved:
+            other = ".KQ" if resolved == ".KS" else ".KS"
+            # 결정적 경로 — 폴백은 lookup miss 가 아닌 한 시도하지 않음.
+            # 그래도 fetch 자체가 실패할 수 있어 최소 1개 폴백 유지.
+            candidates = [f"{t6}{resolved}", f"{t6}{other}"]
+        elif kept_suf in (".KS", ".KQ"):
             other = ".KQ" if kept_suf == ".KS" else ".KS"
             candidates = [f"{t6}{kept_suf}", f"{t6}{other}"]
         else:
@@ -124,9 +184,18 @@ def _get_scan_adapter_cls():
     return ScanAdapter
 
 
-def _annotate_one_liners(results: list):
+def _annotate_one_liners(results: list, force: bool = False):
+    """results에 OneLiner/OneLinerTag/OneLinerData를 채운다.
+    force=False면 이미 채워진 dict는 스킵해 BG/sync 중복 계산을 피한다."""
     from one_liner import annotate
-    return annotate(results)
+    if not results:
+        return results
+    if force:
+        return annotate(results)
+    pending = [r for r in results if isinstance(r, dict) and not r.get("OneLiner")]
+    if pending:
+        annotate(pending)
+    return results
 
 
 def _override_kr_day_chg(results: list) -> list:
@@ -203,16 +272,24 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
         try:
             adapter_cls = _get_scan_adapter_cls()
             adapter = adapter_cls(market=market, strategy=strategy)
-            results = adapter.scan_sector(sector) if sector else adapter.scan_all()
+            results = adapter.scan_sector(sector, prefer_cache=True) if sector else adapter.scan_all(prefer_cache=True, max_workers=8)
             try:
                 import history
                 results = history.annotate_deltas(results, market)
                 if not sector:
-                    history.save_snapshot(results, market)
+                    # 전체 유니버스를 같이 넘겨 실패 종목도 missing=True로 기록
+                    universe = {t for ts in adapter.get_sectors().values() for t in ts}
+                    history.save_snapshot(results, market, universe=universe)
             except Exception as he:
                 logging.warning("background history annotate/save failed: %s", he)
+            # 네이버 KR 실시간 등락률 오버라이드도 BG에서 처리 — 사용자 응답 지연 회피
+            if market == "KR":
+                try:
+                    results = _override_kr_day_chg(results)
+                except Exception as ne:
+                    logging.warning("background naver DayChg override failed: %s", ne)
             try:
-                results = _annotate_one_liners(results)
+                results = _annotate_one_liners(results, force=True)
             except Exception as oe:
                 logging.warning("background one_liner annotate failed: %s", oe)
             # 스캔 결과 전체 캐시 갱신
@@ -227,7 +304,13 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
             with _scan_refresh_lock:
                 _scan_refresh_inflight.discard(key)
 
-    threading.Thread(target=_worker, daemon=True).start()
+    try:
+        threading.Thread(target=_worker, daemon=True).start()
+    except Exception as te:
+        # 스레드 생성 자체 실패 — inflight 키를 풀어줘야 다음 요청이 영구 차단되지 않는다.
+        logging.warning("background scan thread start failed: %s", te)
+        with _scan_refresh_lock:
+            _scan_refresh_inflight.discard(key)
 
 
 # ── 캐시 메타데이터 (stale-data UX 헤더용) ─────────────────────────────────
@@ -345,31 +428,71 @@ def _release_warmer_file_lock(handle) -> None:
             pass
 
 
+def _populate_sector_caches(market: str, strategy: str, results: list, ts: int) -> None:
+    """full scan 결과를 섹터별로 분할해 sector cache도 함께 채운다."""
+    from collections import defaultdict
+    by_sector: dict[str, list] = defaultdict(list)
+    for r in results:
+        s = r.get("Sector") or ""
+        if s:
+            by_sector[s].append(r)
+    with _scan_results_cache_lock:
+        for sector, rows in by_sector.items():
+            _scan_results_cache[(market, strategy, sector)] = {"_ts": ts, "data": rows}
+    logging.info("%s sector-cache populated: %d sectors", market, len(by_sector))
+
+
+def _warmup_fill_cache(market: str) -> None:
+    """prefer_cache=True로 pickle에서 in-memory cache를 빠르게 채운다 (quick-warm pass)."""
+    try:
+        adapter_cls = _get_scan_adapter_cls()
+        adapter = adapter_cls(market=market, strategy="BALANCED")
+        results = adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=8)
+        if results:
+            try:
+                results = _annotate_one_liners(results)
+            except Exception:
+                pass
+            ts = int(time.time())
+            with _scan_results_cache_lock:
+                _scan_results_cache[(market, "BALANCED", "")] = {"_ts": ts, "data": results}
+            _populate_sector_caches(market, "BALANCED", results, ts)
+            logging.info("%s quick-warm done: %d tickers (from pickle)", market, len(results))
+    except Exception as e:
+        logging.warning("%s quick-warm failed: %s", market, e)
+
+
 def _kr_warmup_loop(interval_sec: int = 1800) -> None:
     """KR 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지."""
+    first_run = True
     while True:
         handle = _acquire_warmer_file_lock()
         if handle is None:
             logging.info("KR warm-up skipped: another worker holds lock")
         else:
             try:
-                logging.info("KR warm-up started")
+                # 첫 실행 시 quick-warm으로 캐시를 빠르게 채운 후 slow-refresh
+                if first_run:
+                    _warmup_fill_cache("KR")
+                    first_run = False
+                logging.info("KR warm-up started (slow-refresh)")
                 try:
                     adapter_cls = _get_scan_adapter_cls()
                     adapter = adapter_cls(market="KR", strategy="BALANCED")
-                    # 워머는 Semaphore(4)로 throttle: scan_all max_workers=4 로 호출
-                    results = adapter.scan_all(max_workers=4)
+                    _wm_workers = _get_config_int("WARMUP_WORKERS", 4, minimum=1, maximum=16)
+                    results = adapter.scan_all(max_workers=_wm_workers)
                     logging.info("KR warm-up done: %d tickers", len(results) if results else 0)
-                    # 스캔 결과 전체 캐시 갱신
                     if results:
                         try:
                             results = _annotate_one_liners(results)
                         except Exception:
                             pass
+                        ts = int(time.time())
                         with _scan_results_cache_lock:
                             _scan_results_cache[("KR", "BALANCED", "")] = {
-                                "_ts": int(time.time()), "data": results,
+                                "_ts": ts, "data": results,
                             }
+                        _populate_sector_caches("KR", "BALANCED", results, ts)
                 except Exception as e:
                     logging.warning("KR warm-up failed: %s", e)
             finally:
@@ -386,7 +509,117 @@ def _start_kr_warmup_once() -> None:
     if os.environ.get("DISABLE_KR_WARMUP", "").strip() in ("1", "true", "yes"):
         logging.info("KR warm-up disabled by env DISABLE_KR_WARMUP")
         return
-    threading.Thread(target=_kr_warmup_loop, daemon=True, name="kr-warmup").start()
+    # KR warmup 을 60초 지연 — US warmup 과 동시에 yfinance 를 두드려
+    # 자가 rate-limit(429) 을 유발하던 문제 회피.
+    def _delayed_kr():
+        time.sleep(60.0)
+        _kr_warmup_loop()
+    threading.Thread(target=_delayed_kr, daemon=True, name="kr-warmup").start()
+
+
+# ── US 캐시 워밍 (서버 기동 시 + 30분 주기) ───────────────────────────────
+_US_WARMUP_LOCK_PATH = os.path.join(_BASE, "cache_v19", ".warmer_us.lock")
+_us_warmup_started = False
+_us_warmup_lock = threading.Lock()
+
+
+def _is_us_market_open_window() -> bool:
+    """US 정규장 + 프리/애프터까지 넉넉히 — KST 기준 22:00~06:00, 토/일은 휴장."""
+    from datetime import datetime, timezone, timedelta
+    now_kst = datetime.now(timezone(timedelta(hours=9)))
+    # 토(5)/일(6) 휴장. 월요일 새벽까지 금요일 애프터 여진이 있을 수 있으나
+    # 한국 시간 기준 일요일 종일·토요일 종일은 확실히 휴장.
+    if now_kst.weekday() in (5, 6):
+        return False
+    h = now_kst.hour
+    # 정규장은 KST 22:30(서머타임) ~ 05:00, 여기에 프리·애프터 마진 ±2h
+    return h >= 22 or h < 6
+
+
+def _us_warmup_loop(interval_sec: int = 1800) -> None:
+    """US 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지.
+
+    장 닫혀 있을 땐 어차피 시세가 안 움직이니 외부 호출을 건너뛴다
+    (yfinance 호출 절감 + 라이브 로그 깔끔). 첫 실행만 캐시 채우기.
+    """
+    first_run = True
+    while True:
+        handle = None
+        # 장 외 시간엔 스캔 자체를 스킵 (yfinance 호출 0).
+        # 단, 캐시가 아직 비어있는 첫 실행은 한 번 채워둔다.
+        if not first_run and not _is_us_market_open_window():
+            time.sleep(interval_sec)
+            continue
+        try:
+            os.makedirs(os.path.dirname(_US_WARMUP_LOCK_PATH), exist_ok=True)
+            fh = open(_US_WARMUP_LOCK_PATH, "a+b")
+            locked = False
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    try:
+                        msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+                        handle = (fh, "win")
+                        locked = True
+                    except OSError:
+                        fh.close()
+                else:
+                    import fcntl
+                    try:
+                        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        handle = (fh, "posix")
+                        locked = True
+                    except OSError:
+                        fh.close()
+            except Exception:
+                try:
+                    fh.close()
+                except Exception:
+                    pass
+            if not locked:
+                logging.info("US warm-up skipped: another worker holds lock")
+            else:
+                try:
+                    # 첫 실행 시 quick-warm으로 캐시를 빠르게 채운 후 slow-refresh
+                    if first_run:
+                        _warmup_fill_cache("US")
+                        first_run = False
+                    logging.info("US warm-up started (slow-refresh)")
+                    adapter_cls = _get_scan_adapter_cls()
+                    adapter = adapter_cls(market="US", strategy="BALANCED")
+                    _wm_workers = _get_config_int("WARMUP_WORKERS", 4, minimum=1, maximum=16)
+                    results = adapter.scan_all(max_workers=_wm_workers)
+                    logging.info("US warm-up done: %d tickers", len(results) if results else 0)
+                    if results:
+                        try:
+                            results = _annotate_one_liners(results)
+                        except Exception:
+                            pass
+                        ts = int(time.time())
+                        with _scan_results_cache_lock:
+                            _scan_results_cache[("US", "BALANCED", "")] = {
+                                "_ts": ts, "data": results,
+                            }
+                        _populate_sector_caches("US", "BALANCED", results, ts)
+                except Exception as e:
+                    logging.warning("US warm-up failed: %s", e)
+                finally:
+                    _release_warmer_file_lock(handle)
+        except Exception as e:
+            logging.warning("US warm-up loop error: %s", e)
+        time.sleep(interval_sec)
+
+
+def _start_us_warmup_once() -> None:
+    global _us_warmup_started
+    with _us_warmup_lock:
+        if _us_warmup_started:
+            return
+        _us_warmup_started = True
+    if os.environ.get("DISABLE_US_WARMUP", "").strip() in ("1", "true", "yes"):
+        logging.info("US warm-up disabled by env DISABLE_US_WARMUP")
+        return
+    threading.Thread(target=_us_warmup_loop, daemon=True, name="us-warmup").start()
 
 
 def _get_config_int(name: str, default: int, minimum: int | None = None, maximum: int | None = None) -> int:
@@ -449,16 +682,33 @@ def healthz():
         "ok": True,
         "service": "canslim-quant-scanner",
         "render": _render_deployment(),
+        "gzip": _FLASK_COMPRESS_OK,
     })
+
+
+import re as _ticker_re_mod
+
+# 화이트리스트: 1~12자 [A-Z0-9.-]. US(AAPL/BRK.B) + KR(005930/005930.KS) 모두 통과.
+# path traversal / SSRF / prompt injection 1차 방어.
+_TICKER_RE = _ticker_re_mod.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+
+
+def _validate_ticker(ticker) -> str | None:
+    """티커가 화이트리스트 통과하면 정규화된 값, 아니면 None."""
+    if not ticker or not isinstance(ticker, str):
+        return None
+    t = ticker.strip()
+    if not _TICKER_RE.match(t):
+        return None
+    return t
 
 
 @app.route("/detail/<ticker>")
 def detail(ticker: str):
-    import re as _re
-    ticker = _re.sub(r"[^A-Za-z0-9.\-]", "", ticker)
-    if not ticker:
+    safe = _validate_ticker(ticker)
+    if not safe:
         return "Invalid ticker", 400
-    safe_ticker = html.escape(ticker, quote=True)
+    safe_ticker = html.escape(safe, quote=True)
     return _render_static_template("detail.html", {
         "{{ ticker }}": safe_ticker,
     })
@@ -473,57 +723,6 @@ def compare_page():
         "{{ tickers|tojson }}": json.dumps(tickers, ensure_ascii=False),
         "{{ market|tojson }}": json.dumps(market, ensure_ascii=False),
     })
-
-
-@app.route("/settings")
-def settings_page():
-    return _render_static_template("settings.html", {
-        "{{ schema | tojson }}": json.dumps(SETTINGS_SCHEMA, ensure_ascii=False),
-    })
-
-
-# ── 설정 API ─────────────────────────────────────────────────────────
-
-@app.route("/api/settings", methods=["GET"])
-def api_settings_get():
-    """현재 저장된 설정 조회 (민감값 마스킹)."""
-    data = load_config()
-    return jsonify({
-        "values": data,
-        "values_masked": get_masked(data),
-        "status": get_connection_status(data),
-        "schema": SETTINGS_SCHEMA,
-    })
-
-
-@app.route("/api/settings", methods=["POST"])
-def api_settings_post():
-    """?? ?? ? ????? ?? ??."""
-    try:
-        incoming = request.get_json(force=True) or {}
-        existing = load_config()
-        for key, value in incoming.items():
-            if value is not None and value != "":
-                existing[key] = value
-        save_config(existing)
-        apply_to_environ(existing)
-        return jsonify({"ok": True})
-    except Exception as e:
-        logging.exception("api_settings_post")
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
-
-@app.route("/api/settings", methods=["DELETE"])
-def api_settings_delete():
-    """?? ???."""
-    try:
-        save_config({})
-        apply_to_environ({})
-        return jsonify({"ok": True})
-    except Exception as e:
-        logging.exception("api_settings_delete")
-        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 # ?? JSON API ?????????????????????????????????????????????????????????????
@@ -607,12 +806,13 @@ def api_scan():
         except (TypeError, ValueError):
             aq_top = 0
 
-        # ── 스캔 결과 전체 캐시 조회 (pickle 재읽기 완전 회피) ──
+        # ── 스캔 결과 전체 캐시 조회 (stale-while-revalidate) ──
+        # 캐시가 있으면 나이 무관 즉시 반환 + BG 갱신. 없을 때만 동기 스캔.
         _sr_key = (market, strategy, sector)
         _sr_now = int(time.time())
         with _scan_results_cache_lock:
             _sr_cached = _scan_results_cache.get(_sr_key)
-        if _sr_cached and (_sr_now - _sr_cached.get("_ts", 0)) < _SCAN_RESULTS_TTL_SEC:
+        if _sr_cached:
             _refresh_scan_background(market, strategy, sector)
             resp = jsonify(_sr_cached["data"])
             try:
@@ -621,7 +821,8 @@ def api_scan():
                     resp.headers["X-Cache-Age-Min"] = str(cache_age_min)
                 if as_of_iso:
                     resp.headers["X-As-Of"] = as_of_iso
-                resp.headers["X-Warming-In-Progress"] = "false"
+                _age_sec = _sr_now - _sr_cached.get("_ts", 0)
+                resp.headers["X-Warming-In-Progress"] = "true" if _age_sec > _SCAN_RESULTS_TTL_SEC else "false"
             except Exception:
                 pass
             return resp
@@ -630,16 +831,26 @@ def api_scan():
         results = []
         warming_in_progress = False
         if market in ("US", "KR"):
+            # pickle 캐시에서 빠르게 읽기 (동기 yfinance 풀스캔 없음)
             results = adapter.scan_sector(sector, prefer_cache=True, cache_only=True) if sector else adapter.scan_all(prefer_cache=True, cache_only=True)
             if results:
                 _refresh_scan_background(market, strategy, sector)
-            elif market == "US":
-                # US는 캐시 미스 시 동기 풀 스캔 fallback
-                results = adapter.scan_sector(sector) if sector else adapter.scan_all()
             else:
-                # KR: 첫 배포·캐시 전체 미스 → BG 워밍만 트리거하고 빈 응답 반환
+                # KR 섹터: in-memory 전체 캐시에서 필터링 시도
+                if market == "KR" and sector:
+                    with _scan_results_cache_lock:
+                        _full = _scan_results_cache.get((market, strategy, ""))
+                    if _full:
+                        results = [r for r in _full["data"] if r.get("Sector") == sector]
+                        if results:
+                            with _scan_results_cache_lock:
+                                _scan_results_cache[(market, strategy, sector)] = {
+                                    "_ts": _full["_ts"], "data": results,
+                                }
+                # 캐시 없으면 BG 갱신만 트리거, 즉시 빈 결과 반환
                 _refresh_scan_background(market, strategy, sector)
-                warming_in_progress = True
+                if not results:
+                    warming_in_progress = True
         else:
             results = adapter.scan_sector(sector) if sector else adapter.scan_all()
         # 히스토리 델타 주석/스냅샷 저장
@@ -648,16 +859,18 @@ def api_scan():
             results = history.annotate_deltas(results, market)
             # 섹터 스캔이 아닐 때만 스냅샷 저장 (전체 스캔만 저장)
             if not sector:
-                history.save_snapshot(results, market)
+                universe = {t for ts in adapter.get_sectors().values() for t in ts}
+                history.save_snapshot(results, market, universe=universe)
         except Exception as he:
             logging.warning("history annotate/save failed: %s", he)
-        # KR 등락률 네이버 실시간 오버라이드 (yfinance 장중 고착 회피)
+        # KR 종목은 네이버 실시간 등락률로 즉시 오버라이드 (yfinance 장중 고착 회피).
+        # 8-worker 병렬 호출이라 50종목 기준 ~1~2초 추가. 사용자가 fallback을 원치 않음.
         if market == "KR":
             try:
                 results = _override_kr_day_chg(results)
             except Exception as ne:
                 logging.warning("naver DayChg override failed: %s", ne)
-        # 촌철살인 한줄평 추가
+        # 촌철살인 한줄평 추가 (이미 채워진 경우 스킵)
         try:
             results = _annotate_one_liners(results)
         except Exception as oe:
@@ -706,6 +919,92 @@ def api_macro():
         })
 
 
+# ── 워치리스트 영속화 ─────────────────────────────────────────────────────
+# 브라우저 localStorage 단독 저장은 캐시 삭제/기기 변경 시 손실되므로
+# 서버 측 SQLite(watchlist.db)에 영속화한다.
+_WL_DB_PATH = os.path.join(_BASE, "watchlist.db")
+_wl_lock = threading.Lock()
+
+
+def _wl_is_kr(ticker: str) -> bool:
+    t = ticker.upper()
+    return t.endswith(".KS") or t.endswith(".KQ")
+
+
+def _wl_db():
+    from watchlist import WatchlistDB
+    return WatchlistDB(_WL_DB_PATH)
+
+
+@app.route("/api/watchlist", methods=["GET"])
+def api_watchlist_list():
+    """GET /api/watchlist?market=KR|US → ["TICKER", ...]"""
+    market = (request.args.get("market") or "US").upper()
+    with _wl_lock:
+        db = _wl_db()
+        try:
+            tickers = db.list()
+        finally:
+            db.close()
+    if market == "KR":
+        out = [t for t in tickers if _wl_is_kr(t)]
+    else:
+        out = [t for t in tickers if not _wl_is_kr(t)]
+    return jsonify(out)
+
+
+@app.route("/api/watchlist", methods=["POST"])
+def api_watchlist_add():
+    """POST /api/watchlist {ticker, note?} → {ok, added}"""
+    data = request.get_json(silent=True) or {}
+    ticker = (data.get("ticker") or "").strip().upper()
+    note = (data.get("note") or "").strip()
+    if not ticker:
+        return jsonify({"ok": False, "error": "ticker required"}), 400
+    with _wl_lock:
+        db = _wl_db()
+        try:
+            added = db.add(ticker, note)
+        finally:
+            db.close()
+    return jsonify({"ok": True, "added": added, "ticker": ticker})
+
+
+@app.route("/api/watchlist/<path:ticker>", methods=["DELETE"])
+def api_watchlist_remove(ticker: str):
+    """DELETE /api/watchlist/<ticker> → {ok, removed}"""
+    ticker = (ticker or "").strip().upper()
+    if not ticker:
+        return jsonify({"ok": False, "error": "ticker required"}), 400
+    with _wl_lock:
+        db = _wl_db()
+        try:
+            removed = db.remove(ticker)
+        finally:
+            db.close()
+    return jsonify({"ok": True, "removed": removed, "ticker": ticker})
+
+
+@app.route("/api/watchlist/bulk", methods=["POST"])
+def api_watchlist_bulk():
+    """POST /api/watchlist/bulk {tickers: [...]} → 일괄 추가 (localStorage 마이그레이션용)"""
+    data = request.get_json(silent=True) or {}
+    tickers = data.get("tickers") or []
+    if not isinstance(tickers, list):
+        return jsonify({"ok": False, "error": "tickers must be list"}), 400
+    added = 0
+    with _wl_lock:
+        db = _wl_db()
+        try:
+            for t in tickers:
+                t = str(t or "").strip().upper()
+                if t and db.add(t):
+                    added += 1
+        finally:
+            db.close()
+    return jsonify({"ok": True, "added": added, "total": len(tickers)})
+
+
 @app.route("/api/search")
 def api_search():
     """GET /api/search?q=rf&market=KR → [{ticker, name}, ...] 이름/티커 부분매칭."""
@@ -738,6 +1037,9 @@ def api_search():
 @app.route("/api/ticker/<ticker>")
 def api_ticker(ticker: str):
     """GET /api/ticker/AAPL?market=US&strategy=BALANCED → {Ticker, TotalScore, ...}"""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market_arg = (request.args.get("market") or "US").upper()
     strategy_arg = request.args.get("strategy", "BALANCED")
     # ── 응답 캐시 조회 (동일 종목 재오픈 시 즉시 반환) ──
@@ -748,7 +1050,7 @@ def api_ticker(ticker: str):
         if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
             # 한줄평은 항상 최신 로직으로 재생성 (캐시는 raw 데이터만 재사용)
             try:
-                fresh = _annotate_one_liners([_td_cached["data"]])[0]
+                fresh = _annotate_one_liners([_td_cached["data"]], force=True)[0]
             except Exception:
                 fresh = _td_cached["data"]
             return jsonify(fresh)
@@ -787,7 +1089,9 @@ def api_ticker(ticker: str):
             # US 종목: yfinance 수급/센티먼트 데이터
             try:
                 import yfinance as yf
-                yf_info = yf.Ticker(ticker).info
+                yf_info = _run_with_timeout(
+                    lambda: yf.Ticker(ticker).info, 10, f"yf_info {ticker}"
+                ) or {}
                 short_pct = yf_info.get("shortPercentOfFloat")
                 inst_pct = yf_info.get("heldPercentInstitutions")
                 rec_mean = yf_info.get("recommendationMean")
@@ -843,6 +1147,9 @@ def api_ticker(ticker: str):
 @app.route("/api/aq_signal/<ticker>")
 def api_aq_signal(ticker: str):
     """GET /api/aq_signal/AAPL?market=US → AgentQuant 진입 타이밍 (lazy-load)."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market = (request.args.get("market") or "US").upper()
     try:
         from agentquant_signal import get_regime_signal
@@ -868,6 +1175,9 @@ def api_aq_signal(ticker: str):
 @app.route("/api/consensus/<ticker>")
 def api_consensus(ticker: str):
     """??? ???? ??: ??? ??, ??/??, ?? ???."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     import urllib.request
     import json as _json
 
@@ -956,6 +1266,9 @@ def api_consensus(ticker: str):
 @app.route("/api/regime/<ticker>")
 def api_regime(ticker: str):
     """AgentQuant 기반 시장 레짐 + 진입 타이밍 시그널."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market = (request.args.get("market") or "US").upper()
     try:
         from agentquant_signal import get_regime_signal
@@ -971,6 +1284,9 @@ def api_regime(ticker: str):
 @app.route("/api/four_axis/<ticker>")
 def api_four_axis(ticker: str):
     """4축 핸드드로윙 차트 + 분석 데이터 반환 (base64 PNG)."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market = (request.args.get("market") or "US").upper()
     cache_key = f"{ticker}:{market}"
     now = int(time.time())
@@ -991,10 +1307,15 @@ def api_four_axis(ticker: str):
 
         # 다중 기간 폴백 — 2y → 1y → 6mo → 3mo 순으로 시도
         # 일부 ETF/저유동 종목은 1y로는 비어있고 6mo 이하에서만 데이터가 나오기도 함
+        # 429 (rate-limited) 수신 시 한 번 backoff 후 재시도하고, 그래도 실패면
+        # 즉시 다음 후보로 이동(같은 후보로 4 period 모두 두드리는 N+1 회피).
         hist = None
         tried = []
         periods = ("2y", "1y", "6mo", "3mo")
         for yt in candidates:
+            # rate-limit 은 후보(ticker suffix)별로 따로 판단 — .KS 가 막혔다고
+            # .KQ 까지 포기하면 멀쩡한 대체 후보를 놓친다.
+            rate_limited_break = False
             for period in periods:
                 tried.append(f"{yt}({period})")
                 try:
@@ -1011,7 +1332,28 @@ def api_four_axis(ticker: str):
                         hist = h
                         break
                 except Exception as exc:
+                    msg = str(exc).lower()
                     logging.warning("four_axis history fetch failed: %s", exc)
+                    if "too many requests" in msg or "rate" in msg and "limit" in msg:
+                        # 한 번만 짧게 backoff 하고 같은 period 재시도, 그래도 실패면 후보 자체를 포기
+                        try:
+                            time.sleep(2.0)
+                            h = _run_with_timeout(
+                                lambda yt=yt, period=period: yf.Ticker(yt).history(
+                                    period=period,
+                                    auto_adjust=True,
+                                    timeout=fetch_timeout_sec,
+                                ),
+                                fetch_timeout_sec,
+                                f"four_axis history {yt} {period} retry",
+                            )
+                            if h is not None and not h.empty and len(h) >= min_rows:
+                                hist = h
+                                break
+                        except Exception:
+                            pass
+                        rate_limited_break = True
+                        break
                     continue
             if hist is not None:
                 break
@@ -1142,6 +1484,9 @@ def api_four_axis(ticker: str):
 @app.route("/api/dart-news/<ticker>")
 def api_dart_news(ticker: str):
     """KR 종목 공시 목록 + 뉴스 감성분석 결합 반환."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market = (request.args.get("market") or "US").upper()
     if market != "KR":
         return jsonify({"error": "KR 종목만 지원"}), 400
@@ -1285,6 +1630,9 @@ def _get_sec_filings(ticker: str, count: int = 10) -> list:
 @app.route("/api/us-insight/<ticker>")
 def api_us_insight(ticker: str):
     """US 종목 인사이트: 뉴스 감성 + 기관보유/공매도 + 어닝캘린더 + SEC 공시."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market = (request.args.get("market") or "US").upper()
     if market != "US":
         return jsonify({"error": "US 종목만 지원"}), 400
@@ -1376,6 +1724,9 @@ def api_us_insight(ticker: str):
 @app.route("/api/score-history/<ticker>")
 def api_score_history(ticker: str):
     """최근 N일간 TotalScore + 순위 히스토리 (snapshots/ JSON 파일 기반)."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market = (request.args.get("market") or "KR").upper()
     days = min(int(request.args.get("days") or 30), 90)
     import history as hist_mod
@@ -1397,6 +1748,9 @@ def api_score_history(ticker: str):
 
 @app.route("/api/signal-history/<ticker>")
 def api_signal_history(ticker):
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
     market = request.args.get("market")
     if market not in ("KR", "US"):
         return jsonify({"error": "market must be KR or US"}), 400
@@ -1411,6 +1765,10 @@ def api_signal_history(ticker):
 
 @app.route("/api/deep-analysis/<ticker>")
 def api_deep_analysis(ticker: str):
+    ticker_valid = _validate_ticker(ticker)
+    if not ticker_valid:
+        return jsonify({"error": "invalid ticker"}), 400
+    ticker = ticker_valid
     """Gemini 2.0 Flash + Google Search 그라운딩 기반 8-Phase 종목 심층 분석.
 
     Query: market=KR|US, mode=brief|standard|detail, force=1 (캐시 무시)
@@ -1454,11 +1812,15 @@ def api_deep_analysis(ticker: str):
 # SocketIO 초기화 (gunicorn / 직접 실행 모두 대응)
 socketio.init_app(app)
 
-# KR 캐시 워밍 시작 (gunicorn import 시점에도 트리거; file-lock으로 중복 방지)
+# KR/US 캐시 워밍 시작 (gunicorn import 시점에도 트리거; file-lock으로 중복 방지)
 try:
     _start_kr_warmup_once()
 except Exception as _e:
     logging.warning("KR warm-up bootstrap failed: %s", _e)
+try:
+    _start_us_warmup_once()
+except Exception as _e:
+    logging.warning("US warm-up bootstrap failed: %s", _e)
 
 if __name__ == "__main__":
     debug = (os.environ.get("FLASK_DEBUG") or "0").strip().lower() in ("1", "true", "yes")
@@ -1471,4 +1833,16 @@ if __name__ == "__main__":
     # allow_unsafe_werkzeug: dev runner(werkzeug)에서 SocketIO 스레드 호환 필요.
     # PRODUCTION=1 환경에서는 gunicorn이 기동하므로 이 분기 자체가 실행되지 않음.
     is_production = os.environ.get("PRODUCTION", "").strip() in ("1", "true", "yes")
-    socketio.run(app, debug=debug, port=port, host=host, allow_unsafe_werkzeug=not is_production)
+    try:
+        socketio.run(app, debug=debug, port=port, host=host, allow_unsafe_werkzeug=not is_production)
+    except OSError as e:
+        # 포트 충돌(WinError 10048 / EADDRINUSE)을 트레이스백 대신 친절 메시지로 처리.
+        # launcher가 사전 체크하지만 race condition / 직접 실행 경로에서 발생할 수 있다.
+        win_err = getattr(e, "winerror", None)
+        if win_err == 10048 or e.errno in (98, 48, 10048):
+            print(f"[app] 포트 {port}이 이미 사용 중입니다. 기존 인스턴스가 실행 중이거나",
+                  "다른 프로그램이 점유 중입니다.", file=sys.stderr)
+            print(f"[app] 다른 포트로 띄우려면: set PORT=5001 && python web_app/app.py",
+                  file=sys.stderr)
+            sys.exit(2)
+        raise

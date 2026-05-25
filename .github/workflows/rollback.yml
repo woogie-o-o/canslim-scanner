@@ -1,0 +1,67 @@
+name: Rollback Oracle Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_sha:
+        description: "롤백할 git 커밋 SHA (40자 또는 7자 단축)"
+        required: true
+        type: string
+      reason:
+        description: "롤백 사유 (장애 ID/요약)"
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-oracle
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH and rollback
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          port: ${{ secrets.ORACLE_SSH_PORT || 22 }}
+          script_stop: true
+          command_timeout: 20m
+          envs: ROLLBACK_SHA,ROLLBACK_REASON
+          script: |
+            set -e
+            cd ${{ secrets.ORACLE_PROJECT_PATH }}
+            echo "::group::Rollback context"
+            echo "Target SHA : ${{ inputs.target_sha }}"
+            echo "Reason     : ${{ inputs.reason }}"
+            echo "Triggered  : $(date -u +%FT%TZ)"
+            echo "::endgroup::"
+
+            git fetch --all --prune
+            # SHA 검증 — 존재 안 하면 즉시 종료
+            if ! git cat-file -e "${{ inputs.target_sha }}^{commit}" 2>/dev/null; then
+              echo "::error::Target SHA not found in repo: ${{ inputs.target_sha }}"
+              exit 1
+            fi
+
+            # 현재 SHA 백업 (이중 롤백 대비)
+            PREV_SHA=$(git rev-parse HEAD)
+            echo "Previous HEAD: $PREV_SHA"
+
+            git reset --hard "${{ inputs.target_sha }}"
+            docker compose up -d --build
+            docker image prune -f
+            docker compose ps
+
+            # 헬스체크 60초 안에 통과해야 성공
+            for i in 1 2 3 4 5 6; do
+              sleep 10
+              if curl -fsS http://localhost:8000/healthz >/dev/null; then
+                echo "Healthcheck OK (attempt $i)"
+                exit 0
+              fi
+            done
+            echo "::error::Healthcheck failed after rollback to ${{ inputs.target_sha }}"
+            exit 1
