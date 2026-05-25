@@ -13,6 +13,25 @@ from pathlib import Path
 from typing import Any
 
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
+ENV_PATH = Path(__file__).parent.parent / ".env"
+_DOTENV_LOADED = False
+
+
+def _load_dotenv_once() -> None:
+    """Load project .env if python-dotenv is available."""
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+    _DOTENV_LOADED = True
+    try:
+        from dotenv import load_dotenv
+    except Exception:
+        return
+    try:
+        load_dotenv(ENV_PATH, override=False)
+    except Exception:
+        return
+
 
 # 설정 키 정의 (그룹별)
 SETTINGS_SCHEMA: dict[str, list[dict[str, str]]] = {
@@ -43,6 +62,7 @@ SETTINGS_SCHEMA: dict[str, list[dict[str, str]]] = {
 
 def load_config() -> dict[str, str]:
     """config.json을 읽어 dict로 반환. 파일 없으면 빈 dict."""
+    _load_dotenv_once()
     if CONFIG_PATH.exists():
         try:
             with open(CONFIG_PATH, encoding="utf-8") as f:
@@ -60,6 +80,7 @@ def save_config(data: dict[str, str]) -> None:
 
 def apply_to_environ(data: dict[str, str] | None = None) -> None:
     """설정값을 os.environ에 반영하여 기존 모듈이 인식하도록 한다."""
+    _load_dotenv_once()
     if data is None:
         data = load_config()
     for key, value in data.items():
@@ -87,23 +108,27 @@ def get_masked(data: dict[str, str]) -> dict[str, str]:
 
 def get_connection_status(data: dict[str, str]) -> dict[str, dict[str, Any]]:
     """각 서비스의 연결 상태를 확인."""
+    _load_dotenv_once()
     status: dict[str, dict[str, Any]] = {}
 
+    def configured(key: str) -> bool:
+        return bool(data.get(key) or os.environ.get(key))
+
     # Telegram
-    tg_ok = bool(data.get("TELEGRAM_BOT_TOKEN") and data.get("TELEGRAM_CHAT_ID"))
+    tg_ok = configured("TELEGRAM_BOT_TOKEN") and configured("TELEGRAM_CHAT_ID")
     status["Telegram"] = {"connected": tg_ok}
 
     # DART
-    status["DART"] = {"connected": bool(data.get("DART_API_KEY"))}
+    status["DART"] = {"connected": configured("DART_API_KEY")}
 
     # Naver
-    naver_ok = bool(data.get("NAVER_CLIENT_ID") and data.get("NAVER_CLIENT_SECRET"))
+    naver_ok = configured("NAVER_CLIENT_ID") and configured("NAVER_CLIENT_SECRET")
     status["Naver"] = {"connected": naver_ok}
 
     # Finnhub
-    status["Finnhub"] = {"connected": bool(data.get("FINNHUB_API_KEY"))}
+    status["Finnhub"] = {"connected": configured("FINNHUB_API_KEY")}
 
     # Gemini
-    status["Gemini"] = {"connected": bool(data.get("GEMINI_API_KEY"))}
+    status["Gemini"] = {"connected": configured("GEMINI_API_KEY")}
 
     return status
