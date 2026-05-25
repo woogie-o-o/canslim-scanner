@@ -75,18 +75,43 @@ def _latest_val(df: pd.DataFrame, row: str) -> Optional[float]:
         return None
 
 
+MIN_TRADING_DAYS_52W = 252  # 52주 기준 영업일
+
+
 def _price_signals(hist: pd.DataFrame) -> tuple[Optional[float], Optional[float]]:
+    """P1-3: 52w 라벨링이 정확하도록 252봉 미만이면 from_52w_high=None."""
     if hist is None or hist.empty or "Close" not in hist.columns:
         return None, None
     closes = hist["Close"].dropna()
     if len(closes) < 2:
         return None, None
     last = float(closes.iloc[-1])
-    high_52w = float(closes.max())
-    distance = last / high_52w - 1.0 if high_52w > 0 else None
+    if len(closes) >= MIN_TRADING_DAYS_52W:
+        window = closes.iloc[-MIN_TRADING_DAYS_52W:]
+        high_52w = float(window.max())
+        distance = last / high_52w - 1.0 if high_52w > 0 else None
+    else:
+        distance = None  # 신규 상장 — 52주 데이터 부족
     one_month_idx = max(0, len(closes) - 21)
-    ret_1m = last / float(closes.iloc[one_month_idx]) - 1.0 if len(closes) >= 2 else None
+    ret_1m = last / float(closes.iloc[one_month_idx]) - 1.0
     return distance, ret_1m
+
+
+def _effective_tax_rate(info: dict, income: pd.DataFrame) -> float:
+    """P1-2: 21% 하드코딩 제거. info.taxRate → income_stmt 의 TaxProvision/PretaxIncome → 21% fallback.
+
+    합리적 범위 [0, 0.5] 로 클램프 (네거티브/이상치 가드).
+    """
+    rate = info.get("taxRate")
+    if isinstance(rate, (int, float)) and 0 <= rate <= 0.5:
+        return float(rate)
+    tax = _latest_val(income, "TaxProvision") or _latest_val(income, "IncomeTaxExpense")
+    pretax = _latest_val(income, "PretaxIncome") or _latest_val(income, "IncomeBeforeTax")
+    if tax is not None and pretax and pretax > 0:
+        eff = float(tax) / float(pretax)
+        if 0 <= eff <= 0.5:
+            return eff
+    return 0.21  # US 연방 fallback
 
 
 def _roic(info: dict, income: pd.DataFrame, balance: pd.DataFrame) -> Optional[float]:
@@ -99,24 +124,53 @@ def _roic(info: dict, income: pd.DataFrame, balance: pd.DataFrame) -> Optional[f
         invested = float(equity) + float(debt)
         if invested <= 0:
             return None
-        tax_rate = 0.21
+        tax_rate = _effective_tax_rate(info, income)
         return float(ebit) * (1 - tax_rate) / invested
     except Exception:
         return None
 
 
+# P1-5: 트랜잭션 타입 명시적 분류 — 매수/매도가 아닌 이벤트는 무시(0).
+_INSIDER_BUY_KEYWORDS = ("purchase", "acquisition", "buy")
+_INSIDER_SELL_KEYWORDS = ("sale", "disposition", "sell")
+
+
+def _insider_tx_sign(tx_str: str) -> float:
+    """양수=매수, 음수=매도, 0=기타(Exercise/Conversion/Gift 등 무시)."""
+    s = (tx_str or "").lower()
+    if any(k in s for k in _INSIDER_SELL_KEYWORDS):
+        return -1.0
+    if any(k in s for k in _INSIDER_BUY_KEYWORDS):
+        return 1.0
+    return 0.0
+
+
 def _insider_net_3m(t) -> Optional[float]:
-    """3개월 내부자 net 매수 — Sale 는 음수, Buy/Acquisition 은 양수로 부호화."""
+    """3개월 내부자 net 매수 — Sale 음수, Buy/Acquisition 양수, 기타 무시.
+
+    P1-4: 90일 윈도우 필터.
+    P1-5: 명시적 트랜잭션 타입 화이트리스트.
+    """
     try:
         df = t.get_insider_transactions()
         if df is None or df.empty:
             return 0.0
         if "Value" not in df.columns or "Transaction" not in df.columns:
             return 0.0
-        # Transaction 문자열에 'Sale' 포함 시 매도(음수). yfinance 의 Value 는
-        # 항상 절대값으로 들어와 단순 sum 시 매수/매도 상쇄가 안 됨 → 가드.
-        tx = df["Transaction"].fillna("").astype(str).str.lower()
-        sign = tx.apply(lambda s: -1.0 if "sale" in s else 1.0)
+        date_col = next((c for c in ("Start Date", "Date", "Transaction Date") if c in df.columns), None)
+        if date_col is not None:
+            try:
+                cutoff = pd.Timestamp.now(tz=None) - pd.Timedelta(days=90)
+                dts = pd.to_datetime(df[date_col], errors="coerce")
+                # tz-aware 비교 가드: cutoff 가 naive 면 dts 도 naive 로 정규화.
+                if hasattr(dts, "dt") and dts.dt.tz is not None:
+                    dts = dts.dt.tz_localize(None)
+                df = df[dts >= cutoff]
+            except Exception as e:
+                logging.debug("insider date filter failed: %s", e)
+        if df.empty:
+            return 0.0
+        sign = df["Transaction"].fillna("").astype(str).apply(_insider_tx_sign)
         return float((df["Value"].fillna(0) * sign).sum())
     except Exception as e:
         logging.debug("insider_net_3m failed: %s", e)

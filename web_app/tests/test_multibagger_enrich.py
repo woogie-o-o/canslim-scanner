@@ -51,7 +51,9 @@ def test_extract_yoy_handles_missing_row():
 
 
 def test_extract_52w_high_distance():
-    hist = pd.DataFrame({"Close": [100, 110, 120, 90, 100]})
+    # P1-3: 52w high 는 252봉 이상일 때만 산정. 그 안의 max 가 기준.
+    closes = [50.0] * 200 + [120.0] + [50.0] * 50 + [100.0]  # 252봉, last=100, max=120
+    hist = pd.DataFrame({"Close": closes})
     distance, ret_1m = me._price_signals(hist)
     assert abs(distance - (100/120 - 1)) < 1e-6
 
@@ -149,3 +151,83 @@ def test_snapshot_fundamentals_at_returns_none_on_exception(monkeypatch):
         raise RuntimeError("yf down")
     monkeypatch.setattr(me, "_get_ticker", boom)
     assert me.snapshot_fundamentals_at("FOO", "2021-01-01") is None
+
+
+# P1-3: 52w 가드
+def test_price_signals_returns_none_when_under_252_bars():
+    hist = pd.DataFrame({"Close": [100.0 + i for i in range(100)]})
+    distance, ret_1m = me._price_signals(hist)
+    assert distance is None  # 신규 상장 — 52w 데이터 부족
+    assert ret_1m is not None  # 1m 은 계산 가능
+
+
+def test_price_signals_uses_only_last_252_bars():
+    closes = [10.0] * 100 + [50.0] + [20.0] * 260  # 첫 100봉 + 스파이크 + 260봉
+    hist = pd.DataFrame({"Close": closes})
+    distance, _ = me._price_signals(hist)
+    # 마지막 252봉 안의 max(=20) 기준이므로 last(20)/high(20)-1 = 0
+    assert distance is not None and abs(distance) < 1e-6
+
+
+# P1-2: ROIC 동적 세율
+def test_effective_tax_rate_from_info():
+    rate = me._effective_tax_rate({"taxRate": 0.25}, pd.DataFrame())
+    assert rate == 0.25
+
+
+def test_effective_tax_rate_from_income_stmt():
+    income = pd.DataFrame(
+        {"2024-12-31": [100, 25]},
+        index=["PretaxIncome", "TaxProvision"],
+    )
+    rate = me._effective_tax_rate({}, income)
+    assert abs(rate - 0.25) < 1e-6
+
+
+def test_effective_tax_rate_fallback_when_unreasonable():
+    # 음수 pretax 또는 비정상 세율 → 21% fallback
+    rate = me._effective_tax_rate({"taxRate": 1.5}, pd.DataFrame())
+    assert rate == 0.21
+
+
+# P1-5: 트랜잭션 분류
+def test_insider_tx_sign_classifies_buy_sell_other():
+    assert me._insider_tx_sign("Open Market Purchase") == 1.0
+    assert me._insider_tx_sign("Sale at Market") == -1.0
+    assert me._insider_tx_sign("Disposition (Non Open Market)") == -1.0
+    assert me._insider_tx_sign("Exercise of Derivative") == 0.0
+    assert me._insider_tx_sign("Conversion of Note") == 0.0
+    assert me._insider_tx_sign("Gift") == 0.0
+
+
+# P1-4 + P1-5: 90일 필터 + 정확한 부호
+def test_insider_net_3m_filters_by_date_and_ignores_non_trades():
+    now = pd.Timestamp.now(tz=None)
+    df = pd.DataFrame({
+        "Start Date": [now - pd.Timedelta(days=10), now - pd.Timedelta(days=200),
+                       now - pd.Timedelta(days=30)],
+        "Transaction": ["Purchase", "Purchase", "Exercise of Derivative"],
+        "Value": [1_000_000, 5_000_000, 2_000_000],
+    })
+
+    class T:
+        def get_insider_transactions(self):
+            return df
+
+    # 200일 전 매수 제외(윈도우 밖), Exercise 제외(부호 0) → 100만 매수만
+    assert me._insider_net_3m(T()) == 1_000_000.0
+
+
+def test_insider_net_3m_net_buy_minus_sell():
+    now = pd.Timestamp.now(tz=None)
+    df = pd.DataFrame({
+        "Start Date": [now - pd.Timedelta(days=5), now - pd.Timedelta(days=10)],
+        "Transaction": ["Purchase", "Sale"],
+        "Value": [3_000_000, 1_000_000],
+    })
+
+    class T:
+        def get_insider_transactions(self):
+            return df
+
+    assert me._insider_net_3m(T()) == 2_000_000.0
