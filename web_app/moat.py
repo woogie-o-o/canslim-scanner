@@ -195,16 +195,16 @@ def _rule_based(sector: str, theme: str | None, mcap: float | None) -> dict:
         # 중소형은 라벨은 유지하되 detail만 약화
         pass
 
-    # 투기 테마 표시
-    if theme and theme in _SPECULATIVE_HINTS:
-        cat = NONE
-        label = "스토리·검증 전"
+    # MF-000: 투기 테마는 'story_risk' 별도 축으로만 표시 — 해자 카테고리는 덮지 않음.
+    # 라이선스·규제·특허 등 진짜 해자가 있는 스토리 종목(ASTS, OKLO 등) false negative 방지.
+    story_risk = bool(theme and theme in _SPECULATIVE_HINTS)
 
     return {
         "category": cat,
         "label": label,
         "detail": _CATEGORY_DETAIL.get(cat, ""),
         "source": "rule",
+        "story_risk": story_risk,
     }
 
 
@@ -325,28 +325,33 @@ def _resolve_one(row: dict) -> dict:
         return {"category": NONE, "label": "—", "detail": "", "source": "noop"}
 
     # 1순위: 큐레이션된 사전 — moat_data.json. 캐시 무시 (실시간 편집 반영).
+    sector = row.get("Sector") or ""
+    name = row.get("Name") or ticker
+    mcap = row.get("_MarketCap") or row.get("MarketCap")
+    theme = row.get("Theme") or row.get("SpeculativeTheme")
+    story_risk = bool(theme and theme in _SPECULATIVE_HINTS)
+
     overrides = _load_overrides()
     ov = overrides.get(ticker)
     if ov:
         cat = str(ov.get("category", NONE)).upper()
+        # MF-001: curated 가 speculative 룰을 이긴다. story_risk 는 별도 축으로 함께 노출.
         return {
             "category": cat if cat in (INTANGIBLE, SWITCHING, NETWORK, COST, EFFICIENT_SCALE, NONE) else NONE,
             "label": str(ov.get("label", _CATEGORY_LABEL.get(cat, ""))),
             "detail": str(ov.get("detail", _CATEGORY_DETAIL.get(cat, ""))),
             "source": "curated",
+            "story_risk": story_risk,
         }
 
     cached = _cache_read(ticker)
     if cached:
+        cached.setdefault("story_risk", story_risk)
         return cached
-
-    sector = row.get("Sector") or ""
-    name = row.get("Name") or ticker
-    mcap = row.get("_MarketCap") or row.get("MarketCap")
-    theme = row.get("Theme") or row.get("SpeculativeTheme")
 
     # 2순위: LLM (opt-in). 3순위: 섹터 규칙 폴백.
     data = _llm_generate(ticker, name, sector, mcap) or _rule_based(sector, theme, mcap)
+    data.setdefault("story_risk", story_risk)
     _cache_write(ticker, data)
     return data
 

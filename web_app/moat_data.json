@@ -6021,5 +6021,11 @@
     "detail": "남부 캘리포니아 SCE 규제 유틸리티 보유로 산불 회복·전력화 투자 수혜를 받습니다.",
     "confidence": "estimated"
   },
-  "_section_expansion_v2": "KOSPI/KOSDAQ + US 확장 (2026-05-25)"
+  "_section_expansion_v2": "KOSPI/KOSDAQ + US 확장 (2026-05-25)",
+  "ASTS": {
+    "category": "INTANGIBLE",
+    "label": "스펙트럼·궤도 라이선스",
+    "detail": "FCC IBFS 위성 스펙트럼 라이선스와 AT&T/Vodafone 등 글로벌 통신사 MOU로 D2C 위성 통신 진입장벽 확보. 경쟁 진입은 규제 승인 5~7년 소요.",
+    "confidence": "estimated"
+  }
 }
