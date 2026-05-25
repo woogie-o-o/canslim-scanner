@@ -390,16 +390,16 @@ function _renderEntryCard(d) {
       aqRow.style.display = 'none';
     }
   }
-  // 밀도 모드 적용 (기본 compact: 더보기존 접힘, 사용자 선택 localStorage 유지)
+  // 밀도 모드 적용 (기본 full: 상세 분석을 처음부터 펼침, 사용자 선택 localStorage 유지)
   _applyEntryDensity();
 }
 
 // 진입 카드 밀도 모드 — compact(요약 3존) | full(전체).
-// 기본 compact: 다수 사용자는 진입·손절·목표가1 + 결론이면 결정 가능.
+// 기본 full: 처음 보는 사용자가 계산 근거를 바로 확인할 수 있게 한다.
 // 고급 사용자가 펼치면 그 선택을 기억(= 향후 A/B 기준값).
 function _entryDensityMode() {
-  try { return localStorage.getItem('entryCardDensity') === 'full' ? 'full' : 'compact'; }
-  catch (e) { return 'compact'; }
+  try { return localStorage.getItem('entryCardDensity') === 'compact' ? 'compact' : 'full'; }
+  catch (e) { return 'full'; }
 }
 function _applyEntryDensity() {
   const det = document.getElementById('dp-entry-detail');
@@ -2302,6 +2302,9 @@ async function openDetail(ticker) {
   if (!overlay || !panel) { location.href = `/detail/${encodeURIComponent(ticker)}?market=${currentMarket}&strategy=${currentStrategy}`; return; }
 
   const seq = ++_detailSeq;
+  const isNewTicker = _detailOpenTicker !== ticker;
+  _detailOpenTicker = ticker;
+  if (isNewTicker) switchDpTab('canslim');
   _clearPanelDetail();
   overlay.classList.add('visible');
   panel.classList.add('open');
@@ -2561,9 +2564,6 @@ function _populatePanelDetail(d, skipFourAxis) {
 
   // 투자자 동향 카드
   _renderInvestorCard(d);
-
-  // CAN SLIM 탭으로 초기화
-  switchDpTab('canslim');
 
   // 1008-풀 한줄평 포스터 (4축 차트 위 상단)
   const haikuEl = document.getElementById('dp-fa-haiku');
@@ -2871,6 +2871,7 @@ function _fmtCap(v) {
 }
 
 let _detailSeq = 0;           // openDetail / _loadAqSignal stale-guard
+let _detailOpenTicker = null; // 상세 데이터 재렌더 시 현재 탭을 유지하기 위한 종목 추적
 let _dpFourAxisLoadedFor = null;
 let _dpFourAxisLoadingFor = null;
 let _dpFourAxisReqSeq = 0;
@@ -3735,6 +3736,14 @@ function _entryColorClass(entry) {
   return 'history-cell-empty';
 }
 
+function toggleHistoryLegend() {
+  var legend = document.getElementById('dp-history-legend');
+  var btn = document.getElementById('dp-history-legend-toggle');
+  if (!legend) return;
+  var isHidden = legend.classList.toggle('is-hidden');
+  if (btn) btn.textContent = isHidden ? '범례 보기 ▼' : '범례 닫기 ▲';
+}
+
 function loadSignalHistory(ticker, market) {
   var card = document.getElementById('dp-history-card');
   fetch('/api/signal-history/' + encodeURIComponent(ticker) + '?market=' + encodeURIComponent(market))
@@ -4052,13 +4061,13 @@ const _MACRO_DEFS = [
   { key: 'nasdaq',  label: '나스닥',      fixed: 2, invert: false },
   { key: 'kospi',   label: 'KOSPI',       fixed: 2, invert: false },
   { key: 'usdkrw',  label: '원/달러',     fixed: 1, invert: true  },
+  { key: 'kr_rate', label: '韓기준금리',  fixed: 2, invert: false, suffix: '%' },
+  { key: 'us_rate', label: '美기준금리',  fixed: 2, invert: false, suffix: '%' },
   { key: 'dxy',     label: 'DXY',         fixed: 2, invert: true  },
   { key: 'us10y',   label: '美10Y',       fixed: 2, invert: false, suffix: '%' },
   { key: 'gold',    label: '금',          fixed: 1, invert: false },
   { key: 'wti',     label: 'WTI',         fixed: 2, invert: false },
   { key: 'btc',     label: 'BTC',         fixed: 0, invert: false },
-  { key: 'us_rate', label: '美기준금리',  fixed: 2, invert: false, suffix: '%' },
-  { key: 'kr_rate', label: '韓기준금리',  fixed: 2, invert: false, suffix: '%' },
 ];
 
 async function loadMacro() {

@@ -28,7 +28,7 @@ html, body {
   /* topbar / macro-events-strip / disclaimer / macro-strip / stats-bar / ix-discovery-card / content
      1fr 는 마지막(content) 만 — stats-bar 가 1fr 를 먹어 그 아래 빈 공간이 생기는 버그 방지. */
   grid-template-rows: 60px auto auto auto auto auto 1fr;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   max-width: 100vw;
 }
@@ -62,10 +62,18 @@ html, body {
   font-size: 12.5px;
   white-space: nowrap;
   overflow-x: auto;
-  scrollbar-width: none;
+  scrollbar-width: thin;
   z-index: 90;
 }
-.macro-strip::-webkit-scrollbar { display: none; }
+.macro-strip::-webkit-scrollbar { height: 4px; }
+.macro-strip::-webkit-scrollbar-track { background: transparent; }
+.macro-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+.macro-items {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: none;
+}
 .macro-signal {
   display: inline-flex;
   align-items: center;
@@ -74,6 +82,7 @@ html, body {
   padding: 3px 12px;
   border-radius: 999px;
   letter-spacing: -0.3px;
+  flex: none;
 }
 .macro-signal.stable  { background: rgba(0,192,115,0.12);  color: #00A862; }
 .macro-signal.caution { background: rgba(255,176,32,0.15);  color: #C77700; }
@@ -84,6 +93,7 @@ html, body {
   align-items: baseline;
   gap: 5px;
   color: var(--text-secondary);
+  flex: none;
 }
 .macro-item .mi-label { font-weight: 600; color: var(--text-tertiary); }
 .macro-item .mi-val   { font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; }
@@ -99,6 +109,7 @@ html, body {
   gap: 8px;
   color: var(--text-tertiary);
   font-size: 11px;
+  flex: none;
 }
 .macro-stale-badge {
   background: rgba(255,176,32,0.18);
@@ -349,6 +360,7 @@ html, body {
   display: grid;
   grid-template-columns: 200px 1fr;
   overflow: hidden;
+  min-height: 0;
 }
 .mobile-stock-list { display: none; }
 
@@ -465,8 +477,12 @@ html, body {
 
 /* ── Main (Stock Table) ────────────────────────────────────── */
 .main {
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 16px 24px;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* Stock Table */
@@ -475,17 +491,25 @@ html, body {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
-  overflow: hidden;
+  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: 8px;
+  scrollbar-gutter: stable;
 }
 
 table.stock-table {
   width: 100%;
+  min-width: 1120px;
   border-collapse: collapse;
 }
 
 .stock-table thead tr {
   background: var(--surface-subtle);
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 .stock-table th {
   padding: 10px 14px;
@@ -1493,6 +1517,19 @@ td.score-col {
 .main::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb,
 .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.stock-table-wrap::-webkit-scrollbar { height: 14px; width: 8px; }
+.stock-table-wrap::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--surface-page) 70%, transparent);
+  border-radius: 999px;
+  margin: 0 12px;
+}
+.stock-table-wrap::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--brand) 48%, var(--border));
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+.stock-table-wrap { scrollbar-color: color-mix(in srgb, var(--brand) 48%, var(--border)) transparent; }
 
 /* ── Detail Modal (Center Popup) ───────────────────────────── */
 .detail-overlay {
@@ -1514,7 +1551,7 @@ td.score-col {
 
 .detail-panel {
   width: min(980px, 100%);
-  height: min(1040px, calc(100vh - 32px));
+  height: min(1040px, calc(100dvh - 32px));
   background: var(--surface-page);
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -1832,6 +1869,61 @@ td.score-col {
 .grade-badge.grade-C { color: #fff; background: #9CA3AF; }
 
 .history-strip { display: flex; flex-direction: column; gap: 4px; }
+.history-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.history-title { font-size: 11px; color: var(--text-tertiary); font-weight: 700; }
+.history-legend-toggle {
+  border: none;
+  background: transparent;
+  color: var(--brand);
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+.history-legend {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 12px;
+  padding: 9px 10px;
+  margin-bottom: 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--card) 82%, var(--surface-page));
+}
+.history-legend.is-hidden { display: none; }
+.history-legend-col { min-width: 0; }
+.history-legend-title {
+  margin-bottom: 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+.history-legend-items { display: flex; flex-direction: column; gap: 4px; }
+.history-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  line-height: 1.25;
+}
+.history-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+  border: 1px solid transparent;
+}
+.history-dot.grade-S { background: #7C3AED; }
+.history-dot.grade-A { background: #2563EB; }
+.history-dot.grade-B { background: #16A34A; }
+.history-dot.grade-C { background: #9CA3AF; }
+.history-dot.entry-green { background: #16A34A; }
+.history-dot.entry-yellow { background: #EAB308; }
+.history-dot.entry-red { background: #DC2626; }
+.history-dot.entry-empty { background: var(--surface-page); border-color: rgba(0,0,0,0.12); }
 .history-row { display: flex; gap: 3px; }
 .history-cell { flex: 1; height: 16px; border-radius: 3px; min-width: 6px; }
 .history-cell-empty { background: var(--surface-page); border: 1px solid rgba(0,0,0,0.08); }
@@ -1844,7 +1936,10 @@ td.score-col {
 .history-cell.entry-red { background: #DC2626; }
 .history-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
 .history-empty-msg { font-size: 12px; color: var(--text-tertiary); }
-@media (max-width: 640px) { .history-cell { height: 12px; min-width: 4px; } }
+@media (max-width: 640px) {
+  .history-cell { height: 12px; min-width: 4px; }
+  .history-legend { grid-template-columns: 1fr; gap: 8px; }
+}
 
 /* Story stock chip — quality grade scale not applicable */
 .story-chip {
@@ -2050,7 +2145,7 @@ td.score-col {
 }
 .cp-overlay.visible { display: flex; align-items: flex-end; justify-content: center; }
 .cp-sheet {
-  width: 100%; max-width: 520px; max-height: 85vh;
+  width: 100%; max-width: 520px; max-height: 85dvh;
   background: var(--card); border-radius: 20px 20px 0 0;
   padding: 0 20px 24px; overflow-y: auto;
   animation: cpSlideUp 0.25s var(--ease-out);
@@ -2380,7 +2475,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .app-shell {
     grid-template-rows: 52px auto auto auto 1fr;
     height: 100dvh;
-    height: 100vh; /* fallback */
     max-width: 100vw;
     overflow-x: hidden;
   }
@@ -2419,6 +2513,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     height: 32px;
     font-size: 11px;
   }
+  .macro-items { gap: 10px; }
   .macro-meta { display: none; }
 
   .stats-bar {
@@ -2608,9 +2703,8 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .detail-panel {
     width: 100%;
     height: 100dvh;
-    height: 100vh;
     border-radius: 0;
-    max-height: none;
+    max-height: 100dvh;
   }
   .dp-body { flex-direction: column; }
   .dp-left {
@@ -2663,6 +2757,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 
   .macro-strip { height: 28px; font-size: 10.5px; gap: 8px; }
   .macro-signal { padding: 2px 8px; font-size: 10.5px; }
+  .macro-items { gap: 8px; }
 
   .stats-bar .stat-item:nth-child(n+3):not(:last-child) { display: none; }
   .chip { min-height: 44px; padding: 0 12px; font-size: 12px; }
@@ -2947,7 +3042,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   <!-- Macro Strip (신호등 띠) -->
   <div class="macro-strip" id="macro-strip">
     <span class="macro-signal unknown" id="macro-signal">⚪ <span>로딩…</span></span>
-    <div id="macro-items" style="display:flex;align-items:center;gap:14px;"></div>
+    <div id="macro-items" class="macro-items"></div>
     <span class="macro-meta" id="macro-meta"></span>
   </div>
 
@@ -3274,7 +3369,30 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 
         <!-- 시그널 이력 타임라인 -->
         <div id="dp-history-card" class="dp-metrics-card" style="display:none; padding:14px 16px;">
-          <div style="font-size:11px;color:var(--text-tertiary);font-weight:600;margin-bottom:8px;">시그널 이력</div>
+          <div class="history-head">
+            <div class="history-title">시그널 이력</div>
+            <button type="button" id="dp-history-legend-toggle" class="history-legend-toggle" onclick="toggleHistoryLegend()">범례 닫기 ▲</button>
+          </div>
+          <div id="dp-history-legend" class="history-legend">
+            <div class="history-legend-col">
+              <div class="history-legend-title">종합 등급</div>
+              <div class="history-legend-items">
+                <div class="history-legend-item"><span class="history-dot grade-S"></span><span>S등급 (75점+)</span></div>
+                <div class="history-legend-item"><span class="history-dot grade-A"></span><span>A등급 (60점+)</span></div>
+                <div class="history-legend-item"><span class="history-dot grade-B"></span><span>B등급 (45점+)</span></div>
+                <div class="history-legend-item"><span class="history-dot grade-C"></span><span>C등급 (~45점)</span></div>
+              </div>
+            </div>
+            <div class="history-legend-col">
+              <div class="history-legend-title">진입 타이밍</div>
+              <div class="history-legend-items">
+                <div class="history-legend-item"><span class="history-dot entry-green"></span><span>진입하기 좋은 구간</span></div>
+                <div class="history-legend-item"><span class="history-dot entry-yellow"></span><span>눌림대기 · 타이밍 조금 기다려야</span></div>
+                <div class="history-legend-item"><span class="history-dot entry-red"></span><span>복잡함 · 진입 비추천</span></div>
+                <div class="history-legend-item"><span class="history-dot entry-empty"></span><span>데이터 없음</span></div>
+              </div>
+            </div>
+          </div>
           <div id="dp-history-strip"></div>
           <div class="history-axis"><span id="dp-history-start"></span><span id="dp-history-end"></span></div>
         </div>
@@ -3352,7 +3470,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
             </div>
           </div>
           <!-- ③ 더보기존 (토글): 나머지 전부 -->
-          <div id="dp-entry-detail" class="entry-detail">
+          <div id="dp-entry-detail" class="entry-detail open">
             <div class="entry-meta-grid" style="margin-top:0;">
               <div><span class="meta-lbl">목표가2</span> <span class="meta-val" id="dp-entry-px-t2" style="color:var(--success);">—</span></div>
               <div><span class="meta-lbl">유형</span> <span class="meta-val" id="dp-entry-type">—</span></div>
@@ -3372,8 +3490,8 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
               <div id="dp-aq-reasons" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; font-size:10px;"></div>
             </div>
           </div>
-          <div class="entry-detail-toggle" onclick="document.getElementById('dp-entry-detail').classList.toggle('open'); this.querySelector('.arrow').textContent = document.getElementById('dp-entry-detail').classList.contains('open') ? '▲' : '▼';">
-            <span class="arrow">▼</span> 상세 분석
+          <div id="dp-entry-density-toggle" class="entry-detail-toggle" onclick="_toggleEntryDensity()">
+            <span class="arrow">▲</span> <span class="dt-label">간단히 보기</span>
           </div>
         </div>
 
@@ -3433,7 +3551,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 </div>
 <!-- ── 공유 카드 모달 ──────────────────────────────────────── -->
 <div id="share-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;" onclick="if(event.target===this)closeShareModal()">
-  <div style="background:var(--card);border-radius:16px;padding:24px;max-width:660px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-modal);">
+  <div style="background:var(--card);border-radius:16px;padding:24px;max-width:660px;width:95%;max-height:90dvh;overflow-y:auto;box-shadow:var(--shadow-modal);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h3 style="font-size:16px;font-weight:700;">공유 카드 미리보기</h3>
       <div style="display:flex;gap:8px;">
