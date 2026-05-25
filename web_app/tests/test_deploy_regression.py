@@ -250,3 +250,68 @@ def test_validate_ticker_accepts_legitimate(good):
 def test_validate_ticker_rejects_malicious(bad):
     from web_app.app import _validate_ticker
     assert _validate_ticker(bad) is None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7) STORY_STOCK veto — 월가 패널 P0 회귀 방지
+#    "컨셉 회사지 사업 회사가 아닌 거 언제 깨달을 거임?" 같은 모욕 톤이
+#    해자 보유 우량주(AAPL/NVDA형) 또는 per>=25+eps_g>=10 일반 우량주에
+#    부착되던 회귀 차단. 4개 퀀트 에이전트 컨센서스 기반.
+# ─────────────────────────────────────────────────────────────────────────────
+import sys as _sys
+import pathlib as _pathlib
+_WA = _pathlib.Path(__file__).resolve().parents[1]
+if str(_WA) not in _sys.path:
+    _sys.path.insert(0, str(_WA))
+
+
+_VETO_CASES = [
+    # (이름, 입력 dict, "STORY_STOCK 이면 안 된다" / "STORY_STOCK 이어야 한다")
+    ("해자+고PE+중간성장 (AAPL형)",
+     {"Ticker": "AAPL", "MoatCategory": "SWITCHING", "_PER": 30, "_ROE": 0.45,
+      "_EPSGrowth": 0.12, "_OperatingMargin": 0.30, "TotalScore": 75, "Mom12M": 0.25},
+     "not_story"),
+    ("해자+극단모멘텀 (NVDA형)",
+     {"Ticker": "NVDA", "MoatCategory": "INTANGIBLE", "_PER": 80, "_ROE": 0.55,
+      "_EPSGrowth": 0.80, "_OperatingMargin": 0.55, "TotalScore": 85,
+      "Mom12M": 1.50, "EntryStatus": "GREEN"},
+     "not_story"),
+    ("우량주 per>=25 (라인 4295 함정)",
+     {"Ticker": "MID", "MoatCategory": "NONE", "_PER": 28, "_ROE": 0.18,
+      "_EPSGrowth": 0.15, "_OperatingMargin": 0.20, "TotalScore": 55, "Mom12M": 0.10},
+     "not_story"),
+    ("진짜 컨셉주 (해자X 적자)",
+     {"Ticker": "FAKE", "MoatCategory": "NONE", "_PER": 50, "_ROE": -0.05,
+      "_EPSGrowth": 0.12, "_OperatingMargin": -0.10, "TotalScore": 35, "Mom12M": 0.40},
+     "story"),
+    ("해자 결측 + 적자 + 테마 (BUBBLE 우회)",
+     {"Ticker": "KORSTORY", "MoatCategory": "", "_PER": 35, "_ROE": 0.03,
+      "_EPSGrowth": 0.12, "_OperatingMargin": 0.02, "TotalScore": 40,
+      "Mom12M": 0.30, "_Mom3M": 0.05},
+     "story"),
+]
+
+
+@pytest.mark.parametrize("name,row,expect", _VETO_CASES)
+def test_story_stock_veto_routing(name, row, expect):
+    """월가 패널 P0: STORY_STOCK 오분류 회귀 차단."""
+    import one_liner
+    bucket = one_liner._raw_bucket(row)
+    if expect == "not_story":
+        assert bucket != "STORY_STOCK", (
+            f"{name}: 해자/우량주가 STORY_STOCK 으로 분류됐다 (bucket={bucket}). "
+            f"_veto_story_stock={one_liner._veto_story_stock(row)}"
+        )
+    else:
+        assert bucket == "STORY_STOCK", (
+            f"{name}: 진짜 컨셉주가 STORY_STOCK 으로 라우팅되지 않았다 (bucket={bucket})"
+        )
+
+
+def test_veto_helper_exists_and_signature():
+    """_veto_story_stock 헬퍼가 사라지면 veto 게이트 전체가 무력화 — 존재 보장."""
+    import one_liner
+    assert hasattr(one_liner, "_veto_story_stock")
+    assert one_liner._veto_story_stock({"MoatCategory": "SWITCHING"}) is True
+    assert one_liner._veto_story_stock({"_ROE": 0.20}) is True  # ROE 20%
+    assert one_liner._veto_story_stock({}) is False  # 빈 dict → veto 안 함
