@@ -95,6 +95,7 @@ import re
 import urllib.request
 import urllib.error
 import valuation_engine
+from entry_pricing import strong_entry_floor as _strong_entry_floor
 from us_company_info import US_COMPANY_INFO as _US_COMPANY_INFO
 from kr_company_info import KR_COMPANY_INFO as _KR_COMPANY_INFO
 
@@ -6046,10 +6047,8 @@ class QuantNexusApp:
                     pass
 
                 if entry_status == "STRONG":
-                    _entry_raw = min(cur, _vwap_px if _vwap_px > 0 else cur, cur - 0.3 * _atr_abs)
-                    # STRONG 은 살짝 풀백(≤ -3%) 안에서만 의미. 그 이상 깊으면
-                    # 라벨('진입적기')과 진입가 갭이 모순 → 사용자 혼란.
-                    _entry_raw = max(_entry_raw, cur * 0.97)
+                    # EG-002: ATR 정규화 floor (-3% 와 -0.5*ATR 중 더 보수적인 값)
+                    _entry_raw = _strong_entry_floor(cur, _vwap_px, _atr_abs)
                     _entry_type = "STRONG · 살짝 풀백"
                 elif entry_status == "NEUTRAL":
                     _entry_raw = min(_vwap_px if _vwap_px > 0 else cur,
@@ -6077,6 +6076,14 @@ class QuantNexusApp:
                 _entry_type = "현재가 (계산실패)"
                 entry_discount = 0.0
                 _rr_adj = atr.get("rr_ratio", 0.0)
+
+            # EG-004: 자동 강등 — 갭이 5% 초과면 STRONG 신뢰성 흔들림 → NEUTRAL.
+            # EG-002 floor 가 있어 정상 경로에선 발생 안 함; defense-in-depth.
+            degradation_reason = None
+            if entry_status == "STRONG" and entry_discount > 0.05:
+                entry_status = "NEUTRAL"
+                status_label = "NEUTRAL"
+                degradation_reason = "gap_too_deep"
 
             # ── 파생 표시 필드 (프론트 분기 제거 · 브레인스토밍 #2/#4) ────
             # headline_action : 카드 최상단 1-단어 결정 (점수보다 즉시 행동가능)
@@ -6140,6 +6147,9 @@ class QuantNexusApp:
                 "entry": entry_price,            # ← 풀백 지정가
                 "entry_type": _entry_type,
                 "entry_discount": round(entry_discount * 100, 2),  # 현재가 대비 %
+                "atr_pct": round(float(atr.get("atr_percent", 0.0) or 0.0), 2),  # EG-003: ATR 정규화 임계값용
+                "as_of_ts": int(time.time()),     # EG-005: stale 가드용 (5분 초과 시 라벨 stale)
+                "degradation_reason": degradation_reason,  # EG-004: 'gap_too_deep' 등
                 "current": round(cur, 2),
                 "stop":  round(atr.get("stop_loss_long", cur), 2),
                 "t1":    round(atr.get("take_profit_1",  cur), 2),

@@ -219,3 +219,9 @@ html, body {
   --shadow-elevated: none;
   --shadow-modal:    none;
 }
+
+/* EG-005: stale 라벨 (>5분 경과) 회색 처리 */
+.entry-stale {
+  color: var(--text-tertiary) !important;
+  opacity: 0.7;
+}

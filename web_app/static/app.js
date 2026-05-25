@@ -187,22 +187,28 @@ const _ENTRY_LABEL = { STRONG: '진입적기', NEUTRAL: '눌림대기', AVOID: '
 // disc<0 → '풀백대기' (현재가가 entry 위, 추격),
 // atrPct 있으면 disc/atrPct 비율로 — <0.5 진입적기, <1.0 분할진입, 그 외 풀백대기.
 // atrPct null/0 이면 절대값 fallback (1.5%/5%).
-// 이유: ATR 6% 종목의 -4% 갭은 정상이지만, ATR 0.5% 종목의 -4% 는 비정상.
-function _entryLabel(st, disc, atrPct) {
+// asOfTs (epoch sec) 가 5분 초과 stale 면 라벨에 ' (stale)' 접미사 (EG-005).
+function _entryLabel(st, disc, atrPct, asOfTs) {
+  let label;
   if (st === 'STRONG' || st === 'GREEN') {
-    if (disc == null || isNaN(disc)) return '진입적기';
-    if (disc < 0) return '풀백대기';
-    if (atrPct != null && !isNaN(atrPct) && atrPct > 0) {
+    if (disc == null || isNaN(disc)) {
+      label = '진입적기';
+    } else if (disc < 0) {
+      label = '풀백대기';
+    } else if (atrPct != null && !isNaN(atrPct) && atrPct > 0) {
       const r = disc / atrPct;
-      if (r < 0.5) return '진입적기';
-      if (r < 1.0) return '분할진입';
-      return '풀백대기';
+      label = (r < 0.5) ? '진입적기' : (r < 1.0) ? '분할진입' : '풀백대기';
+    } else {
+      label = (disc < 1.5) ? '진입적기' : (disc < 5.0) ? '분할진입' : '풀백대기';
     }
-    if (disc < 1.5) return '진입적기';
-    if (disc < 5.0) return '분할진입';
-    return '풀백대기';
+  } else {
+    label = _ENTRY_LABEL[st] || '';
   }
-  return _ENTRY_LABEL[st] || '';
+  if (label && asOfTs != null && !isNaN(asOfTs) && asOfTs > 0) {
+    const ageSec = Date.now() / 1000 - asOfTs;
+    if (ageSec > 300) label += ' (stale)';
+  }
+  return label;
 }
 
 // 종합점수(Y) × 진입 타이밍(X) 2축 사분면 배지
@@ -268,13 +274,23 @@ function _renderEntryCard(d) {
   // 구버전 캐시 스캔(파생필드 없음)만 "관망 · BB 과확장 · …" 문자열을 분해.
   const _pp = phrase.split(' · ');
   // 진입 타이밍 라벨은 리스트 배지와 같은 어휘(진입적기/눌림대기/부적합)로 통일.
-  const _headline = _entryLabel(st, plan.entry_discount, plan.atr_pct) || plan.headline_action || _pp[0] || phrase;
-  const _reason = plan.one_reason || _pp.slice(1).filter(Boolean).slice(0, 2).join(' · ');
+  const _headline = _entryLabel(st, plan.entry_discount, plan.atr_pct, plan.as_of_ts) || plan.headline_action || _pp[0] || phrase;
+  let _reason = plan.one_reason || _pp.slice(1).filter(Boolean).slice(0, 2).join(' · ');
+  // EG-004: 자동 강등 시 부제에 경고 prepend
+  if (plan.degradation_reason === 'gap_too_deep') {
+    _reason = '⚠ 갭이 깊어 NEUTRAL로 강등' + (_reason ? ' · ' + _reason : '');
+  }
   setText('dp-entry-phrase', _headline);
   const _subEl = document.getElementById('dp-entry-subreason');
   if (_subEl) _subEl.textContent = _reason;
   const _phEl = document.getElementById('dp-entry-phrase');
-  if (_phEl) _phEl.style.color = cls === 'green' ? 'var(--success)' : cls === 'red' ? 'var(--destructive)' : cls === 'yellow' ? 'var(--brand)' : 'var(--text-primary)';
+  if (_phEl) {
+    _phEl.style.color = cls === 'green' ? 'var(--success)' : cls === 'red' ? 'var(--destructive)' : cls === 'yellow' ? 'var(--brand)' : 'var(--text-primary)';
+    // EG-005: stale 시 회색 처리
+    const _isStale = _headline && /\(stale\)/.test(_headline);
+    _phEl.classList.toggle('entry-stale', _isStale);
+    if (_isStale) _phEl.style.color = 'var(--text-tertiary)';
+  }
   setText('dp-entry-score', score != null ? String(score) : '—');
   const fill = document.getElementById('dp-entry-bar-fill');
   if (fill) fill.style.width = (score != null ? Math.max(0, Math.min(100, score)) : 0) + '%';
@@ -448,7 +464,8 @@ function _entryLight(stock) {
   const ico = _ENTRY_ICON[st] || '⚪';
   const _disc = (stock.EntryPlan && stock.EntryPlan.entry_discount != null) ? stock.EntryPlan.entry_discount : null;
   const _atrPct = (stock.EntryPlan && stock.EntryPlan.atr_pct != null) ? stock.EntryPlan.atr_pct : null;
-  const lbl = _entryLabel(st, _disc, _atrPct);
+  const _asOf = (stock.EntryPlan && stock.EntryPlan.as_of_ts != null) ? stock.EntryPlan.as_of_ts : null;
+  const lbl = _entryLabel(st, _disc, _atrPct, _asOf);
   const cls = _ENTRY_COLOR[st] || 'neutral';
   const phr = stock.EntryPhrase || '';
   const sc  = stock.EntryScore != null ? `진입 타이밍 ${stock.EntryScore}/100` : '';
