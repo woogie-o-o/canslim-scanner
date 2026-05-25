@@ -63,6 +63,51 @@ def test_healthz_exposes_gzip_status():
     assert isinstance(body["gzip"], bool)
 
 
+def test_flask_compress_actually_installed_and_active():
+    """gzip 키 존재만 검증하면 silent fail 감지 못 함 — 값이 True 여야 한다.
+
+    회귀 사례: flask-compress 가 requirements.txt 에는 있지만 운영 venv 에 미설치 →
+    _FLASK_COMPRESS_OK=False → /api/scan 14MB raw 전송 → 모바일/일부 회선 타임아웃.
+    """
+    import importlib
+    # 1) 모듈 import 자체가 되어야 한다 (pip install 누락 즉시 감지).
+    flask_compress = importlib.import_module("flask_compress")
+    assert hasattr(flask_compress, "Compress")
+    # 2) app.py 부트 시 Compress(app) 가 실제로 실행됐어야 한다.
+    from web_app.app import _FLASK_COMPRESS_OK
+    assert _FLASK_COMPRESS_OK is True, (
+        "flask_compress 가 미설치되거나 Compress(app) wiring 이 깨졌습니다 — "
+        "/api/scan 응답이 비압축으로 나가 모바일 사용자가 타임아웃됩니다."
+    )
+    # 3) /healthz 도 같은 진실을 노출해야 한다.
+    from web_app.app import app
+    body = app.test_client().get("/healthz").get_json()
+    assert body.get("gzip") is True
+
+
+def test_api_scan_response_carries_content_encoding():
+    """End-to-end: Accept-Encoding 보낸 클라이언트가 압축 응답을 받는지.
+
+    flask-compress 가 올라가 있어도 라우트/미들웨어 순서가 깨지면 압축이 빠질 수 있다.
+    실제 응답 헤더로 검증해 silent regression 차단.
+    """
+    from web_app.app import app
+    client = app.test_client()
+    resp = client.get(
+        "/api/scan?market=US&strategy=BALANCED",
+        headers={"Accept-Encoding": "gzip, br"},
+    )
+    assert resp.status_code == 200
+    enc = resp.headers.get("Content-Encoding", "")
+    # 빈 응답(워밍 중)은 압축 안 될 수 있으므로 본문 크기로 가드.
+    body_len = int(resp.headers.get("Content-Length") or len(resp.data) or 0)
+    if body_len < 5000:
+        pytest.skip(f"response too small to compress ({body_len}B) — warming cache")
+    assert enc in ("gzip", "br", "deflate", "zstd"), (
+        f"flask-compress 가 응답에 Content-Encoding 을 못 붙임 — got {enc!r}, size={body_len}B"
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 4) /api/scan 엔드포인트 존재 + 200
 # ─────────────────────────────────────────────────────────────────────────────
