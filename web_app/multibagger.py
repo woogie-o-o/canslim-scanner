@@ -325,7 +325,13 @@ def _pre_filter_F1(base: list, t: dict) -> list:
 _pre_filter_F1_F2 = _pre_filter_F1
 
 
-def _row_summary(ticker: str, f: Fundamentals, cls: GateResult, score: float) -> dict:
+# curated moat 가중치 — 큐레이션된 해자만 4% 보너스 (룰/LLM 폴백은 0).
+# 동점대(±1~2점) 타이브레이커 수준. 펀더멘털 게이트는 건드리지 않는다.
+MOAT_CURATED_BOOST = 1.04
+
+
+def _row_summary(ticker: str, f: Fundamentals, cls: GateResult, score: float,
+                 moat_curated: bool = False, moat_label: Optional[str] = None) -> dict:
     return {
         "ticker": ticker,
         "score": round(score, 1),
@@ -342,6 +348,8 @@ def _row_summary(ticker: str, f: Fundamentals, cls: GateResult, score: float) ->
         "gates_passed": sorted(cls.gates_passed),
         "gates_failed": sorted(cls.gates_failed),
         "gates_missing": sorted(cls.gates_missing),
+        "moat_curated": moat_curated,
+        "moat_label": moat_label,
     }
 
 
@@ -359,6 +367,17 @@ def build_results(base_rows: list, dgs10_pct: Optional[float],
 
     t = thresholds or DEFAULTS
     candidates = _pre_filter_F1(base_rows, t)
+
+    # curated moat 룩업 — base_rows 에서 MoatData.source=="curated" 만 채택.
+    # rule/llm 폴백은 정확도가 낮아 스코어에 반영 안 함.
+    moat_curated_map: dict[str, str] = {}
+    for r in base_rows:
+        sym_raw = r.get("Ticker") or r.get("ticker") or r.get("symbol")
+        if not sym_raw:
+            continue
+        md = r.get("MoatData") or {}
+        if md.get("source") == "curated":
+            moat_curated_map[str(sym_raw).upper()] = str(md.get("label") or "")
 
     # 가능한 경우 hist 를 1회 batch 로 prefetch (N+1 완화).
     hist_cache = {}
@@ -393,7 +412,13 @@ def build_results(base_rows: list, dgs10_pct: Optional[float],
             if cls.layer not in ("PASS", "WATCH"):
                 continue
             score = compose_score(f)
-            row = _row_summary(sym, f, cls, score)
+            sym_up = sym.upper()
+            moat_label = moat_curated_map.get(sym_up)
+            if moat_label is not None and score > 0:
+                score = min(100.0, score * MOAT_CURATED_BOOST)
+            row = _row_summary(sym, f, cls, score,
+                               moat_curated=moat_label is not None,
+                               moat_label=moat_label)
             (pass_rows if cls.layer == "PASS" else watch_rows).append(row)
 
     def _blank_for_sort(r):

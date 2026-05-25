@@ -70,3 +70,39 @@ def test_tie_break_prefers_q4():
     a = mb.Fundamentals(ebitda_yoy=0.30, assets_yoy=0.05)  # Q4 강
     b = mb.Fundamentals(ebitda_yoy=0.10, assets_yoy=0.10)  # Q4 약
     assert mb.tie_break_key(a)[0] > mb.tie_break_key(b)[0]
+
+
+def _fake_enrich_factory(f: mb.Fundamentals):
+    def _enrich(sym, dgs10_pct=None):
+        return f
+    return _enrich
+
+
+def test_curated_moat_boosts_score_only_for_tagged_ticker():
+    """curated 해자 보유 종목만 4% 가중 — rule/llm/none 폴백은 무가중."""
+    f = mb.Fundamentals(
+        market_cap=2e9, ebitda=2e8, fcf=1e8,
+        roic=0.20, fcf_yield=0.10, pb=2.0,
+        revenue_yoy=0.15, ebitda_yoy=0.20, assets_yoy=0.05,
+        icr=10.0, debt_ebitda=1.0,
+        from_52w_high=-0.10, return_1m=0.05,
+        sector="Healthcare",
+    )
+    base = [
+        {"Ticker": "MOAT", "market_cap": 2e9,
+         "MoatData": {"source": "curated", "label": "브랜드·IP"}},
+        {"Ticker": "PLAIN", "market_cap": 2e9,
+         "MoatData": {"source": "rule", "label": "브랜드 충성도"}},
+        {"Ticker": "NOTAG", "market_cap": 2e9},
+    ]
+    out = mb.build_results(base, dgs10_pct=4.0, enrich_fn=_fake_enrich_factory(f))
+    rows = {r["ticker"]: r for r in out["pass"] + out["watch"]}
+    assert set(rows.keys()) == {"MOAT", "PLAIN", "NOTAG"}
+    assert rows["MOAT"]["moat_curated"] is True
+    assert rows["PLAIN"]["moat_curated"] is False
+    assert rows["NOTAG"]["moat_curated"] is False
+    # 동일 Fundamentals → MOAT 만 1.04배 (반올림 오차 허용).
+    assert rows["MOAT"]["score"] >= rows["PLAIN"]["score"] * 1.03
+    assert rows["MOAT"]["score"] == rows["PLAIN"]["score"] == rows["NOTAG"]["score"] or \
+           rows["MOAT"]["score"] > rows["PLAIN"]["score"]
+    assert rows["PLAIN"]["score"] == rows["NOTAG"]["score"]
