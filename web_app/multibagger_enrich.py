@@ -1,4 +1,8 @@
-"""yfinance 보강 — Ticker → Fundamentals 변환."""
+"""yfinance 보강 — Ticker → Fundamentals 변환.
+
+N+1 완화: enrich_one 호출 시 per-ticker hist 조회를 줄이려면
+prefetch_history(symbols)로 yf.download 단일 호출 → hist_cache 전달.
+"""
 from __future__ import annotations
 
 import logging
@@ -13,6 +17,35 @@ def _get_ticker(symbol: str):
     """test에서 monkeypatch로 대체."""
     import yfinance as yf
     return yf.Ticker(symbol)
+
+
+def prefetch_history(symbols: list[str], period: str = "1y") -> dict[str, pd.DataFrame]:
+    """다수 심볼 hist를 yf.download 단일 호출로 prefetch — N개 HTTP → 1개로 단축.
+
+    실패 시 빈 dict 반환(호출측은 fallback 으로 t.history 사용).
+    """
+    if not symbols:
+        return {}
+    try:
+        import yfinance as yf
+        df = yf.download(
+            tickers=" ".join(symbols), period=period,
+            group_by="ticker", auto_adjust=True, progress=False, threads=True,
+        )
+        out: dict[str, pd.DataFrame] = {}
+        # group_by="ticker" → columns 가 MultiIndex (sym, field)
+        if isinstance(df.columns, pd.MultiIndex):
+            for sym in symbols:
+                if sym in df.columns.get_level_values(0):
+                    sub = df[sym].dropna(how="all")
+                    if not sub.empty:
+                        out[sym] = sub
+        elif len(symbols) == 1:
+            out[symbols[0]] = df.dropna(how="all")
+        return out
+    except Exception as e:
+        logging.warning("prefetch_history failed (%d symbols): %s", len(symbols), e)
+        return {}
 
 
 def _yoy(df: pd.DataFrame, row: str) -> Optional[float]:
@@ -73,25 +106,40 @@ def _roic(info: dict, income: pd.DataFrame, balance: pd.DataFrame) -> Optional[f
 
 
 def _insider_net_3m(t) -> Optional[float]:
+    """3개월 내부자 net 매수 — Sale 는 음수, Buy/Acquisition 은 양수로 부호화."""
     try:
         df = t.get_insider_transactions()
         if df is None or df.empty:
             return 0.0
-        if "Value" in df.columns and "Transaction" in df.columns:
-            return float(df["Value"].fillna(0).sum())
-        return 0.0
-    except Exception:
+        if "Value" not in df.columns or "Transaction" not in df.columns:
+            return 0.0
+        # Transaction 문자열에 'Sale' 포함 시 매도(음수). yfinance 의 Value 는
+        # 항상 절대값으로 들어와 단순 sum 시 매수/매도 상쇄가 안 됨 → 가드.
+        tx = df["Transaction"].fillna("").astype(str).str.lower()
+        sign = tx.apply(lambda s: -1.0 if "sale" in s else 1.0)
+        return float((df["Value"].fillna(0) * sign).sum())
+    except Exception as e:
+        logging.debug("insider_net_3m failed: %s", e)
         return None
 
 
-def enrich_one(symbol: str, dgs10_pct: Optional[float]) -> Optional[mb.Fundamentals]:
+def enrich_one(symbol: str, dgs10_pct: Optional[float],
+               hist_cache: Optional[dict] = None) -> Optional[mb.Fundamentals]:
+    """단일 심볼 보강.
+
+    hist_cache: prefetch_history 결과 dict. 있으면 t.history 호출을 건너뛰어
+    N+1 감소. 미제공 시 기존 동작(per-ticker history).
+    """
     try:
         t = _get_ticker(symbol)
         info = getattr(t, "info", {}) or {}
         income = t.income_stmt if hasattr(t, "income_stmt") else pd.DataFrame()
         balance = t.balance_sheet if hasattr(t, "balance_sheet") else pd.DataFrame()
         cash = t.cashflow if hasattr(t, "cashflow") else pd.DataFrame()
-        hist = t.history(period="1y")
+        if hist_cache and symbol in hist_cache:
+            hist = hist_cache[symbol]
+        else:
+            hist = t.history(period="1y")
 
         mcap = info.get("marketCap")
         fcf = info.get("freeCashflow") or _latest_val(cash, "FreeCashFlow")

@@ -323,18 +323,38 @@ def _row_summary(ticker: str, f: Fundamentals, cls: GateResult, score: float) ->
 
 def build_results(base_rows: list, dgs10_pct: Optional[float],
                   enrich_fn, max_workers: int = 8,
-                  thresholds: Optional[dict] = None) -> dict:
-    """베이스 스캔 결과 → PASS/WATCH 분류 + 점수 랭킹."""
+                  thresholds: Optional[dict] = None,
+                  hist_prefetch_fn=None) -> dict:
+    """베이스 스캔 결과 → PASS/WATCH 분류 + 점수 랭킹.
+
+    hist_prefetch_fn: 선택. 호출 시 {symbol: DataFrame} 반환하는 함수.
+    enrich_fn 이 hist_cache 인자를 받으면 N+1 yfinance 호출을 1회 batch 로 단축.
+    """
     from concurrent.futures import ThreadPoolExecutor, as_completed
+    import inspect
 
     t = thresholds or DEFAULTS
     candidates = _pre_filter_F1_F2(base_rows, t)
+
+    # 가능한 경우 hist 를 1회 batch 로 prefetch (N+1 완화).
+    hist_cache = {}
+    if hist_prefetch_fn and candidates:
+        try:
+            hist_cache = hist_prefetch_fn(candidates) or {}
+        except Exception:
+            hist_cache = {}
+    enrich_supports_cache = "hist_cache" in inspect.signature(enrich_fn).parameters
+
+    def _submit(ex, sym):
+        if enrich_supports_cache:
+            return ex.submit(enrich_fn, sym, dgs10_pct, hist_cache=hist_cache)
+        return ex.submit(enrich_fn, sym, dgs10_pct)
 
     pass_rows, watch_rows = [], []
     enrich_failed = 0
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = {ex.submit(enrich_fn, sym, dgs10_pct): sym for sym in candidates}
+        futures = {_submit(ex, sym): sym for sym in candidates}
         for fut in as_completed(futures):
             sym = futures[fut]
             try:

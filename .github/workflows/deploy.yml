@@ -44,8 +44,6 @@ jobs:
                         git fetch origin main
                         git reset --hard origin/main
 
-                        env > deploy_env_dump.log
-
                         echo "=== APPLYING RUNTIME API KEY DEFAULTS ==="
                         python3 -c "import textwrap; exec(textwrap.dedent('''
                         import os

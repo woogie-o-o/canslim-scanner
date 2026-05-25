@@ -53,15 +53,8 @@
    * CSS transition 을 활용하므로 0% 세팅 후 rAF 로 목표 설정.
    */
   function animateBar(barEl, targetPct) {
-    if (!barEl || prefersReducedMotion()) return;
-    barEl.style.transition = 'none';
-    barEl.style.width = '0%';
-    requestAnimationFrame(function () {
-      requestAnimationFrame(function () {
-        barEl.style.transition = 'width 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)';
-        barEl.style.width = targetPct + '%';
-      });
-    });
+    // 점수 차오르는 애니메이션 제거 — 최종 너비 그대로 표시
+    return;
   }
 
   /**
@@ -436,10 +429,7 @@
       window.renderStockTable = function (stocks) {
         _origRenderStockTable(stocks);
 
-        // 점수 바 애니메이션
-        requestAnimationFrame(function () {
-          observeScoreBars();
-        });
+        // 점수 바 애니메이션 제거 — observeScoreBars 호출 안 함
 
         // 오늘의 발견 카드
         var all = window._scanStocks || window.allStocks || stocks || [];
@@ -508,24 +498,8 @@
    *  WOW PACK — 4종 반응형 액션
    * ══════════════════════════════════════════════════════════════ */
   function setupWowPack() {
-    if (prefersReducedMotion()) return;
-    injectWowStyles();
-    var tbody = document.getElementById('stock-list');
-    if (!tbody) return;
-
-    var run = function () {
-      var rows = tbody.querySelectorAll('tr');
-      applyStaggerEntrance(rows);
-      attachClickRipple(rows);
-    };
-    run();
-    // 리스트 재렌더 감지 (innerHTML 교체 시)
-    var mo = new MutationObserver(function () {
-      // 디바운스
-      if (window._wowMoTimer) clearTimeout(window._wowMoTimer);
-      window._wowMoTimer = setTimeout(run, 30);
-    });
-    mo.observe(tbody, { childList: true });
+    // 반응성 우선 — 등장 stagger / 클릭 ripple / MutationObserver 모두 비활성화.
+    return;
   }
 
   function injectWowStyles() {

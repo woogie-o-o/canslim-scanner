@@ -26,7 +26,7 @@ services:
     volumes:
       - app-data:/app/data
       - yfinance-cache:/app/.yfinance-cache
-      - scan-cache:/app/cache_v19
+      - scan-cache:/app/web_app/cache_v19
     restart: on-failure:5
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]

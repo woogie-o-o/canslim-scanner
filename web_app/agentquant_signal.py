@@ -32,8 +32,8 @@ def _ensure_scipy_stub() -> None:
     try:
         import scipy.stats  # noqa: F401
         return
-    except Exception:
-        pass
+    except Exception as _e:
+        logging.debug("silent except (agentquant_signal.py): %s", _e)
     import types
     import numpy as _np
 
@@ -89,8 +89,8 @@ def _fetch_ohlcv(yf_ticker: str, period: str = "3y"):
         except Exception:
             try:
                 df.index = df.index.tz_localize(None)
-            except Exception:
-                pass
+            except Exception as _e:
+                logging.debug("silent except (agentquant_signal.py): %s", _e)
         df.index = pd.to_datetime(df.index).normalize()
         df = df[~df.index.duplicated(keep="last")]
         return df

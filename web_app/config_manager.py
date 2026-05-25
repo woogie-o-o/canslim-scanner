@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""config_manager.py — JSON 기반 설정 관리자.
+"""config_manager.py — JSON/.env 기반 설정 관리자.
 
-웹 대시보드에서 입력한 API 키/토큰을 config.json에 저장하고,
-앱 시작 시 os.environ에 로드하여 기존 모듈(telegram_notifier 등)이
-수정 없이 설정을 인식하도록 한다.
+웹 대시보드에서 입력한 API 키/토큰은 config.json에 저장한다.
+서버 기본값은 .env 또는 프로세스 환경변수에서 읽고, 앱 시작 시
+os.environ에 로드하여 기존 모듈이 수정 없이 설정을 인식하도록 한다.
 """
 from __future__ import annotations
 
@@ -15,23 +15,6 @@ from typing import Any
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 ENV_PATH = Path(__file__).parent.parent / ".env"
 _DOTENV_LOADED = False
-
-
-def _load_dotenv_once() -> None:
-    """Load project .env if python-dotenv is available."""
-    global _DOTENV_LOADED
-    if _DOTENV_LOADED:
-        return
-    _DOTENV_LOADED = True
-    try:
-        from dotenv import load_dotenv
-    except Exception:
-        return
-    try:
-        load_dotenv(ENV_PATH, override=False)
-    except Exception:
-        return
-
 
 # 설정 키 정의 (그룹별)
 SETTINGS_SCHEMA: dict[str, list[dict[str, str]]] = {
@@ -58,6 +41,22 @@ SETTINGS_SCHEMA: dict[str, list[dict[str, str]]] = {
         {"key": "GEMINI_API_KEY",             "label": "API Key (Google AI Studio 무료 발급)", "type": "password"},
     ],
 }
+
+
+def _load_dotenv_once() -> None:
+    """Load project .env if python-dotenv is available."""
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+    _DOTENV_LOADED = True
+    try:
+        from dotenv import load_dotenv
+    except Exception:
+        return
+    try:
+        load_dotenv(ENV_PATH, override=False)
+    except Exception:
+        return
 
 
 def load_config() -> dict[str, str]:

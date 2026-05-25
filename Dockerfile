@@ -16,7 +16,7 @@ COPY *.py ./
 # (agentquant_signal.py가 import 실패 시 graceful fallback)
 RUN mkdir -p vendor
 
-RUN mkdir -p cache_v19 web_app/snapshots data
+RUN mkdir -p web_app/cache_v19 web_app/snapshots data
 
 EXPOSE 8000
 

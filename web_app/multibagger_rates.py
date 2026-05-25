@@ -1,13 +1,15 @@
-"""FRED DGS10 (10년 국채금리) fetcher + 24h pickle 캐시."""
+"""FRED DGS10 (10년 국채금리) fetcher + 24h JSON 캐시."""
 from __future__ import annotations
 
+import json
+import logging
 import os
-import pickle
 import time
 import urllib.request
 from typing import Optional
 
-CACHE_PATH = os.path.join(os.path.dirname(__file__), "cache_v19", "rates_us.pkl")
+# JSON 캐시: pickle.load RCE 위험 회피. 옛 .pkl 경로는 무시(자동 삭제 X).
+CACHE_PATH = os.path.join(os.path.dirname(__file__), "cache_v19", "rates_us.json")
 CACHE_TTL_SEC = 24 * 3600
 FRED_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DGS10"
 
@@ -32,19 +34,28 @@ def _fetch_remote() -> Optional[float]:
         with urllib.request.urlopen(FRED_URL, timeout=5) as resp:
             data = resp.read().decode("utf-8", errors="replace")
         return _parse_last_valid(data)
-    except Exception:
+    except Exception as e:
+        logging.debug("DGS10 fetch failed: %s", e)
         return None
+
+
+def _load_cached() -> Optional[dict]:
+    """JSON 캐시 읽기. 손상 시 None."""
+    if not os.path.exists(CACHE_PATH):
+        return None
+    try:
+        with open(CACHE_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except (OSError, json.JSONDecodeError) as e:
+        logging.debug("rates cache read failed: %s", e)
+    return None
 
 
 def get_dgs10() -> Optional[float]:
     """캐시 fresh면 반환, 만료면 fetch 후 갱신. 모두 실패 시 last cached 또는 None."""
-    cached = None
-    try:
-        if os.path.exists(CACHE_PATH):
-            with open(CACHE_PATH, "rb") as f:
-                cached = pickle.load(f)
-    except Exception:
-        cached = None
+    cached = _load_cached()
 
     if cached and (time.time() - cached.get("_ts", 0)) < CACHE_TTL_SEC:
         return cached.get("dgs10_pct")
@@ -55,8 +66,8 @@ def get_dgs10() -> Optional[float]:
 
     try:
         os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
-        with open(CACHE_PATH, "wb") as f:
-            pickle.dump({"_ts": time.time(), "dgs10_pct": fresh}, f)
-    except Exception:
-        pass
+        with open(CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump({"_ts": time.time(), "dgs10_pct": fresh}, f)
+    except OSError as e:
+        logging.debug("rates cache write failed: %s", e)
     return fresh

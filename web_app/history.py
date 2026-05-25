@@ -182,5 +182,5 @@ def _prune_old(market: str, today: date, *, keep_days: int = 30) -> None:
                     os.remove(os.path.join(_SNAP_DIR, name))
             except Exception:
                 continue
-    except Exception:
-        pass
+    except Exception as _e:
+        logging.debug("silent except (history.py): %s", _e)

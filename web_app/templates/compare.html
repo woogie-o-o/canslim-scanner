@@ -4,13 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>종목 비교</title>
-<link rel="stylesheet" href="/static/theme.css">
+<link rel="stylesheet" href="/static/theme.css?v={{ v_theme_css }}">
 <style>
 * { box-sizing: border-box; }
 html, body {
   margin: 0;
   background: var(--surface-page);
   color: var(--text-primary);
+  font-family: 'Paperlogy', -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
 }
 .compare-shell {
   max-width: 1600px;
@@ -248,7 +249,7 @@ html, body {
 const COMPARE_TICKERS = {{ tickers|tojson }};
 const COMPARE_MARKET = {{ market|tojson }};
 </script>
-<script src="/static/app.js"></script>
-<script src="/static/interactive.js" defer></script>
+<script src="/static/app.js?v={{ v_app_js }}"></script>
+<script src="/static/interactive.js?v={{ v_interactive_js }}" defer></script>
 </body>
 </html>

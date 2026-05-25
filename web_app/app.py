@@ -1,5 +1,5 @@
 """
-app.py — (.)(.)분석기 Flask 웹 서버
+app.py — 종목분석기 Flask 웹 서버
 engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더링한다.
 
 실행: python web_app/app.py
@@ -18,7 +18,6 @@ import queue
 import time
 import urllib.request
 import urllib.parse
-import pickle
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -271,8 +270,8 @@ def _override_kr_day_chg(results: list) -> list:
             pct = q.get("change_pct")
             if pct is not None:
                 r["DayChg"] = float(pct) / 100.0
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
         return r
 
     with ThreadPoolExecutor(max_workers=8) as ex:
@@ -453,8 +452,8 @@ def _acquire_warmer_file_lock():
         logging.warning("warmer lock acquire failed: %s", e)
         try:
             fh.close()
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
         return None
 
 
@@ -479,8 +478,8 @@ def _release_warmer_file_lock(handle) -> None:
     finally:
         try:
             fh.close()
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
 
 
 def _populate_sector_caches(market: str, strategy: str, results: list, ts: int) -> None:
@@ -506,8 +505,8 @@ def _warmup_fill_cache(market: str) -> None:
         if results:
             try:
                 results = _annotate_one_liners(results)
-            except Exception:
-                pass
+            except Exception as _e:
+                logging.debug("silent except (app.py): %s", _e)
             ts = int(time.time())
             with _scan_results_cache_lock:
                 _scan_results_cache[(market, "BALANCED", "")] = {"_ts": ts, "data": results}
@@ -518,9 +517,16 @@ def _warmup_fill_cache(market: str) -> None:
 
 
 def _kr_warmup_loop(interval_sec: int = 1800) -> None:
-    """KR 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지."""
+    """KR 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지.
+
+    KRX 휴장 시간엔 호출 자체를 건너뛴다(yfinance/KRX 호출 0). 첫 실행은
+    캐시 채우기 위해 항상 1회 수행.
+    """
     first_run = True
     while True:
+        if not first_run and not _is_kr_market_open_window():
+            time.sleep(interval_sec)
+            continue
         handle = _acquire_warmer_file_lock()
         if handle is None:
             logging.info("KR warm-up skipped: another worker holds lock")
@@ -540,8 +546,8 @@ def _kr_warmup_loop(interval_sec: int = 1800) -> None:
                     if results:
                         try:
                             results = _annotate_one_liners(results)
-                        except Exception:
-                            pass
+                        except Exception as _e:
+                            logging.debug("silent except (app.py): %s", _e)
                         ts = int(time.time())
                         with _scan_results_cache_lock:
                             _scan_results_cache[("KR", "BALANCED", "")] = {
@@ -576,6 +582,33 @@ def _start_kr_warmup_once() -> None:
 _US_WARMUP_LOCK_PATH = os.path.join(_BASE, "cache_v19", ".warmer_us.lock")
 _us_warmup_started = False
 _us_warmup_lock = threading.Lock()
+
+
+# KR 공휴일(KRX 휴장일) — 시장 시간 가드용. 매년 1월 1주차 갱신 권장.
+# 출처: KRX 매년 12월 발표. 주말 외 KRX 휴장만 포함(임시휴장 X).
+_KR_HOLIDAYS_2026: frozenset = frozenset({
+    "2026-01-01", "2026-02-16", "2026-02-17", "2026-02-18",  # 신정, 설
+    "2026-03-01", "2026-03-02",                              # 삼일절(대체)
+    "2026-05-05", "2026-05-25",                              # 어린이날, 석가탄신일
+    "2026-06-03", "2026-06-06",                              # 6.3 대선, 현충일
+    "2026-08-15", "2026-08-17",                              # 광복절(대체)
+    "2026-09-24", "2026-09-25", "2026-09-26",                # 추석
+    "2026-10-03", "2026-10-05", "2026-10-09",                # 개천절·대체, 한글날
+    "2026-12-25", "2026-12-31",                              # 성탄, 연말 휴장
+})
+
+
+def _is_kr_market_open_window() -> bool:
+    """KRX 정규장(09:00~15:30 KST) ± 30분 마진 + 주말·KRX 휴일 휴장."""
+    from datetime import datetime, timezone, timedelta
+    now_kst = datetime.now(timezone(timedelta(hours=9)))
+    if now_kst.weekday() in (5, 6):
+        return False
+    if now_kst.strftime("%Y-%m-%d") in _KR_HOLIDAYS_2026:
+        return False
+    minutes = now_kst.hour * 60 + now_kst.minute
+    # 08:30 ~ 16:00 (정규장 ± 30분)
+    return 8 * 60 + 30 <= minutes <= 16 * 60
 
 
 def _is_us_market_open_window() -> bool:
@@ -629,8 +662,8 @@ def _us_warmup_loop(interval_sec: int = 1800) -> None:
             except Exception:
                 try:
                     fh.close()
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
             if not locked:
                 logging.info("US warm-up skipped: another worker holds lock")
             else:
@@ -648,8 +681,8 @@ def _us_warmup_loop(interval_sec: int = 1800) -> None:
                     if results:
                         try:
                             results = _annotate_one_liners(results)
-                        except Exception:
-                            pass
+                        except Exception as _e:
+                            logging.debug("silent except (app.py): %s", _e)
                         ts = int(time.time())
                         with _scan_results_cache_lock:
                             _scan_results_cache[("US", "BALANCED", "")] = {
@@ -745,7 +778,7 @@ import re as _ticker_re_mod
 
 # 화이트리스트: 1~12자 [A-Z0-9.-]. US(AAPL/BRK.B) + KR(005930/005930.KS) 모두 통과.
 # path traversal / SSRF / prompt injection 1차 방어.
-_TICKER_RE = _ticker_re_mod.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_TICKER_RE = _ticker_re_mod.compile(r"^[A-Za-z0-9\.\-]{1,12}$")
 
 
 def _validate_ticker(ticker) -> str | None:
@@ -878,8 +911,8 @@ def api_scan():
                     resp.headers["X-As-Of"] = as_of_iso
                 _age_sec = _sr_now - _sr_cached.get("_ts", 0)
                 resp.headers["X-Warming-In-Progress"] = "true" if _age_sec > _SCAN_RESULTS_TTL_SEC else "false"
-            except Exception:
-                pass
+            except Exception as _e:
+                logging.debug("silent except (app.py): %s", _e)
             return resp
 
         adapter = _make_adapter()
@@ -949,8 +982,8 @@ def api_scan():
             if as_of_iso:
                 resp.headers["X-As-Of"] = as_of_iso
             resp.headers["X-Warming-In-Progress"] = "true" if warming_in_progress else "false"
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
         return resp
     except Exception as e:
         logging.exception("api_scan")
@@ -1135,8 +1168,8 @@ def api_ticker(ticker: str):
                     )
                     if fixed:
                         result["Name"] = fixed
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
             # 네이버 금융 투자자 매매동향 (외인/기관 순매수, 단위: 주)
             try:
                 from naver_finance import get_investor_flow
@@ -1381,6 +1414,7 @@ _macro_events_lock = threading.Lock()
 _ticker_events_cache: dict = {}   # ticker -> (ts, payload)
 _ticker_events_lock = threading.Lock()
 _TICKER_EVENTS_TTL = 4 * 3600     # 4시간
+_TICKER_EVENTS_MAX = 500          # 무제한 증가 차단(FIFO eviction)
 
 
 def _load_macro_events() -> list:
@@ -1425,21 +1459,21 @@ def _fetch_ticker_events(ticker: str) -> list:
                 xd = cal.get("Ex-Dividend Date")
                 if xd:
                     events.append({"date": str(xd)[:10], "name": "배당락일", "kind": "dividend"})
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
         # info에서 보조 필드
         try:
             info = t.info or {}
             ts_earn = info.get("earningsTimestamp") or info.get("earningsTimestampStart")
             if ts_earn and not any(e["kind"] == "earnings" for e in events):
-                d = _dt.datetime.utcfromtimestamp(int(ts_earn)).date().isoformat()
+                d = _dt.datetime.fromtimestamp(int(ts_earn), tz=_dt.timezone.utc).date().isoformat()
                 events.append({"date": d, "name": "실적 발표", "kind": "earnings"})
             ts_div = info.get("exDividendDate")
             if ts_div and not any(e["kind"] == "dividend" for e in events):
-                d = _dt.datetime.utcfromtimestamp(int(ts_div)).date().isoformat()
+                d = _dt.datetime.fromtimestamp(int(ts_div), tz=_dt.timezone.utc).date().isoformat()
                 events.append({"date": d, "name": "배당락일", "kind": "dividend"})
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
     except Exception as e:
         logging.debug("ticker events fetch failed %s: %s", ticker, e)
     return events
@@ -1496,6 +1530,8 @@ def api_events(ticker: str):
     else:
         ticker_evs = _fetch_ticker_events(ticker)
         with _ticker_events_lock:
+            if len(_ticker_events_cache) >= _TICKER_EVENTS_MAX:
+                _ticker_events_cache.pop(next(iter(_ticker_events_cache)), None)
             _ticker_events_cache[ticker] = (now, ticker_evs)
 
     # 종목 이벤트만 (매크로는 별도 엔드포인트에서)
@@ -1535,6 +1571,7 @@ def api_events(ticker: str):
 _insider_cache: dict = {}   # ticker -> (ts, payload)
 _insider_lock = threading.Lock()
 _INSIDER_TTL = 12 * 3600    # 12시간
+_INSIDER_MAX = 500          # 무제한 증가 차단
 
 
 def _fetch_insider_transactions(ticker: str) -> dict:
@@ -1648,6 +1685,8 @@ def api_insider(ticker: str):
     else:
         payload = _fetch_insider_transactions(ticker)
         with _insider_lock:
+            if len(_insider_cache) >= _INSIDER_MAX:
+                _insider_cache.pop(next(iter(_insider_cache)), None)
             _insider_cache[ticker] = (now, payload)
 
     if not payload.get("transactions"):
@@ -1839,14 +1878,14 @@ def api_four_axis(ticker: str):
             from symbol_alias import is_delisted as _is_delisted
             if _is_delisted(ticker):
                 return jsonify({"error": f"상폐/리네임 티커: {ticker}"}), 404
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
         try:
             import quant_nexus_v20 as _qn_mod
             if getattr(_qn_mod, "_is_delisted_us", lambda _t: False)(ticker):
                 return jsonify({"error": f"상폐/리네임 티커: {ticker}"}), 404
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
     cache_key = f"{ticker}:{market}"
     now = int(time.time())
     with _four_axis_cache_lock:
@@ -1909,8 +1948,8 @@ def api_four_axis(ticker: str):
                             if h is not None and not h.empty and len(h) >= min_rows:
                                 hist = h
                                 break
-                        except Exception:
-                            pass
+                        except Exception as _e:
+                            logging.debug("silent except (app.py): %s", _e)
                         rate_limited_break = True
                         break
                     continue
@@ -1958,15 +1997,15 @@ def api_four_axis(ticker: str):
                         or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
                         or ""
                     )
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
                 try:
                     from swing_scan.config import stock_names as _sn
                     nm = _sn.get_name(code6)
                     if nm and nm != code6:
                         chart_title = str(nm)
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
             # yf.Ticker(...).info 호출은 매우 느리고 hang 위험이 큼.
             # KR은 stock_names 미스 시 ticker 폴백 (info 호출 안 함).
             # US만 보조 폴백으로 info 사용.
@@ -1980,10 +2019,10 @@ def api_four_axis(ticker: str):
                     )
                     chart_title = (yinfo.get("longName")
                                    or yinfo.get("shortName") or "")
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
         chart_title = chart_title or ticker
 
         # 큰 차트 렌더링 (1200x560) — 2패널(가격+거래량) 구성
@@ -2083,16 +2122,16 @@ def api_dart_news(ticker: str):
                 stock_name = _sn.get_name(code)
                 if stock_name == code:
                     stock_name = ""
-            except Exception:
-                pass
+            except Exception as _e:
+                logging.debug("silent except (app.py): %s", _e)
             if not stock_name:
                 try:
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
                         stock_name = s["data"].get("corp_name", "")
-                except Exception:
-                    pass
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
             if stock_name:
                 result["news"] = naver_news.summarize(stock_name, limit=15)
     except Exception as e:
@@ -2233,8 +2272,8 @@ def api_us_insight(ticker: str):
                 yf.Ticker(ticker).upgrades_downgrades)
             if _cons["rows"]:
                 result["recommendations"] = _cons["rows"]
-        except Exception:
-            pass
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
     except Exception as e:
         logging.warning("us-insight holders: %s", e)
 
@@ -2358,167 +2397,16 @@ def api_deep_analysis(ticker: str):
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-# ── 멀티배거 파인더 ─────────────────────────────────────────
-_multibagger_results_cache = {}  # {"_ts": ..., "data": {"pass":[], "watch":[], "meta":{}}}
+# ── 멀티배거 파인더 — 상태(blueprint 와 공유) ─────────────────────────────
+# 라우트는 multibagger_blueprint.py 로 분리. 상태는 여기 유지(테스트가
+# flask_app._multibagger_results_cache / _MULTIBAGGER_BAGGERS_PATH 를 monkeypatch).
+_multibagger_results_cache: dict = {}
 _multibagger_build_lock = threading.Lock()
 _MULTIBAGGER_TTL_SEC = 12 * 3600
-_MULTIBAGGER_BAGGERS_PATH = os.path.join(app.root_path, "cache_v19", "baggers_us.pkl")
+_MULTIBAGGER_BAGGERS_PATH = os.path.join(app.root_path, "cache_v19", "baggers_us.json")
 
-
-@app.route("/multibagger")
-def multibagger_page():
-    static_dir = os.path.join(app.root_path, "static")
-    def _v(name):
-        p = os.path.join(static_dir, name)
-        try:
-            return int(os.path.getmtime(p))
-        except OSError:
-            return 0
-    return render_template(
-        "multibagger.html",
-        v_theme_css=_v("theme.css"),
-        v_multibagger_css=_v("multibagger.css"),
-        v_multibagger_js=_v("multibagger.js"),
-    )
-
-
-@app.route("/api/multibagger")
-def api_multibagger():
-    import multibagger as mb
-    cached = _multibagger_results_cache
-    if cached and (time.time() - cached.get("_ts", 0)) < _MULTIBAGGER_TTL_SEC:
-        resp = jsonify(cached["data"])
-        resp.headers["X-Warming-In-Progress"] = "false"
-        return resp
-    _maybe_trigger_multibagger_build()
-    body = cached.get("data") if cached else {
-        "pass": [], "watch": [], "meta": {"warming": True}
-    }
-    resp = jsonify(body)
-    resp.headers["X-Warming-In-Progress"] = "true"
-    return resp
-
-
-@app.route("/api/multibagger/thresholds")
-def api_multibagger_thresholds():
-    import multibagger as mb
-    return jsonify(mb.DEFAULTS)
-
-
-@app.route("/api/multibagger/ticker/<sym>")
-def api_multibagger_ticker(sym):
-    cached = _multibagger_results_cache
-    if not cached:
-        return jsonify({"error": "cache empty"}), 404
-    sym_up = sym.upper()
-    for row in cached.get("data", {}).get("pass", []) + cached.get("data", {}).get("watch", []):
-        if row["ticker"].upper() == sym_up:
-            return jsonify(row)
-    return jsonify({"error": "not found"}), 404
-
-
-@app.route("/api/multibagger/diff")
-def api_multibagger_diff():
-    import multibagger as mb
-    path = _MULTIBAGGER_BAGGERS_PATH
-    if not os.path.exists(path):
-        return jsonify({"baggers": [], "stats": {"available": False}})
-    try:
-        with open(path, "rb") as f:
-            blob = pickle.load(f)
-    except Exception:
-        return jsonify({"baggers": [], "stats": {"available": False}})
-
-    items = blob.get("baggers", [])
-    out = []
-    pass_n = watch_n = miss_n = 0
-    fail_counter = {}
-    for b in items:
-        snap = b.get("snapshot_at_start") or {}
-        if not snap:
-            out.append({**b, "classify": "UNKNOWN", "fail_gates": []})
-            continue
-        f = mb.Fundamentals(**{k: snap.get(k) for k in mb.Fundamentals.__dataclass_fields__})
-        cls = mb.classify(f, mb.DEFAULTS)
-        if cls.layer == "PASS":
-            pass_n += 1
-        elif cls.layer == "WATCH":
-            watch_n += 1
-        else:
-            miss_n += 1
-        for g in cls.gates_failed | cls.gates_missing:
-            fail_counter[g] = fail_counter.get(g, 0) + 1
-        out.append({**b, "classify": cls.layer, "fail_gates": sorted(cls.gates_failed | cls.gates_missing)})
-
-    return jsonify({
-        "baggers": out,
-        "stats": {
-            "available": True,
-            "pass_n": pass_n, "watch_n": watch_n, "miss_n": miss_n,
-            "top_fail_gates": sorted(fail_counter.items(), key=lambda x: -x[1])[:5],
-        },
-    })
-
-
-def _multibagger_warmup_loop(interval_sec: int = 3600):
-    while True:
-        try:
-            cached = _multibagger_results_cache
-            stale = (not cached) or (time.time() - cached.get("_ts", 0)) >= _MULTIBAGGER_TTL_SEC
-            if stale and _multibagger_build_lock.acquire(blocking=False):
-                try:
-                    _rebuild_multibagger_us()
-                finally:
-                    _multibagger_build_lock.release()
-        except Exception as e:
-            logging.warning("multibagger warmup loop error: %s", e)
-        time.sleep(interval_sec)
-
-
-_multibagger_warmup_started = False
-
-
-def _start_multibagger_warmup_once():
-    global _multibagger_warmup_started
-    if _multibagger_warmup_started:
-        return
-    _multibagger_warmup_started = True
-    threading.Thread(target=_multibagger_warmup_loop, daemon=True).start()
-    logging.info("multibagger warmup loop started")
-
-
-def _maybe_trigger_multibagger_build():
-    if not _multibagger_build_lock.acquire(blocking=False):
-        return
-    def _worker():
-        try:
-            _rebuild_multibagger_us()
-        finally:
-            _multibagger_build_lock.release()
-    threading.Thread(target=_worker, daemon=True).start()
-
-
-def _rebuild_multibagger_us():
-    import multibagger as mb
-    import multibagger_enrich as me
-    import multibagger_rates as mr
-
-    base = None
-    with _scan_results_cache_lock:
-        cached_base = _scan_results_cache.get(("US", "BALANCED", ""))
-        if cached_base:
-            base = cached_base.get("data")
-    if not base:
-        logging.info("multibagger: base US scan cache empty, aborting build")
-        return
-
-    dgs10 = mr.get_dgs10()
-    result = mb.build_results(base, dgs10_pct=dgs10, enrich_fn=me.enrich_one, max_workers=8)
-    _multibagger_results_cache.clear()
-    _multibagger_results_cache.update({"_ts": time.time(), "data": result})
-    logging.info("multibagger: built %d PASS / %d WATCH (universe %d, candidates %d)",
-                 result["meta"]["pass_n"], result["meta"]["watch_n"],
-                 result["meta"]["universe_n"], result["meta"]["candidates_n"])
+from multibagger_blueprint import multibagger_bp, start_multibagger_warmup_once as _start_multibagger_warmup_once
+app.register_blueprint(multibagger_bp)
 
 
 # SocketIO 초기화 (gunicorn / 직접 실행 모두 대응)
