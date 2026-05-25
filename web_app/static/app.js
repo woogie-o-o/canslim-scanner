@@ -4063,3 +4063,216 @@ async function captureDetail() {
     cleanup();
   }
 }
+
+/* ── Hover Sparkline (desktop only) ───────────────────────────
+ * 종목 행/카드에 마우스를 올리면 30일 점수 추이 미니차트 표시.
+ * - 이벤트 위임: #stock-list, #mobile-stock-list
+ * - 220ms 지연 후 fetch (스쳐 지나가는 호버 무시)
+ * - 티커별 메모리 캐시
+ * - 모바일/터치 환경에서는 자동 비활성화
+ */
+(function initHoverSparkline() {
+  if (typeof window === 'undefined') return;
+  // 터치 디바이스에서는 비활성 (mobile에서는 onclick이 우선)
+  const isTouch = window.matchMedia && window.matchMedia('(hover: none)').matches;
+  if (isTouch) return;
+
+  const cache = new Map();        // ticker -> { points } | 'loading' | 'empty'
+  let tip = null;
+  let hoverTimer = null;
+  let currentTicker = null;
+  let lastEv = null;              // 가장 최근 마우스 이벤트 — 첫 hover 위치 잡기용
+
+  function ensureTip() {
+    if (tip) return tip;
+    tip = document.createElement('div');
+    tip.id = 'hover-sparkline-tip';
+    tip.setAttribute('role', 'tooltip');
+    tip.innerHTML = `
+      <div class="hst-head">
+        <span class="hst-ticker"></span>
+        <span class="hst-delta"></span>
+      </div>
+      <svg class="hst-svg" width="220" height="56" viewBox="0 0 220 56" preserveAspectRatio="none"></svg>
+      <div class="hst-meta"></div>`;
+    document.body.appendChild(tip);
+    return tip;
+  }
+
+  function position(ev) {
+    if (!tip) return;
+    const W = 240, H = 100;
+    const pad = 12;
+    let x = ev.clientX + 16;
+    let y = ev.clientY + 16;
+    if (x + W > window.innerWidth - pad)  x = ev.clientX - W - 16;
+    if (y + H > window.innerHeight - pad) y = ev.clientY - H - 16;
+    tip.style.left = Math.max(pad, x) + 'px';
+    tip.style.top  = Math.max(pad, y) + 'px';
+  }
+
+  function render(ticker, points) {
+    // 유효 포인트가 2개 미만이면 미리보기 자체를 띄우지 않음
+    const valid = (points || []).filter(p => p && p.score != null && p.date);
+    if (valid.length < 2) {
+      if (tip) tip.classList.remove('show');
+      return;
+    }
+    const t = ensureTip();
+    // .show 추가 전에 마지막 마우스 위치로 선배치 — 첫 hover 시 (0,0) 노출 방지
+    if (lastEv) position(lastEv);
+    // 회사정보 팝업과 동시에 뜨면 가려져 보임 → sparkline 표시 시 팝업 즉시 숨김
+    try { hideStockPopup(); } catch (_) {}
+
+    const scores = valid.map(p => p.score);
+    const W = 220, H = 56, PAD = 4;
+    const minS = Math.min(...scores), maxS = Math.max(...scores);
+    const range = maxS - minS || 1;
+    // 날짜 → epoch-days
+    const dayOf = (d) => {
+      const [y, m, dd] = d.split('-').map(Number);
+      return Date.UTC(y, m - 1, dd) / 86400000;
+    };
+    // X축: 인덱스 기반(균등 분포)이 아닌 "실제 날짜" 기반.
+    //  → 12일 풀 적재와 3일 희소 적재가 시각적으로 명확히 구분됨.
+    const days = valid.map(p => dayOf(p.date));
+    const tFirst = days[0];
+    const tLast  = days[days.length - 1];
+    const span   = Math.max(1, tLast - tFirst);
+    const toX = i => PAD + ((days[i] - tFirst) / span) * (W - PAD * 2);
+    const toY = s => H - PAD - ((s - minS) / range) * (H - PAD * 2);
+    const segSolid = [];   // 연속 구간 polyline 들
+    const segDash  = [];   // 결손 구간 polyline 들
+    let cur = [[toX(0), toY(scores[0])]];
+    for (let i = 1; i < valid.length; i++) {
+      const gap = days[i] - days[i - 1];
+      const px = [toX(i), toY(scores[i])];
+      if (gap <= 1) {
+        cur.push(px);
+      } else {
+        // 끊김 — 직전 점과 현재 점을 점선으로 잇고, 새 연속 구간 시작
+        if (cur.length >= 2) segSolid.push(cur);
+        segDash.push([cur[cur.length - 1], px]);
+        cur = [px];
+      }
+    }
+    if (cur.length >= 2) segSolid.push(cur);
+
+    const fmtSeg = (seg) => seg.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+    const allPtsStr = valid.map((_, i) => `${toX(i).toFixed(1)},${toY(scores[i]).toFixed(1)}`).join(' ');
+    const areaPts = `${PAD.toFixed(1)},${H} ${allPtsStr} ${(W-PAD).toFixed(1)},${H}`;
+
+    const first = scores[0], last = scores[scores.length - 1];
+    const delta = last - first;
+    const up = delta >= 0;
+    const color = up ? 'var(--success, #00C073)' : 'var(--destructive, #F04452)';
+    const fillId = `hst-grad-${up ? 'u' : 'd'}`;
+
+    const dateFirst = valid[0].date;
+    const dateLast  = valid[valid.length - 1].date;
+    const sign = up ? '+' : '';
+    const gapCount = segDash.length;
+
+    t.querySelector('.hst-ticker').textContent = ticker;
+    const dEl = t.querySelector('.hst-delta');
+    dEl.textContent = `${sign}${delta.toFixed(1)}pt`;
+    dEl.style.color = color;
+
+    const solidSvg = segSolid.map(seg =>
+      `<polyline points="${fmtSeg(seg)}" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>`
+    ).join('');
+    const dashSvg = segDash.map(seg =>
+      `<polyline points="${fmtSeg(seg)}" fill="none" stroke="${color}" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="3 3" opacity="0.55"/>`
+    ).join('');
+
+    t.querySelector('.hst-svg').innerHTML = `
+      <defs>
+        <linearGradient id="${fillId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"  stop-color="${up ? '#00C073' : '#F04452'}" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="${up ? '#00C073' : '#F04452'}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${areaPts}" fill="url(#${fillId})" opacity="0.7"/>
+      ${dashSvg}
+      ${solidSvg}
+      <circle cx="${toX(scores.length-1).toFixed(1)}" cy="${toY(last).toFixed(1)}" r="2.8" fill="${color}"/>`;
+    t.querySelector('.hst-meta').textContent =
+      gapCount > 0
+        ? `${dateFirst} ~ ${dateLast} · ${scores.length}일 (${gapCount}곳 결손) · ${Math.round(last)}점`
+        : `${dateFirst} ~ ${dateLast} · ${scores.length}일 · ${Math.round(last)}점`;
+    t.classList.add('show');
+  }
+
+  async function load(ticker) {
+    const market = (typeof currentMarket !== 'undefined' && currentMarket) ? currentMarket : 'KR';
+    const key = `${market}:${ticker}`;
+    if (cache.has(key)) {
+      const v = cache.get(key);
+      if (v !== 'loading' && currentTicker === ticker) render(ticker, v);
+      return;
+    }
+    cache.set(key, 'loading');
+    try {
+      const res = await fetch(`/api/score-history/${encodeURIComponent(ticker)}?market=${encodeURIComponent(market)}&days=30`);
+      if (!res.ok) {
+        // 실패는 영구캐시하지 않음 — 30초 뒤 재시도 허용
+        cache.delete(key);
+        setTimeout(() => cache.delete(key), 30000);
+        return;
+      }
+      const { points } = await res.json();
+      const pts = points || [];
+      cache.set(key, pts);
+      if (currentTicker === ticker) render(ticker, pts);
+    } catch (e) {
+      // 네트워크 에러도 재시도 가능하도록 캐시 해제
+      cache.delete(key);
+    }
+  }
+
+  function findTickerEl(target) {
+    if (!target) return null;
+    return target.closest('[data-ticker]');
+  }
+
+  function onOver(ev) {
+    const el = findTickerEl(ev.target);
+    if (!el) return;
+    // 검색 자동완성·기타 컴포넌트 제외
+    if (el.classList.contains('search-suggest-item')) return;
+    const ticker = el.getAttribute('data-ticker');
+    if (!ticker || ticker === currentTicker) return;
+    currentTicker = ticker;
+    lastEv = ev;  // 첫 hover 위치 기록 (mousemove 없이도 위치 잡기)
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => {
+      if (currentTicker !== ticker) return;
+      load(ticker);
+    }, 220);
+  }
+
+  function onOut(ev) {
+    const el = findTickerEl(ev.target);
+    const next = findTickerEl(ev.relatedTarget);
+    if (el && next && el === next) return;
+    clearTimeout(hoverTimer);
+    currentTicker = null;
+    if (tip) tip.classList.remove('show');
+  }
+
+  function onMove(ev) {
+    lastEv = ev;
+    if (!tip || !tip.classList.contains('show')) {
+      if (currentTicker) position(ev);
+      return;
+    }
+    position(ev);
+  }
+
+  // 컨테이너 위임 — 동적 갱신에도 자동 적용
+  document.addEventListener('mouseover', onOver, true);
+  document.addEventListener('mouseout',  onOut,  true);
+  document.addEventListener('mousemove', onMove);
+  // 스크롤 시 숨김 — 위치 어긋남 방지
+  window.addEventListener('scroll', () => { if (tip) tip.classList.remove('show'); currentTicker = null; }, true);
+})();
