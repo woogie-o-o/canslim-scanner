@@ -2574,24 +2574,6 @@ function switchTab(tabId) {
   if (tabId === 'usinsight' && typeof TICKER !== 'undefined' && TICKER) {
     loadUSInsight(TICKER);
   }
-  // 심층 분석 탭: 캐시된 결과가 있으면 자동 표시
-  if (tabId === 'deep' && typeof TICKER !== 'undefined' && TICKER) {
-    _deepTryAutoLoad();
-  }
-}
-
-let _deepAutoTried = false;
-async function _deepTryAutoLoad() {
-  if (_deepAutoTried) return;
-  _deepAutoTried = true;
-  const mode = (document.getElementById('deep-mode')?.value) || 'standard';
-  try {
-    const p = new URLSearchParams({ market: currentMarket, mode, cache_only: '1' });
-    const r = await fetch(`/api/deep-analysis/${encodeURIComponent(TICKER)}?${p}`);
-    if (!r.ok) return;
-    const d = await r.json();
-    if (d && d.ok && d._cached) _renderDeep(d);
-  } catch (_) { /* ignore */ }
 }
 
 function _escapeHtml(s) {
@@ -2667,93 +2649,7 @@ function _renderMarkdown(md) {
   return out.join('\n');
 }
 
-function _renderDeep(d) {
-  const content = document.getElementById('deep-content');
-  const meta = document.getElementById('deep-meta');
-  const sourcesDiv = document.getElementById('deep-sources');
-  if (!content) return;
-  const html = _renderMarkdown(d.text || '');
-  content.innerHTML = `<div class="deep-md">${html}</div>`;
-  // 표 스타일 보강
-  if (!document.getElementById('deep-md-style')) {
-    const s = document.createElement('style');
-    s.id = 'deep-md-style';
-    s.textContent = `
-      .deep-md .deep-tbl { border-collapse:collapse; width:100%; margin:10px 0; font-size:12px; }
-      .deep-md .deep-tbl th, .deep-md .deep-tbl td { border:1px solid var(--border); padding:6px 8px; text-align:left; vertical-align:top; }
-      .deep-md .deep-tbl th { background:var(--surface); font-weight:600; }
-    `;
-    document.head.appendChild(s);
-  }
-  // 메타
-  const cacheTxt = d._cached ? ` · 캐시(${Math.round((d._cache_age_sec||0)/60)}분 전)` : '';
-  const elapsed = d.elapsed_sec ? ` · ${d.elapsed_sec}s` : '';
-  if (meta) meta.textContent = `${d.model || 'gemini'}${elapsed}${cacheTxt}`;
-  // 출처
-  if (sourcesDiv) {
-    const srcs = d.sources || [];
-    if (srcs.length) {
-      const items = srcs.map((s, i) => `<li><a href="${_escapeHtml(s.uri)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:11px;">[${i+1}] ${_escapeHtml(s.title || s.uri)}</a></li>`).join('');
-      sourcesDiv.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);margin-bottom:6px;letter-spacing:0.03em;">📚 출처 (Google Search Grounding)</div><ol style="margin:0 0 0 18px;padding:0;">${items}</ol>`;
-    } else {
-      sourcesDiv.innerHTML = '';
-    }
-  }
-}
 
-async function runDeepAnalysis(force) {
-  let tk = '';
-  if (typeof TICKER !== 'undefined' && TICKER) {
-    tk = TICKER;
-  } else {
-    tk = (document.getElementById('dp-ticker')?.textContent || '').trim();
-  }
-  if (!tk || tk === '—' || tk === '…') return;
-  const targetTicker = tk;
-
-  const mode = (document.getElementById('deep-mode')?.value) || 'standard';
-  const btn = document.getElementById('deep-run-btn');
-  const refreshBtn = document.getElementById('deep-refresh-btn');
-  const content = document.getElementById('deep-content');
-  const meta = document.getElementById('deep-meta');
-  if (btn) { btn.disabled = true; btn.textContent = '분석 중…'; }
-  if (refreshBtn) refreshBtn.disabled = true;
-  if (meta) meta.textContent = '웹 검색 + 분석 진행 중 (10~30초)…';
-  if (content) {
-    content.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-tertiary);font-size:13px;">
-      <div style="display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
-      <div style="margin-top:10px;">Gemini가 ${_escapeHtml(targetTicker)}의 최신 시장 데이터를 수집하고 있습니다…</div>
-    </div>`;
-  }
-  if (!document.getElementById('deep-spin-style')) {
-    const s = document.createElement('style');
-    s.id = 'deep-spin-style';
-    s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
-    document.head.appendChild(s);
-  }
-  try {
-    const p = new URLSearchParams({ market: currentMarket, mode });
-    if (force) p.set('force', '1');
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 120000);
-    let r;
-    try { r = await fetch(`/api/deep-analysis/${encodeURIComponent(targetTicker)}?${p}`, { signal: ctrl.signal }); }
-    finally { clearTimeout(tid); }
-    const d = await r.json();
-    if (!d.ok) {
-      if (content) content.innerHTML = `<div style="padding:20px;color:var(--destructive);font-size:13px;">⚠️ ${_escapeHtml(d.error || '분석 실패')}</div>`;
-      if (meta) meta.textContent = '';
-    } else {
-      _renderDeep(d);
-    }
-  } catch (e) {
-    if (content) content.innerHTML = `<div style="padding:20px;color:var(--destructive);font-size:13px;">⚠️ 네트워크 오류: ${_escapeHtml(e.message || e)}</div>`;
-    if (meta) meta.textContent = '';
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '분석 시작'; }
-    if (refreshBtn) refreshBtn.disabled = false;
-  }
-}
 
 async function loadFourAxis(ticker) {
   const loading = document.getElementById('fouraxis-loading');
