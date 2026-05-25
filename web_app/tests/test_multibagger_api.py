@@ -46,6 +46,37 @@ def test_api_diff_missing_pkl_returns_empty(monkeypatch, tmp_path):
     assert body["stats"]["available"] is False
 
 
+def test_rebuild_surfaces_abort_reason_when_base_empty(monkeypatch):
+    """P2-4: base scan 캐시 비었을 때 abort_reason 을 meta 에 노출."""
+    import multibagger_blueprint as bp
+    monkeypatch.setattr(flask_app, "_scan_results_cache", {})
+    cache: dict = {}
+    monkeypatch.setattr(flask_app, "_multibagger_results_cache", cache)
+    bp._rebuild_multibagger_us()
+    assert cache["data"]["meta"]["abort_reason"] == "base_cache_empty"
+    assert cache["data"]["meta"]["warming"] is True
+
+
+def test_rebuild_atomic_update_keeps_cache_populated(monkeypatch):
+    """P2-3: clear() 제거로 갱신 도중 빈 dict 윈도우 없음."""
+    import multibagger_blueprint as bp
+    import multibagger as mb
+    cache = {"_ts": 1.0, "data": {"pass": [{"ticker": "OLD"}], "watch": [], "meta": {}}}
+    monkeypatch.setattr(flask_app, "_multibagger_results_cache", cache)
+    monkeypatch.setattr(flask_app, "_scan_results_cache",
+                        {("US", "BALANCED", ""): {"data": [{"Ticker": "X", "market_cap": 1e9}]}})
+
+    def fake_build(*a, **kw):
+        # 빌드 직전 cache 가 비어있지 않음을 확인 (clear 가 제거되었는지)
+        assert "data" in cache and cache["data"]["pass"]
+        return {"pass": [{"ticker": "NEW"}], "watch": [],
+                "meta": {"pass_n": 1, "watch_n": 0, "universe_n": 1, "candidates_n": 1}}
+    monkeypatch.setattr(mb, "build_results", fake_build)
+    monkeypatch.setattr("multibagger_rates.get_dgs10", lambda: 4.0)
+    bp._rebuild_multibagger_us()
+    assert cache["data"]["pass"][0]["ticker"] == "NEW"
+
+
 def test_api_diff_loads_and_classifies(monkeypatch, tmp_path):
     fake_path = str(tmp_path / "baggers_us.json")
     with open(fake_path, "w", encoding="utf-8") as fh:

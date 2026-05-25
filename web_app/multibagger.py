@@ -88,6 +88,11 @@ def eval_f3(f: Fundamentals, t: dict) -> Optional[bool]:
 
 
 def eval_f4(f: Fundamentals, t: dict) -> Optional[bool]:
+    """F4 가치 게이트 — FCF yield 또는 1/PB 중 하나만 충족해도 PASS.
+
+    P2-5: 한쪽 결측은 의도적 허용. 양쪽 결측만 N/A 처리.
+    이 정책은 가치주의 다양한 표현 방식을 인정하기 위함.
+    """
     if _missing(f.fcf_yield) and _missing(f.pb):
         return None
     fcf_ok = f.fcf_yield is not None and f.fcf_yield >= t["F4_FCF_YIELD_MIN"]
@@ -198,26 +203,30 @@ def score_q2(f: Fundamentals) -> Optional[float]:
     return max(parts)
 
 
+def _two_sided_score(diff: float, neg_floor: float, pos_ceiling: float) -> float:
+    """P2-6: 양/음 비대칭 스케일 통합 헬퍼. 0 을 50점 중심으로.
+
+    diff <= neg_floor → 0, diff >= pos_ceiling → 100, 0 → 50.
+    """
+    if diff <= neg_floor:
+        return 0.0
+    if diff >= pos_ceiling:
+        return 100.0
+    if diff >= 0:
+        return 50.0 + (diff / pos_ceiling) * 50.0
+    return 50.0 + (diff / abs(neg_floor)) * 50.0
+
+
 def score_q3(f: Fundamentals) -> Optional[float]:
     if f.ebitda_yoy is None or f.revenue_yoy is None:
         return None
-    diff = f.ebitda_yoy - f.revenue_yoy
-    if diff >= 0.10:
-        return 100.0
-    if diff <= -0.05:
-        return 0.0
-    if diff >= 0:
-        return 50 + (diff / 0.10) * 50
-    return 50 + (diff / 0.05) * 50  # diff 음수 → 0~50
+    return _two_sided_score(f.ebitda_yoy - f.revenue_yoy, neg_floor=-0.05, pos_ceiling=0.10)
 
 
 def score_q4(f: Fundamentals) -> Optional[float]:
     if f.ebitda_yoy is None or f.assets_yoy is None:
         return None
-    diff = f.ebitda_yoy - f.assets_yoy
-    if diff < 0:
-        return _clamp01(diff, -0.10, 0.0) * 0.5
-    return 50 + _clamp01(diff, 0.0, 0.15) * 0.5
+    return _two_sided_score(f.ebitda_yoy - f.assets_yoy, neg_floor=-0.10, pos_ceiling=0.15)
 
 
 def score_q5(f: Fundamentals) -> Optional[float]:
@@ -258,16 +267,21 @@ _Q_FUNCS = (score_q1, score_q2, score_q3, score_q4, score_q5, score_q6)
 
 
 BONUS_MAX = 35  # sector(10) + insider(10) + buyback(5) + revenue_accel(10)
+MIN_Q_SIGNALS = 2  # P2-2: 최소 Q 시그널 수 — 미달 시 bonus 단독 영향 제거
 
 
 def compose_score(f: Fundamentals) -> float:
     """Core × 0.7 + Bonus × 0.3 (Bonus 는 0~100 정규화).
 
-    P1-1: 명시적 정규화로 표현. 수치는 종전과 동일.
+    P1-1: 명시적 정규화로 표현.
+    P2-2: 계산 가능 Q 시그널이 MIN_Q_SIGNALS 미만이면 0.0 반환 — bonus 단독으로
+    PASS 등급의 점수가 형성되는 비대칭 방지. classify 단계의 EXCLUDED 정책과 정합.
     """
     vals = [fn(f) for fn in _Q_FUNCS]
     vals = [v for v in vals if v is not None]
-    core = sum(vals) / len(vals) if vals else 0.0
+    if len(vals) < MIN_Q_SIGNALS:
+        return 0.0
+    core = sum(vals) / len(vals)
     bonus_pct = min(100.0, score_bonus(f) / BONUS_MAX * 100.0)
     return min(100.0, core * 0.7 + bonus_pct * 0.3)
 

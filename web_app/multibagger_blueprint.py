@@ -206,7 +206,14 @@ def _rebuild_multibagger_us() -> None:
         if cached_base:
             base = cached_base.get("data")
     if not base:
+        # P2-4: warming 사유를 meta 에 노출 — UI 가 영구 warming 원인을 표시.
         logging.info("multibagger: base US scan cache empty, aborting build")
+        flask_app._multibagger_results_cache.update({
+            "_ts": time.time(),
+            "data": {"pass": [], "watch": [],
+                     "meta": {"warming": True,
+                              "abort_reason": "base_cache_empty"}},
+        })
         return
 
     dgs10 = mr.get_dgs10()
@@ -214,7 +221,7 @@ def _rebuild_multibagger_us() -> None:
         base, dgs10_pct=dgs10, enrich_fn=me.enrich_one, max_workers=8,
         hist_prefetch_fn=me.prefetch_history,
     )
-    flask_app._multibagger_results_cache.clear()
+    # P2-3: clear() + update() 사이 빈 dict 윈도우 제거 — 단일 update 로 원자적 갱신.
     flask_app._multibagger_results_cache.update({"_ts": time.time(), "data": result})
     logging.info("multibagger: built %d PASS / %d WATCH (universe %d, candidates %d)",
                  result["meta"]["pass_n"], result["meta"]["watch_n"],

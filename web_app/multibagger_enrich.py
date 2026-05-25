@@ -49,16 +49,28 @@ def prefetch_history(symbols: list[str], period: str = "1y") -> dict[str, pd.Dat
 
 
 def _yoy(df: pd.DataFrame, row: str) -> Optional[float]:
+    """P2-1: 컬럼을 datetime 기준 명시적 내림차순 정렬 후 latest/prev 추출.
+
+    yfinance 의 기본 순서를 가정하지 않음 — 라이브러리 업데이트나
+    비표준 reporter 종목에서도 안정 동작.
+    """
     if df is None or df.empty or row not in df.index:
         return None
     try:
-        series = df.loc[row].dropna()
-        if len(series) < 2:
+        parsed = []
+        for c in df.columns:
+            try:
+                ts = pd.Timestamp(c)
+                if pd.notna(ts):
+                    parsed.append((ts, c))
+            except Exception:
+                continue
+        parsed.sort(key=lambda x: x[0], reverse=True)
+        if len(parsed) < 2:
             return None
-        cols = list(df.columns)
-        latest_val = df.loc[row, cols[0]]
-        prev_val = df.loc[row, cols[1]]
-        if prev_val is None or pd.isna(prev_val) or prev_val == 0:
+        latest_val = df.loc[row, parsed[0][1]]
+        prev_val = df.loc[row, parsed[1][1]]
+        if pd.isna(latest_val) or pd.isna(prev_val) or float(prev_val) == 0:
             return None
         return float(latest_val) / float(prev_val) - 1.0
     except Exception:
@@ -66,11 +78,24 @@ def _yoy(df: pd.DataFrame, row: str) -> Optional[float]:
 
 
 def _latest_val(df: pd.DataFrame, row: str) -> Optional[float]:
+    """P2-1: 컬럼을 datetime 정렬 후 최신값 — 라이브러리 순서 가정 제거."""
     if df is None or df.empty or row not in df.index:
         return None
     try:
-        v = df.loc[row].dropna()
-        return float(v.iloc[0]) if len(v) else None
+        parsed = []
+        for c in df.columns:
+            try:
+                ts = pd.Timestamp(c)
+                if pd.notna(ts):
+                    parsed.append((ts, c))
+            except Exception:
+                continue
+        parsed.sort(key=lambda x: x[0], reverse=True)
+        for _ts, c in parsed:
+            v = df.loc[row, c]
+            if pd.notna(v):
+                return float(v)
+        return None
     except Exception:
         return None
 
