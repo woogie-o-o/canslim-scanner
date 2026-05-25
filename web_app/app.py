@@ -375,6 +375,11 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
                 results = _annotate_one_liners(results, force=True)
             except Exception as oe:
                 logging.warning("background one_liner annotate failed: %s", oe)
+            # 해자(Moat) 가산점 → TotalScore 반영
+            for r in results:
+                bonus = r.get("MoatBonus", 0)
+                if bonus and isinstance(r.get("TotalScore"), (int, float)):
+                    r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
             # 스캔 결과 전체 캐시 갱신
             if results:
                 with _scan_results_cache_lock:
@@ -992,6 +997,11 @@ def api_scan():
             results = _annotate_one_liners(results)
         except Exception as oe:
             logging.warning("one_liner annotate failed: %s", oe)
+        # 해자(Moat) 가산점 → TotalScore 반영
+        for r in results:
+            bonus = r.get("MoatBonus", 0)
+            if bonus and isinstance(r.get("TotalScore"), (int, float)):
+                r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
         # AgentQuant 융합 (상위 N개)
         if aq_top > 0:
             try:
@@ -1256,6 +1266,10 @@ def api_ticker(ticker: str):
             result = _annotate_one_liners([result])[0]
         except Exception as oe:
             logging.warning("one_liner annotate (ticker) failed: %s", oe)
+        # 해자 가산점
+        bonus = result.get("MoatBonus", 0)
+        if bonus and isinstance(result.get("TotalScore"), (int, float)):
+            result["TotalScore"] = min(100.0, result["TotalScore"] + bonus)
         # AQ 융합은 /api/aq_signal/<ticker> 로 분리 (드로어 lazy-load)
         # ── 응답 캐시 저장 ──
         with _ticker_detail_cache_lock:

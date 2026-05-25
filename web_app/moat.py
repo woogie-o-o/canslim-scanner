@@ -318,6 +318,28 @@ def _llm_generate(ticker: str, name: str, sector: str, mcap: float | None) -> Op
         return None
 
 
+# ── 해자 가산점 (0~10) ────────────────────────────────────────────────
+# moat_data.json 에 scores{switching_costs,network_effects,ip_efficiency,
+# cost_advantage,roic_sustainability} 각 0-4 (합 0-20) → 반감하여 0-10.
+_CATEGORY_FALLBACK_BONUS = {
+    INTANGIBLE: 3, SWITCHING: 3, NETWORK: 3, COST: 3, EFFICIENT_SCALE: 2, NONE: 0,
+}
+
+
+def _calc_bonus(data: dict) -> float:
+    """moat 데이터에서 TotalScore 가산점(0~10)을 산출한다."""
+    scores = data.get("scores")
+    if scores and isinstance(scores, dict):
+        raw = sum(scores.get(k, 0) for k in (
+            "switching_costs", "network_effects", "ip_efficiency",
+            "cost_advantage", "roic_sustainability",
+        ))
+        return min(10.0, raw / 2.0)
+    # scores 미기입 → 카테고리 기반 폴백
+    cat = data.get("category", NONE)
+    return float(_CATEGORY_FALLBACK_BONUS.get(cat, 0))
+
+
 # ── 공개 API ─────────────────────────────────────────────────────────
 def _resolve_one(row: dict) -> dict:
     ticker = str(row.get("Ticker") or "").strip()
@@ -336,7 +358,7 @@ def _resolve_one(row: dict) -> dict:
     if ov:
         cat = str(ov.get("category", NONE)).upper()
         # MF-001: curated 가 speculative 룰을 이긴다. story_risk 는 별도 축으로 함께 노출.
-        return {
+        result = {
             "category": cat if cat in (INTANGIBLE, SWITCHING, NETWORK, COST, EFFICIENT_SCALE, NONE) else NONE,
             "label": str(ov.get("label", _CATEGORY_LABEL.get(cat, ""))),
             "detail": str(ov.get("detail", _CATEGORY_DETAIL.get(cat, ""))),
@@ -345,6 +367,9 @@ def _resolve_one(row: dict) -> dict:
             "evidence_source": str(ov.get("source", "")),
             "story_risk": story_risk,
         }
+        if ov.get("scores"):
+            result["scores"] = ov["scores"]
+        return result
 
     cached = _cache_read(ticker)
     if cached:
@@ -377,9 +402,11 @@ def annotate(results: list) -> list:
             row["MoatCategory"] = data["category"]
             row["MoatConfidence"] = data.get("confidence", "heuristic")
             row["MoatData"] = data
+            row["MoatBonus"] = _calc_bonus(data)
         except Exception as e:
             _log.debug("moat annotate row failed: %s", e)
             row["Moat"] = ""
             row["MoatCategory"] = NONE
             row["MoatData"] = {"category": NONE, "label": "", "detail": "", "source": "error"}
+            row["MoatBonus"] = 0.0
     return results
