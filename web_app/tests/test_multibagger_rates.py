@@ -35,3 +35,37 @@ def test_cache_expired_triggers_fetch(tmp_path, monkeypatch):
     monkeypatch.setattr(mr, "_fetch_remote", fake_fetch)
     assert mr.get_dgs10() == 4.5
     assert called["n"] == 1
+
+
+def test_fetch_remote_retries_on_failure(monkeypatch):
+    """P1-9: 일시적 실패에 backoff 재시도. 2회 실패 후 3회차 성공."""
+    monkeypatch.setattr(mr.time, "sleep", lambda _s: None)  # backoff 단축
+    attempts = {"n": 0}
+
+    class FakeResp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self): return b"DATE,DGS10\n2026-05-24,4.21\n"
+
+    def fake_urlopen(_url, timeout=None):
+        attempts["n"] += 1
+        if attempts["n"] < 3:
+            raise OSError("transient")
+        return FakeResp()
+
+    monkeypatch.setattr(mr.urllib.request, "urlopen", fake_urlopen)
+    assert mr._fetch_remote() == 4.21
+    assert attempts["n"] == 3
+
+
+def test_fetch_remote_returns_none_after_all_retries(monkeypatch):
+    monkeypatch.setattr(mr.time, "sleep", lambda _s: None)
+    attempts = {"n": 0}
+
+    def fake_urlopen(_url, timeout=None):
+        attempts["n"] += 1
+        raise OSError("permanent")
+
+    monkeypatch.setattr(mr.urllib.request, "urlopen", fake_urlopen)
+    assert mr._fetch_remote() is None
+    assert attempts["n"] == 3

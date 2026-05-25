@@ -12,6 +12,7 @@ import logging
 import os
 import threading
 import time
+from typing import Optional
 
 from flask import Blueprint, jsonify, render_template
 
@@ -124,17 +125,42 @@ def api_multibagger_diff():
 
 
 # ── 백그라운드 빌더 ─────────────────────────────────────────
+# P1-8: rebuild 락 보유 시간 추적. 60분 초과 시 경고 로그.
+_REBUILD_LOCK_WARN_SEC = 60 * 60
+_rebuild_lock_acquired_at: Optional[float] = None
+
+
+def _acquire_build_lock(flask_app) -> bool:
+    """build lock 획득 + 보유 시간 추적 시작. True 면 획득 성공."""
+    global _rebuild_lock_acquired_at
+    if not flask_app._multibagger_build_lock.acquire(blocking=False):
+        if _rebuild_lock_acquired_at is not None:
+            held = time.time() - _rebuild_lock_acquired_at
+            if held > _REBUILD_LOCK_WARN_SEC:
+                logging.warning("multibagger build lock held %.0fs (>%ds) — 잠재 누수",
+                                held, _REBUILD_LOCK_WARN_SEC)
+        return False
+    _rebuild_lock_acquired_at = time.time()
+    return True
+
+
+def _release_build_lock(flask_app) -> None:
+    global _rebuild_lock_acquired_at
+    _rebuild_lock_acquired_at = None
+    flask_app._multibagger_build_lock.release()
+
+
 def _multibagger_warmup_loop(interval_sec: int = 3600) -> None:
     import app as flask_app
     while True:
         try:
             cached = flask_app._multibagger_results_cache
             stale = (not cached) or (time.time() - cached.get("_ts", 0)) >= flask_app._MULTIBAGGER_TTL_SEC
-            if stale and flask_app._multibagger_build_lock.acquire(blocking=False):
+            if stale and _acquire_build_lock(flask_app):
                 try:
                     _rebuild_multibagger_us()
                 finally:
-                    flask_app._multibagger_build_lock.release()
+                    _release_build_lock(flask_app)
         except Exception as e:
             logging.warning("multibagger warmup loop error: %s", e)
         time.sleep(interval_sec)
@@ -156,14 +182,14 @@ def start_multibagger_warmup_once() -> None:
 
 def _maybe_trigger_multibagger_build() -> None:
     import app as flask_app
-    if not flask_app._multibagger_build_lock.acquire(blocking=False):
+    if not _acquire_build_lock(flask_app):
         return
 
     def _worker():
         try:
             _rebuild_multibagger_us()
         finally:
-            flask_app._multibagger_build_lock.release()
+            _release_build_lock(flask_app)
 
     threading.Thread(target=_worker, daemon=True).start()
 

@@ -257,24 +257,31 @@ def score_bonus(f: Fundamentals) -> float:
 _Q_FUNCS = (score_q1, score_q2, score_q3, score_q4, score_q5, score_q6)
 
 
+BONUS_MAX = 35  # sector(10) + insider(10) + buyback(5) + revenue_accel(10)
+
+
 def compose_score(f: Fundamentals) -> float:
+    """Core × 0.7 + Bonus × 0.3 (Bonus 는 0~100 정규화).
+
+    P1-1: 명시적 정규화로 표현. 수치는 종전과 동일.
+    """
     vals = [fn(f) for fn in _Q_FUNCS]
     vals = [v for v in vals if v is not None]
-    if not vals:
-        core = 0.0
-    else:
-        core = sum(vals) / len(vals)
-    bonus = score_bonus(f)
-    return min(100.0, core * 0.7 + bonus * 0.3 / 35 * 100)
+    core = sum(vals) / len(vals) if vals else 0.0
+    bonus_pct = min(100.0, score_bonus(f) / BONUS_MAX * 100.0)
+    return min(100.0, core * 0.7 + bonus_pct * 0.3)
 
 
 def tie_break_key(f: Fundamentals) -> tuple:
-    """동점 시 비교용. 내림차순 정렬 가정 (큰 게 우선)."""
+    """동점 시 비교용. 큰 게 우선 (q4/roic/q2) + 시총 작은 게 우선 (멀티배거 전략).
+
+    P1-6: 모든 필드를 의미적 양수로 반환. 정렬 방향은 호출측이 결정.
+    """
     return (
         score_q4(f) or 0,
         f.roic or 0,
         score_q2(f) or 0,
-        -(f.market_cap or 1e18),
+        f.market_cap or 0,  # 양수 그대로 — 호출측이 '작은 게 우선'으로 반전
     )
 
 
@@ -282,23 +289,26 @@ def tie_break_key(f: Fundamentals) -> tuple:
 # Orchestrator: build_results
 # ---------------------------------------------------------------------------
 
-def _pre_filter_F1_F2(base: list, t: dict) -> list:
+def _pre_filter_F1(base: list, t: dict) -> list:
+    """F1(시가총액 밴드) 만 사전 필터. F2(수익성) 는 enrichment 후 classify 단계로 위임.
+
+    P1-7: base scan 에 EBITDA/FCF 가 누락된 종목을 침묵 누락하지 않도록 변경.
+    market_cap 도 결측이면 enrichment 후 재시도 가능하도록 통과시킴.
+    """
     out = []
     for row in base:
-        mc = row.get("market_cap") or row.get("MarketCap") or row.get("marketCap")
-        eb = row.get("ebitda") or row.get("EBITDA")
-        fc = row.get("fcf") or row.get("FCF") or row.get("freeCashflow")
-        if mc is None or eb is None or fc is None:
-            continue
-        if not (t["F1_MCAP_MIN"] <= mc <= t["F1_MCAP_MAX"]):
-            continue
-        if eb <= 0 or fc <= 0:
-            continue
         ticker = row.get("Ticker") or row.get("ticker") or row.get("symbol")
         if not ticker:
             continue
+        mc = row.get("market_cap") or row.get("MarketCap") or row.get("marketCap")
+        if mc is not None and not (t["F1_MCAP_MIN"] <= mc <= t["F1_MCAP_MAX"]):
+            continue
         out.append(ticker)
     return out
+
+
+# 후방호환 별칭 — 외부 호출자 잔존 시.
+_pre_filter_F1_F2 = _pre_filter_F1
 
 
 def _row_summary(ticker: str, f: Fundamentals, cls: GateResult, score: float) -> dict:
@@ -334,7 +344,7 @@ def build_results(base_rows: list, dgs10_pct: Optional[float],
     import inspect
 
     t = thresholds or DEFAULTS
-    candidates = _pre_filter_F1_F2(base_rows, t)
+    candidates = _pre_filter_F1(base_rows, t)
 
     # 가능한 경우 hist 를 1회 batch 로 prefetch (N+1 완화).
     hist_cache = {}
@@ -380,7 +390,9 @@ def build_results(base_rows: list, dgs10_pct: Optional[float],
         )
 
     def _sort_key(r):
-        return (-r["score"],) + tuple(-x for x in tie_break_key(_blank_for_sort(r)))
+        q4, roic, q2, mc = tie_break_key(_blank_for_sort(r))
+        # score/q4/roic/q2: 큰 게 우선(-x). market_cap: 작은 게 우선(+x).
+        return (-r["score"], -q4, -roic, -q2, mc)
 
     pass_rows.sort(key=_sort_key)
     watch_rows.sort(key=lambda r: (len(r["gates_failed"]) + len(r["gates_missing"]), -r["score"]))

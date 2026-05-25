@@ -29,14 +29,27 @@ def _parse_last_valid(csv_text: str) -> Optional[float]:
     return last
 
 
+_RETRY_BACKOFF_SEC = (1, 2, 4)  # 3회 재시도 backoff
+
+
 def _fetch_remote() -> Optional[float]:
-    try:
-        with urllib.request.urlopen(FRED_URL, timeout=5) as resp:
-            data = resp.read().decode("utf-8", errors="replace")
-        return _parse_last_valid(data)
-    except Exception as e:
-        logging.debug("DGS10 fetch failed: %s", e)
-        return None
+    """P1-9: 일시적 네트워크 오류에 3회 backoff 재시도."""
+    last_err: Optional[Exception] = None
+    for i, delay in enumerate((0,) + _RETRY_BACKOFF_SEC[:-1]):
+        if delay:
+            time.sleep(delay)
+        try:
+            with urllib.request.urlopen(FRED_URL, timeout=5) as resp:
+                data = resp.read().decode("utf-8", errors="replace")
+            v = _parse_last_valid(data)
+            if v is not None:
+                return v
+        except Exception as e:
+            last_err = e
+            logging.debug("DGS10 fetch attempt %d failed: %s", i + 1, e)
+    if last_err is not None:
+        logging.warning("DGS10 fetch exhausted retries: %s", last_err)
+    return None
 
 
 def _load_cached() -> Optional[dict]:
