@@ -1337,8 +1337,12 @@ function _renderMoatBadge(stock) {
   const cat = String(stock.MoatCategory || 'NONE').toUpperCase();
   const data = stock.MoatData || {};
   const detail = data.detail || '';
-  const titleTxt = detail ? `해자: ${stock.Moat} — ${detail}` : `해자: ${stock.Moat}`;
-  return `<span class="moat-badge moat-${esc(cat)}" title="${esc(titleTxt)}">🛡 ${esc(stock.Moat)}</span>`;
+  const conf = String(stock.MoatConfidence || data.confidence || 'heuristic').toLowerCase();
+  const confIcon = conf === 'verified' ? '✓' : conf === 'heuristic' ? '⚠' : '';
+  const confTitle = conf === 'verified' ? 'Morningstar Wide Moat 검증' : conf === 'heuristic' ? '규칙 기반 추정(미검증)' : '';
+  const titleTxt = (detail ? `해자: ${stock.Moat} — ${detail}` : `해자: ${stock.Moat}`) + (confTitle ? ` · ${confTitle}` : '');
+  const confSpan = confIcon ? ` <span class="moat-conf moat-conf-${conf}" title="${esc(confTitle)}">${confIcon}</span>` : '';
+  return `<span class="moat-badge moat-${esc(cat)}" title="${esc(titleTxt)}">🛡 ${esc(stock.Moat)}${confSpan}</span>`;
 }
 
 function renderStockTable(stocks) {

@@ -52,7 +52,7 @@ if not _app_fh_exists:
 _app_sh_exists = any(isinstance(h, logging.StreamHandler) and not isinstance(h, RotatingFileHandler) for h in _root_logger.handlers)
 if not _app_sh_exists:
     _app_sh = logging.StreamHandler(sys.stderr)
-    _app_sh.setLevel(logging.INFO)
+    _app_sh.setLevel(logging.WARNING)
     _app_sh.setFormatter(_app_fmt)
     _root_logger.addHandler(_app_sh)
 
@@ -85,7 +85,6 @@ def _asset_mtime(name: str) -> str:
 def _inject_asset_versions():
     return {
         "v_app_js": _asset_mtime("app.js"),
-        "v_interactive_js": _asset_mtime("interactive.js"),
         "v_theme_css": _asset_mtime("theme.css"),
     }
 
@@ -318,7 +317,6 @@ def _render_static_template(name: str, replacements: dict[str, str] | None = Non
     content = (
         content
         .replace("{{ v_app_js }}", _asset_mtime("app.js"))
-        .replace("{{ v_interactive_js }}", _asset_mtime("interactive.js"))
         .replace("{{ v_theme_css }}", _asset_mtime("theme.css"))
     )
     for src, dst in (replacements or {}).items():

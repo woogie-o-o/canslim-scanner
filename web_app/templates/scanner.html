@@ -661,6 +661,15 @@ td.score-col {
   vertical-align: middle;
   cursor: help;
 }
+.moat-conf {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 3px;
+  cursor: help;
+}
+.moat-conf-verified { color: #16A34A; }
+.moat-conf-heuristic { color: #B45309; opacity: 0.85; }
 .stock-desc { font-size: 11px; color: var(--text-secondary); margin-top: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
 
 /* === 경제적 해자(Moat) 배지 — Morningstar 5종 색상 === */
@@ -2787,208 +2796,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .dp-header button[onclick="captureDetail()"] { display: none; }
 }
 
-/* ── Interactive Micro-interactions (interactive.js) ─────── */
-
-/* Stat roll animation */
-.ix-stat-roll {
-  animation: ixStatRoll 0.35s var(--ease-spring);
-}
-@keyframes ixStatRoll {
-  0%   { transform: translateY(0); opacity: 1; }
-  40%  { transform: translateY(-8px); opacity: 0.3; }
-  60%  { transform: translateY(4px); opacity: 0.7; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
-/* Confetti particles */
-.ix-confetti-container {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  overflow: hidden;
-}
-.ix-confetti-dot {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  animation: ixConfettiBurst 0.7s ease-out forwards;
-}
-@keyframes ixConfettiBurst {
-  0%   { transform: translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--ix-dx), var(--ix-dy)) scale(0.3); opacity: 0; }
-}
-
-/* "Discovery Card" */
-#ix-discovery-card {
-  display: none;
-}
-.ix-disc-inner {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 18px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--card) 100%);
-  border: 1.5px solid var(--brand);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 12px rgba(49, 130, 246, 0.10);
-  transition: box-shadow var(--duration-normal), transform var(--duration-fast);
-}
-.ix-disc-inner:hover {
-  box-shadow: 0 4px 20px rgba(49, 130, 246, 0.18);
-  transform: translateY(-1px);
-}
-.ix-disc-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.ix-disc-icon { font-size: 18px; line-height: 1; }
-.ix-disc-icon.ix-disc-new {
-  font-size: 11px;
-  font-weight: 800;
-  color: #fff;
-  background: var(--brand);
-  border-radius: 4px;
-  padding: 2px 6px;
-}
-.ix-disc-reason {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--brand);
-  white-space: nowrap;
-}
-.ix-disc-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-.ix-disc-name {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.ix-disc-ticker {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-}
-.ix-disc-score {
-  font-size: 14px;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-.ix-disc-score.score-high { color: var(--success); }
-.ix-disc-score.score-mid  { color: var(--warning); }
-.ix-disc-score.score-low  { color: var(--destructive); }
-.ix-disc-chg {
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
-}
-.ix-disc-chg.chg-up   { color: #E03131; }
-.ix-disc-chg.chg-down { color: #1971C2; }
-.ix-disc-chg.chg-flat { color: var(--text-tertiary); }
-.ix-disc-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--brand);
-  background: rgba(49, 130, 246, 0.08);
-  padding: 2px 8px;
-  border-radius: 100px;
-  flex-shrink: 0;
-  letter-spacing: 0.5px;
-}
-.ix-disc-enter {
-  animation: ixDiscSlideIn 0.45s var(--ease-spring) both;
-}
-@keyframes ixDiscSlideIn {
-  from { transform: translateY(-10px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
-}
-
-/* Discovery card responsive */
-@media (max-width: 768px) {
-  .ix-disc-inner { padding: 8px 12px; gap: 8px; flex-wrap: wrap; }
-  .ix-disc-main { gap: 6px; }
-  .ix-disc-name { font-size: 13px; }
-  .ix-disc-ticker { display: none; }
-  .ix-disc-label { font-size: 9px; padding: 2px 6px; }
-}
-
-/* Star burst particles (watchlist) */
-.ix-star-particle {
-  position: absolute;
-  font-size: 10px;
-  color: var(--warning);
-  pointer-events: none;
-  animation: ixConfettiBurst 0.6s ease-out forwards;
-}
-
-/* Toast notification */
-.ix-toast {
-  position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%) translateY(16px);
-  background: var(--primary);
-  color: var(--primary-foreground);
-  padding: 10px 22px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: var(--shadow-elevated);
-  opacity: 0;
-  transition: opacity 0.3s, transform 0.3s var(--ease-spring);
-  z-index: 9998;
-  pointer-events: none;
-}
-.ix-toast-show {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* Easter egg — snowfall */
-.ix-snow-container {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9997;
-  overflow: hidden;
-}
-.ix-snowflake {
-  position: absolute;
-  top: -24px;
-  color: #cfe6ff;
-  user-select: none;
-  will-change: transform;
-  animation-name: ixSnowFall;
-  animation-timing-function: linear;
-  animation-iteration-count: 1;
-  animation-fill-mode: forwards;
-}
-@keyframes ixSnowFall {
-  to { transform: translateY(108vh) rotate(360deg); }
-}
-
-/* prefers-reduced-motion */
-@media (prefers-reduced-motion: reduce) {
-  .ix-stat-roll,
-  .ix-confetti-dot,
-  .ix-star-particle,
-  .ix-snowflake,
-  .ix-disc-enter { animation: none !important; }
-  .ix-toast { transition: none !important; }
-}
 </style>
 </head>
 <body>
@@ -3084,8 +2891,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     </div>
   </div>
 
-  <!-- Discovery Card (interactive.js) -->
-  <div id="ix-discovery-card" style="padding:6px 24px 2px;"></div>
 
   <!-- Content -->
   <div class="content">
@@ -3711,7 +3516,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="/static/app.js?v={{ v_app_js }}"></script>
-<script src="/static/interactive.js?v={{ v_interactive_js }}" defer></script>
 <script>
 /* ── Mobile Sidebar Toggle ─────────────────────────────────── */
 

@@ -341,6 +341,8 @@ def _resolve_one(row: dict) -> dict:
             "label": str(ov.get("label", _CATEGORY_LABEL.get(cat, ""))),
             "detail": str(ov.get("detail", _CATEGORY_DETAIL.get(cat, ""))),
             "source": "curated",
+            "confidence": str(ov.get("confidence", "heuristic")),
+            "evidence_source": str(ov.get("source", "")),
             "story_risk": story_risk,
         }
 
@@ -373,6 +375,7 @@ def annotate(results: list) -> list:
             data = _resolve_one(row)
             row["Moat"] = data["label"]
             row["MoatCategory"] = data["category"]
+            row["MoatConfidence"] = data.get("confidence", "heuristic")
             row["MoatData"] = data
         except Exception as e:
             _log.debug("moat annotate row failed: %s", e)

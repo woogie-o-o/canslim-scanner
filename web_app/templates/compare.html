@@ -155,66 +155,6 @@ html, body {
   .compare-title { font-size: 18px; }
 }
 
-/* ── 3D Flip Card (interactive.js) ────────────────────────── */
-.ix-flip-card {
-  perspective: 1000px;
-  cursor: pointer;
-  background: none;
-  border: none;
-  box-shadow: none;
-  overflow: visible;
-}
-.ix-flip-inner {
-  position: relative;
-  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-  transform-style: preserve-3d;
-}
-.ix-flip-card.flipped .ix-flip-inner {
-  transform: rotateY(180deg);
-}
-.ix-flip-front,
-.ix-flip-back {
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-}
-.ix-flip-front {
-  position: relative;
-}
-.ix-flip-back {
-  position: absolute;
-  inset: 0;
-  transform: rotateY(180deg);
-  overflow-y: auto;
-  padding-bottom: 12px;
-}
-.ix-flip-back .compare-metrics {
-  padding: 0 18px;
-}
-.ix-flip-back .compare-oneliner {
-  margin: 12px 18px 0;
-}
-.ix-flip-hint {
-  text-align: center;
-  padding: 8px 0;
-  font-size: 11px;
-  color: var(--text-tertiary);
-  font-weight: 500;
-}
-.ix-flip-card:hover .ix-flip-inner {
-  box-shadow: var(--shadow-hover);
-}
-@supports not (backface-visibility: hidden) {
-  .ix-flip-card.flipped .ix-flip-front { display: none; }
-  .ix-flip-card.flipped .ix-flip-back { position: static; transform: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ix-flip-inner { transition: none !important; }
-}
 @media (max-width: 768px) {
   .compare-shell { padding: 12px; }
   .compare-topbar {
@@ -250,6 +190,5 @@ const COMPARE_TICKERS = {{ tickers|tojson }};
 const COMPARE_MARKET = {{ market|tojson }};
 </script>
 <script src="/static/app.js?v={{ v_app_js }}"></script>
-<script src="/static/interactive.js?v={{ v_interactive_js }}" defer></script>
 </body>
 </html>
