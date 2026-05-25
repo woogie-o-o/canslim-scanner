@@ -26,7 +26,15 @@ def _compute_multiple(closes: pd.Series) -> Optional[float]:
     return end / start
 
 
-def _extract_baggers(by_symbol: dict, multiple: float) -> list:
+def _extract_baggers(by_symbol: dict, multiple: float,
+                     start: Optional[str] = None,
+                     snapshot_fn=None,
+                     max_workers: int = 8) -> list:
+    """multiple 이상 종목 추출 + snapshot_fn 주입 시 시작 시점 펀더멘털 적재.
+
+    snapshot_fn: callable(symbol, as_of_date_str) -> dict | None.
+    None 이면 snapshot_at_start 키 생략(레거시 동작).
+    """
     out = []
     for sym, df in by_symbol.items():
         if df is None or df.empty or "Close" not in df.columns:
@@ -41,6 +49,18 @@ def _extract_baggers(by_symbol: dict, multiple: float) -> list:
             "multiple": round(mult, 2),
         })
     out.sort(key=lambda r: -r["multiple"])
+
+    if snapshot_fn is not None and start and out:
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            futs = {ex.submit(snapshot_fn, b["ticker"], start): b for b in out}
+            for fut in as_completed(futs):
+                b = futs[fut]
+                try:
+                    snap = fut.result()
+                except Exception as e:
+                    logging.debug("snapshot fetch failed %s: %s", b["ticker"], e)
+                    snap = None
+                b["snapshot_at_start"] = snap
     return out
 
 
@@ -69,9 +89,21 @@ def _load_sectors_universe() -> list:
 
 
 def build_bagger_list_us(start: str = "2021-01-01", multiple: float = 10.0,
-                        universe: Optional[list] = None, max_workers: int = 8) -> list:
+                        universe: Optional[list] = None, max_workers: int = 8,
+                        snapshot_fn=None) -> list:
+    """5년 10x 종목 추출 + 시작 시점 스냅샷 적재.
+
+    snapshot_fn 미지정 시 multibagger_enrich.snapshot_fundamentals_at 사용.
+    """
     if universe is None:
         universe = _load_sectors_universe()
+
+    if snapshot_fn is None:
+        try:
+            from multibagger_enrich import snapshot_fundamentals_at
+            snapshot_fn = snapshot_fundamentals_at
+        except Exception as e:
+            logging.warning("snapshot_fn import failed; baggers will lack snapshot_at_start: %s", e)
 
     by_symbol = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -84,7 +116,8 @@ def build_bagger_list_us(start: str = "2021-01-01", multiple: float = 10.0,
                 logging.debug("bagger future %s skipped: %s", sym, e)
                 continue
 
-    baggers = _extract_baggers(by_symbol, multiple)
+    baggers = _extract_baggers(by_symbol, multiple, start=start, snapshot_fn=snapshot_fn,
+                              max_workers=max_workers)
     try:
         os.makedirs(os.path.dirname(CACHE_PATH), exist_ok=True)
         with open(CACHE_PATH, "w", encoding="utf-8") as f:

@@ -123,6 +123,143 @@ def _insider_net_3m(t) -> Optional[float]:
         return None
 
 
+def _pick_period_cols(df: pd.DataFrame, as_of: pd.Timestamp) -> tuple[Optional[object], Optional[object]]:
+    """fiscal report 컬럼 중 as_of 이전(<=) 최신/직전 한 쌍 반환. 없으면 (None, None)."""
+    if df is None or df.empty:
+        return None, None
+    try:
+        cols = []
+        for c in df.columns:
+            try:
+                cols.append((pd.Timestamp(c), c))
+            except Exception:
+                continue
+        cols = [(ts, c) for ts, c in cols if pd.notna(ts) and ts <= as_of]
+        cols.sort(key=lambda x: x[0], reverse=True)
+        if not cols:
+            return None, None
+        latest = cols[0][1]
+        prev = cols[1][1] if len(cols) > 1 else None
+        return latest, prev
+    except Exception:
+        return None, None
+
+
+def _latest_at(df: pd.DataFrame, row: str, latest_col) -> Optional[float]:
+    if df is None or df.empty or row not in df.index or latest_col is None:
+        return None
+    try:
+        v = df.loc[row, latest_col]
+        return float(v) if pd.notna(v) else None
+    except Exception:
+        return None
+
+
+def _yoy_at(df: pd.DataFrame, row: str, latest_col, prev_col) -> Optional[float]:
+    if latest_col is None or prev_col is None:
+        return None
+    if df is None or df.empty or row not in df.index:
+        return None
+    try:
+        a = df.loc[row, latest_col]
+        b = df.loc[row, prev_col]
+        if pd.isna(a) or pd.isna(b) or float(b) == 0:
+            return None
+        return float(a) / float(b) - 1.0
+    except Exception:
+        return None
+
+
+def _price_signals_at(hist: pd.DataFrame, as_of: pd.Timestamp) -> tuple[Optional[float], Optional[float], Optional[float]]:
+    """as_of 시점의 (price, from_52w_high, return_1m). hist 는 as_of 이전 1y+ 시계열."""
+    if hist is None or hist.empty or "Close" not in hist.columns:
+        return None, None, None
+    try:
+        idx = pd.to_datetime(hist.index)
+        mask = idx <= as_of
+        sub = hist.loc[mask].dropna(subset=["Close"])
+        if len(sub) < 252:
+            return None, None, None
+        sub = sub.tail(252)
+        closes = sub["Close"]
+        last = float(closes.iloc[-1])
+        high = float(closes.max())
+        dist = last / high - 1.0 if high > 0 else None
+        one_m = max(0, len(closes) - 21)
+        ret_1m = last / float(closes.iloc[one_m]) - 1.0
+        return last, dist, ret_1m
+    except Exception:
+        return None, None, None
+
+
+def snapshot_fundamentals_at(symbol: str, as_of_date: str) -> Optional[dict]:
+    """backtest 시작 시점의 펀더멘털 스냅샷. classify() 입력으로 직접 사용 가능한 dict.
+
+    제약: yfinance 의 income/balance/cashflow 는 통상 4~5년치만 제공.
+    as_of 이전 가장 최근 fiscal report 와 그 직전 보고서를 짝지어 YoY 계산.
+    historical info(sector) 는 NOW 값을 사용 — sector 는 거의 안 변함.
+    historical marketCap 은 sharesOutstanding × price_at_as_of 로 재구성.
+    insider_net_buy_3m / buyback_yield_ttm / dgs10_pct 는 historical 재구성 불가 → None.
+    """
+    try:
+        as_of = pd.Timestamp(as_of_date)
+        t = _get_ticker(symbol)
+        info = getattr(t, "info", {}) or {}
+        income = t.income_stmt if hasattr(t, "income_stmt") else pd.DataFrame()
+        balance = t.balance_sheet if hasattr(t, "balance_sheet") else pd.DataFrame()
+        cash = t.cashflow if hasattr(t, "cashflow") else pd.DataFrame()
+        hist = t.history(start=(as_of - pd.Timedelta(days=400)).strftime("%Y-%m-%d"),
+                         end=(as_of + pd.Timedelta(days=5)).strftime("%Y-%m-%d"))
+
+        inc_l, inc_p = _pick_period_cols(income, as_of)
+        bal_l, _bal_p = _pick_period_cols(balance, as_of)
+        cf_l, cf_p = _pick_period_cols(cash, as_of)
+
+        ebitda = _latest_at(income, "EBITDA", inc_l)
+        fcf = _latest_at(cash, "FreeCashFlow", cf_l)
+        interest = _latest_at(income, "InterestExpense", inc_l)
+        debt = _latest_at(balance, "TotalDebt", bal_l)
+        ebit = _latest_at(income, "EBIT", inc_l) or _latest_at(income, "OperatingIncome", inc_l)
+        equity = _latest_at(balance, "StockholdersEquity", bal_l)
+
+        rev_yoy = _yoy_at(income, "TotalRevenue", inc_l, inc_p)
+        ebitda_yoy = _yoy_at(income, "EBITDA", inc_l, inc_p)
+        fcf_yoy = _yoy_at(cash, "FreeCashFlow", cf_l, cf_p)
+        assets_yoy = _yoy_at(balance, "TotalAssets", bal_l, _bal_p)
+        capex_yoy = _yoy_at(cash, "CapitalExpenditure", cf_l, cf_p)
+
+        icr = (ebitda / abs(interest)) if (ebitda and interest) else None
+        debt_ebitda = (debt / ebitda) if (debt and ebitda and ebitda > 0) else None
+        roic = None
+        if ebit and equity:
+            invested = float(equity) + float(debt or 0.0)
+            if invested > 0:
+                tax_rate = info.get("taxRate") if isinstance(info.get("taxRate"), (int, float)) else 0.21
+                roic = float(ebit) * (1 - float(tax_rate)) / invested
+
+        price, dist, ret_1m = _price_signals_at(hist, as_of)
+        shares = info.get("sharesOutstanding") or info.get("impliedSharesOutstanding")
+        mcap = (float(shares) * float(price)) if (shares and price) else None
+        pb = info.get("priceToBook")  # historical 재구성 어려움 → NOW 값 사용
+        fcf_yield = (fcf / mcap) if (fcf and mcap) else None
+
+        return {
+            "market_cap": mcap, "ebitda": ebitda, "fcf": fcf,
+            "roic": roic, "fcf_yield": fcf_yield, "pb": pb,
+            "revenue_yoy": rev_yoy, "ebitda_yoy": ebitda_yoy, "fcf_yoy": fcf_yoy,
+            "assets_yoy": assets_yoy, "capex_yoy": capex_yoy,
+            "icr": icr, "debt_ebitda": debt_ebitda,
+            "from_52w_high": dist, "return_1m": ret_1m,
+            "sector": info.get("sector"),
+            "insider_net_buy_3m": None, "buyback_yield_ttm": None,
+            "dgs10_pct": None,
+            "roic_prev": None, "revenue_yoy_prev": None,
+        }
+    except Exception as e:
+        logging.warning("snapshot_fundamentals_at failed for %s @ %s: %s", symbol, as_of_date, e)
+        return None
+
+
 def enrich_one(symbol: str, dgs10_pct: Optional[float],
                hist_cache: Optional[dict] = None) -> Optional[mb.Fundamentals]:
     """단일 심볼 보강.
