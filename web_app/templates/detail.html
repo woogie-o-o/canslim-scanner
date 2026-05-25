@@ -1227,11 +1227,17 @@ html, body {
           .entry-bar-fill { position:absolute; left:0; top:0; height:100%; background:linear-gradient(90deg,#DC2626 0%,#F59E0B 50%,#16A34A 100%); border-radius:6px; transition:width .3s; }
           /* ② 행동존 — 진입가 강조 / 손절·목표가1 보조 */
           .entry-prices { padding:12px 16px; border-top:1px solid var(--border); background:var(--bg-tertiary); }
-          .act-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:12px; align-items:end; }
+          .act-grid { display:grid; grid-template-columns:1.3fr 1fr 1.1fr; gap:10px; align-items:end; }
+          .act-grid > * { min-width:0; }
           .act-grid .lbl { display:block; color:var(--text-tertiary); font-size:11px; margin-bottom:3px; }
-          .act-primary .val-big { font-size:22px; font-weight:800; color:var(--text-primary); }
+          .act-primary .val-big { display:block; font-size:21px; font-weight:800; color:var(--text-primary); line-height:1.15; word-break:keep-all; overflow-wrap:anywhere; }
           .act-primary .disc { font-size:12px; color:var(--brand); font-weight:700; margin-left:3px; white-space:nowrap; }
-          .act-sec .val { font-size:15px; font-weight:700; }
+          .act-sec .val { display:block; font-size:15px; font-weight:700; line-height:1.2; word-break:keep-all; overflow-wrap:anywhere; }
+          @media (max-width: 480px) {
+            .act-grid { grid-template-columns:1.2fr 1fr 1.1fr; gap:8px; }
+            .act-primary .val-big { font-size:18px; }
+            .act-sec .val { font-size:14px; }
+          }
           /* ③ 더보기존 (토글) */
           .entry-detail { padding:0 16px; max-height:0; overflow:hidden; transition:max-height .3s ease, padding .3s ease; }
           .entry-detail.open { max-height:800px; padding:12px 16px; border-top:1px solid var(--border); }
