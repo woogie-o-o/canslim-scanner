@@ -2126,10 +2126,21 @@ def api_dart_news(ticker: str):
                 logging.debug("silent except (app.py): %s", _e)
             if not stock_name:
                 try:
+                    from quant_nexus_v20 import QuantNexusApp
+                    stock_name = (
+                        QuantNexusApp.KR_NAMES.get(f"{code}.KS")
+                        or QuantNexusApp.KR_NAMES.get(f"{code}.KQ")
+                        or ""
+                    )
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
+            if not stock_name:
+                try:
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
-                        stock_name = s["data"].get("corp_name", "")
+                        data = s.get("data") or {}
+                        stock_name = data.get("stock_name") or data.get("corp_name", "")
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
             if stock_name:

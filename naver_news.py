@@ -64,9 +64,24 @@ def _is_subject(title: str, query: str) -> bool:
     (기존엔 '제목이 종목명으로 시작'만 통과시켜 90% 이상을 버렸음)
     """
     norm_q = _WS_RE.sub("", query)
+    norm_q = (
+        norm_q.replace("(주)", "")
+        .replace("㈜", "")
+        .replace("주식회사", "")
+    )
     if not norm_q:
         return False
-    return norm_q in _WS_RE.sub("", title)
+    title_norm = _WS_RE.sub("", title)
+    if norm_q in title_norm:
+        return True
+
+    # '지주', '홀딩스' 등이 생략된 채 보도되는 헤드라인 대응
+    # 예: 우리금융지주 -> 우리금융
+    flex_q = norm_q.replace("지주", "").replace("홀딩스", "")
+    if len(flex_q) >= 2 and flex_q in title_norm:
+        return True
+
+    return False
 
 
 def _is_relevant(title: str, desc: str, query: str) -> bool:
