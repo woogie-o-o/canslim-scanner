@@ -183,6 +183,18 @@ const _ENTRY_ICON  = { STRONG: '🟢', NEUTRAL: '🟡', AVOID: '🔴',
 const _ENTRY_LABEL = { STRONG: '진입적기', NEUTRAL: '눌림대기', AVOID: '부적합',
                        GREEN: '진입적기', YELLOW: '눌림대기', RED: '부적합' };
 
+// STRONG/GREEN 라벨을 entry_discount(%) 에 따라 분기.
+// 갭 1.5% 미만 → '진입적기', 5% 미만 → '분할진입', 그 이상 → '풀백대기'.
+// 라벨 = 단어 자체로 행동을 지시하므로 진입가가 멀면 '진입적기'는 거짓말이 됨.
+function _entryLabel(st, disc) {
+  if (st === 'STRONG' || st === 'GREEN') {
+    if (disc == null || isNaN(disc) || disc < 1.5) return '진입적기';
+    if (disc < 5.0) return '분할진입';
+    return '풀백대기';
+  }
+  return _ENTRY_LABEL[st] || '';
+}
+
 // 종합점수(Y) × 진입 타이밍(X) 2축 사분면 배지
 function _renderQuadrant(d) {
   const card = document.getElementById('dp-quadrant-card');
@@ -246,7 +258,7 @@ function _renderEntryCard(d) {
   // 구버전 캐시 스캔(파생필드 없음)만 "관망 · BB 과확장 · …" 문자열을 분해.
   const _pp = phrase.split(' · ');
   // 진입 타이밍 라벨은 리스트 배지와 같은 어휘(진입적기/눌림대기/부적합)로 통일.
-  const _headline = _ENTRY_LABEL[st] || plan.headline_action || _pp[0] || phrase;
+  const _headline = _entryLabel(st, plan.entry_discount) || plan.headline_action || _pp[0] || phrase;
   const _reason = plan.one_reason || _pp.slice(1).filter(Boolean).slice(0, 2).join(' · ');
   setText('dp-entry-phrase', _headline);
   const _subEl = document.getElementById('dp-entry-subreason');
@@ -424,7 +436,8 @@ function _entryLight(stock) {
   if (!stock || !stock.EntryStatus) return '';
   const st = stock.EntryStatus;
   const ico = _ENTRY_ICON[st] || '⚪';
-  const lbl = _ENTRY_LABEL[st] || '';
+  const _disc = (stock.EntryPlan && stock.EntryPlan.entry_discount != null) ? stock.EntryPlan.entry_discount : null;
+  const lbl = _entryLabel(st, _disc);
   const cls = _ENTRY_COLOR[st] || 'neutral';
   const phr = stock.EntryPhrase || '';
   const sc  = stock.EntryScore != null ? `진입 타이밍 ${stock.EntryScore}/100` : '';
@@ -1759,19 +1772,18 @@ function initSearch() {
   inp.setAttribute('placeholder', '종목명 또는 티커 검색 (예: RF, 삼성, AAPL)');
   const box = _createSuggestBox(inp);
 
-  // 필터 재렌더 debounce (큰 리스트 reflow 폭탄 회피)
-  let _filterDebounceTimer = null;
+  // 입력 중에는 자동완성만 — 스캐너 필터는 Enter/선택 시에만 적용 (속도 개선)
   inp.addEventListener('input', () => {
     const q = inp.value.trim();
-    // 스캔 결과 내 필터 — 150ms debounce
-    if (_searchBaseStocks().length) {
-      clearTimeout(_filterDebounceTimer);
-      _filterDebounceTimer = setTimeout(_refreshFilteredView, 150);
+    // 입력이 비면 기존 필터도 해제
+    if (q.length < 1) {
+      _hideSuggest();
+      if (_searchBaseStocks().length) _refreshFilteredView();
+      return;
     }
     // 자동완성 제안
     clearTimeout(_searchTimer);
-    if (q.length < 1) { _hideSuggest(); return; }
-    _searchTimer = setTimeout(() => _fetchSuggestions(q, box), 250);
+    _searchTimer = setTimeout(() => _fetchSuggestions(q, box), 200);
   });
 
   inp.addEventListener('keydown', async (e) => {

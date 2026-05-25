@@ -6047,6 +6047,9 @@ class QuantNexusApp:
 
                 if entry_status == "STRONG":
                     _entry_raw = min(cur, _vwap_px if _vwap_px > 0 else cur, cur - 0.3 * _atr_abs)
+                    # STRONG 은 살짝 풀백(≤ -3%) 안에서만 의미. 그 이상 깊으면
+                    # 라벨('진입적기')과 진입가 갭이 모순 → 사용자 혼란.
+                    _entry_raw = max(_entry_raw, cur * 0.97)
                     _entry_type = "STRONG · 살짝 풀백"
                 elif entry_status == "NEUTRAL":
                     _entry_raw = min(_vwap_px if _vwap_px > 0 else cur,
