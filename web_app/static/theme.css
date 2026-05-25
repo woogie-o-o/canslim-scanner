@@ -209,3 +209,476 @@ html, body {
   --shadow-elevated: none;
   --shadow-modal:    none;
 }
+
+/* === 상단 매크로 스트립 (공통 매크로 일정) === */
+.macro-events-strip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 24px;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  white-space: nowrap;
+  transition: all var(--duration-normal) var(--ease-default);
+}
+.macro-events-strip::-webkit-scrollbar { display: none; }
+.macro-events-strip-label {
+  flex: 0 0 auto;
+  font-size: 11px; font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding-right: 4px;
+}
+.macro-chip {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 11.5px; color: var(--text-primary);
+  font-weight: 500;
+  box-shadow: var(--shadow-card);
+}
+.macro-chip-dday {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  padding: 2px 6px; border-radius: 6px;
+  background: rgba(148, 163, 184, 0.15);
+  font-size: 10px;
+}
+.macro-chip-dday.urgent { background: rgba(240, 68, 82, 0.15); color: var(--destructive); }
+.macro-chip-dday.soon   { background: rgba(199, 119, 0, 0.15); color: var(--warning); }
+.macro-chip-dday.today  { background: var(--destructive); color: white; }
+.macro-chip-kind {
+  font-size: 9.5px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px; color: white;
+}
+.macro-chip-kind.fomc { background: #ef4444; }
+.macro-chip-kind.cpi  { background: #f59e0b; }
+.macro-chip-kind.nfp  { background: #06b6d4; }
+.macro-chip-kind.bok  { background: #6366f1; }
+.macro-chip-kind.other{ background: #64748b; }
+.macro-events-strip.empty { display: none; }
+
+/* === 멀티배거 탑바 네비게이션 링크 === */
+.topbar-nav-link {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  white-space: nowrap;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  margin-right: 8px;
+  transition: all var(--duration-fast) var(--ease-default);
+}
+.topbar-nav-link:hover {
+  background: var(--brand-tint);
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+/* === 데이터 신뢰도 신호등 (공통) === */
+.dp-conf-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.08) inset;
+  cursor: help;
+}
+.dp-conf-dot.verified   { background: var(--success); box-shadow: 0 0 0 1px rgba(0,192,115,0.4) inset, 0 0 4px rgba(0,192,115,0.5); }
+.dp-conf-dot.estimated  { background: var(--warning); box-shadow: 0 0 0 1px rgba(199,119,0,0.4) inset; }
+.dp-conf-dot.unverified { background: var(--destructive); box-shadow: 0 0 0 1px rgba(240,44,82,0.4) inset; }
+
+/* === 이벤트 캘린더 카드 === */
+.dp-events-card {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.dp-events-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(199, 119, 0, 0.08), rgba(199, 119, 0, 0.03));
+  border-bottom: 1px solid var(--border);
+}
+.dp-events-icon { font-size: 22px; line-height: 1; }
+.dp-events-titles { flex: 1; min-width: 0; }
+.dp-events-title {
+  font-size: 13.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;
+}
+.dp-events-sub {
+  font-size: 11px; color: var(--text-tertiary); margin-top: 2px;
+}
+.dp-events-count {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 8px;
+  background: rgba(199, 119, 0, 0.12); color: var(--warning);
+}
+.dp-events-body { padding: 8px 0; }
+.dp-evt-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.dp-evt-row:first-child { border-top: none; }
+.dp-evt-dday {
+  flex: 0 0 56px; text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700; font-size: 12.5px;
+  padding: 4px 0; border-radius: 6px;
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+.dp-evt-dday.urgent  { background: rgba(240, 44, 82, 0.12); color: var(--destructive); }
+.dp-evt-dday.soon    { background: rgba(199, 119, 0, 0.12); color: var(--warning); }
+.dp-evt-dday.today   { background: var(--destructive); color: white; }
+.dp-evt-name {
+  flex: 1 1 auto; min-width: 0;
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dp-evt-kind {
+  flex: 0 0 auto;
+  font-size: 10px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px;
+  color: white;
+}
+.dp-evt-kind.earnings { background: #8b5cf6; }
+.dp-evt-kind.dividend { background: var(--success); }
+.dp-evt-kind.fomc     { background: #ef4444; }
+.dp-evt-kind.cpi      { background: #f59e0b; }
+.dp-evt-kind.nfp      { background: #06b6d4; }
+.dp-evt-kind.bok      { background: #6366f1; }
+.dp-evt-kind.other    { background: #64748b; }
+.dp-evt-date {
+  flex: 0 0 auto;
+  font-size: 11px; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.dp-events-empty {
+  text-align: center; padding: 24px 0;
+  font-size: 13px; color: var(--text-tertiary);
+}
+.dp-events-footnote {
+  padding: 10px 20px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px; color: var(--text-tertiary); line-height: 1.5;
+}
+
+/* === 오너십 지도 카드 === */
+.dp-ownership-card {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.dp-ownership-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(139, 92, 246, 0.03));
+  border-bottom: 1px solid var(--border);
+}
+.dp-ownership-icon { font-size: 22px; line-height: 1; }
+.dp-ownership-titles { flex: 1; min-width: 0; }
+.dp-ownership-title {
+  font-size: 13.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;
+}
+.dp-ownership-meta {
+  font-size: 11px; color: var(--text-tertiary); margin-top: 2px;
+}
+.dp-ownership-asof {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 8px;
+  background: rgba(139, 92, 246, 0.12); color: #8b5cf6;
+}
+.dp-ownership-body { padding: 16px 20px 14px; }
+.dp-own-bar {
+  display: flex;
+  width: 100%;
+  height: 18px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  margin-bottom: 12px;
+}
+.dp-own-seg {
+  height: 100%;
+  position: relative;
+  transition: opacity var(--duration-fast) var(--ease-default);
+}
+.dp-own-seg:hover { opacity: 0.8; }
+.dp-own-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+}
+.dp-own-leg-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.dp-own-leg-swatch {
+  width: 10px; height: 10px; border-radius: 2px;
+}
+.dp-own-leg-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+.dp-own-top-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 12px 0 6px;
+}
+.dp-own-top-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dp-own-top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.dp-own-top-row:last-child { border-bottom: none; }
+.dp-own-top-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.dp-own-top-pct {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.dp-ownership-footnote {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+.dp-ownership-empty {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* === 매출 세그먼트 파이 === */
+.dp-segments-card {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.dp-segments-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(49, 130, 246, 0.08), rgba(49, 130, 246, 0.03));
+  border-bottom: 1px solid var(--border);
+}
+.dp-segments-icon { font-size: 22px; line-height: 1; }
+.dp-segments-titles { flex: 1; min-width: 0; }
+.dp-segments-title {
+  font-size: 13.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;
+}
+.dp-segments-meta {
+  font-size: 11px; color: var(--text-tertiary); margin-top: 2px;
+}
+.dp-segments-count {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 8px; border-radius: 8px;
+  background: var(--brand-tint); color: var(--brand);
+}
+.dp-segments-body { padding: 16px 20px 14px; }
+.dp-segments-grid {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.dp-segments-pie {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dp-segments-pie svg { display: block; }
+.dp-segments-pie .dp-seg-slice {
+  transition: opacity var(--duration-fast) var(--ease-default);
+  cursor: default;
+}
+.dp-segments-pie .dp-seg-slice:hover { opacity: 0.8; }
+.dp-segments-legend {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dp-seg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.dp-seg-row:last-child { border-bottom: none; }
+.dp-seg-swatch {
+  flex: 0 0 auto;
+  width: 10px; height: 10px; border-radius: 2px;
+}
+.dp-seg-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.dp-seg-pct {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.dp-seg-pct.neg { color: var(--destructive); }
+.dp-segments-footnote {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+.dp-segments-empty {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+
+/* === 인사이더 거래 타임라인 === */
+.dp-insider-card {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.dp-insider-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.08), rgba(236, 72, 153, 0.03));
+  border-bottom: 1px solid var(--border);
+}
+.dp-insider-icon { font-size: 22px; line-height: 1; }
+.dp-insider-titles { flex: 1; min-width: 0; }
+.dp-insider-title { font-size: 13.5px; font-weight: 700; color: var(--text-primary); }
+.dp-insider-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.dp-insider-net {
+  font-size: 11.5px; font-weight: 700;
+  padding: 3px 8px; border-radius: 8px;
+}
+.dp-insider-net.pos  { background: rgba(0,192,115,0.12);  color: var(--success); }
+.dp-insider-net.neg  { background: rgba(240,44,82,0.12);  color: var(--destructive); }
+.dp-insider-net.zero { background: var(--surface-subtle); color: var(--text-secondary); }
+.dp-insider-summary {
+  display: flex; gap: 8px; padding: 12px 20px;
+  border-bottom: 1px dashed var(--border);
+}
+.dp-insider-sum-cell {
+  flex: 1; text-align: center; padding: 8px;
+  background: var(--surface-subtle); border-radius: 8px;
+}
+.dp-insider-sum-key { font-size: 10.5px; color: var(--text-tertiary); font-weight: 600; }
+.dp-insider-sum-val {
+  font-size: 13.5px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px;
+}
+.dp-insider-sum-val.buy  { color: var(--success); }
+.dp-insider-sum-val.sell { color: var(--destructive); }
+.dp-insider-body { padding: 4px 0; max-height: 320px; overflow-y: auto; }
+.dp-ins-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+.dp-ins-row:first-child { border-top: none; }
+.dp-ins-date {
+  flex: 0 0 64px; font-size: 11.5px; color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+.dp-ins-side {
+  flex: 0 0 auto; font-size: 10px; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px; color: white;
+}
+.dp-ins-side.buy    { background: var(--success); }
+.dp-ins-side.sell   { background: var(--destructive); }
+.dp-ins-side.option { background: #8b5cf6; }
+.dp-ins-side.grant  { background: #06b6d4; }
+.dp-ins-side.other  { background: #64748b; }
+.dp-ins-name {
+  flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dp-ins-name-main { color: var(--text-primary); font-weight: 600; }
+.dp-ins-name-role { font-size: 10.5px; color: var(--text-tertiary); margin-top: 1px; }
+.dp-ins-val {
+  flex: 0 0 auto; font-variant-numeric: tabular-nums;
+  font-weight: 700; color: var(--text-secondary);
+}
+.dp-insider-empty {
+  text-align: center; padding: 24px 0;
+  font-size: 13px; color: var(--text-tertiary);
+}
+.dp-insider-footnote {
+  padding: 10px 20px;
+  border-top: 1px dashed var(--border);
+  font-size: 11px; color: var(--text-tertiary); line-height: 1.5;
+}
+

@@ -24,7 +24,7 @@ html, body {
 /* ── App Shell ─────────────────────────────────────────────── */
 .app-shell {
   display: grid;
-  grid-template-rows: 60px auto auto auto 1fr;
+  grid-template-rows: 60px auto auto auto auto auto 1fr;
   height: 100vh;
   overflow: hidden;
   max-width: 100vw;
@@ -2339,6 +2339,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   <header class="topbar">
     <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="메뉴">☰</button>
     <div class="topbar-logo">종목 <span>분석기</span></div>
+    <a href="/multibagger" class="topbar-nav-link" title="잠재적 10배 종목 후보 (PASS/WATCH/DIFF)">🎯 멀티배거</a>
     <div class="topbar-controls">
       <div class="btn-seg-group" id="market-btn-group">
         <button class="btn-seg active" data-val="KR" onclick="onMarketChange('KR')">🇰🇷 한국</button>
@@ -2378,6 +2379,12 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     </div>
     <span class="topbar-date" id="topbar-date"></span>
   </header>
+
+  <!-- Macro Events Strip (상단 공통 일정) -->
+  <div id="macro-events-strip" class="macro-events-strip empty">
+    <span class="macro-events-strip-label">📅 매크로</span>
+    <span id="macro-events-strip-list" style="display:flex;gap:6px;"></span>
+  </div>
 
   <!-- Macro Strip (신호등 띠) -->
   <div class="macro-strip" id="macro-strip">
@@ -2529,6 +2536,98 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
       <div id="dp-fouraxis-obs" style="display:none;padding:14px 16px;margin:0 20px 16px;background:var(--card);border-radius:var(--radius);border:1px solid var(--border);">
         <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">핵심 관찰</div>
         <div id="dp-fa-observation" style="font-size:13px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap;"></div>
+      </div>
+
+      <!-- 매출 세그먼트 카드 -->
+      <div id="dp-segments-card" class="dp-segments-card" style="display:none; margin:0 20px 16px;">
+        <div class="dp-segments-head">
+          <span class="dp-segments-icon">📊</span>
+          <div class="dp-segments-titles">
+            <div class="dp-segments-title"><span id="dp-segments-conf" class="dp-conf-dot estimated" title="추정치"></span>매출 세그먼트</div>
+            <div id="dp-segments-meta" class="dp-segments-meta">—</div>
+          </div>
+          <span id="dp-segments-count" class="dp-segments-count">—</span>
+        </div>
+        <div class="dp-segments-body">
+          <div class="dp-segments-grid">
+            <div class="dp-segments-pie">
+              <svg id="dp-segments-svg" viewBox="0 0 100 100" width="160" height="160" aria-hidden="true"></svg>
+            </div>
+            <div id="dp-segments-legend" class="dp-segments-legend"></div>
+          </div>
+          <div class="dp-segments-footnote">
+            최신 사업보고서/10-K 기준 근사치 · 회계연도·환율·재분류로 차이 가능
+          </div>
+        </div>
+      </div>
+
+      <!-- 인사이더 거래 카드 -->
+      <div id="dp-insider-card" class="dp-insider-card" style="display:none; margin:0 20px 16px;">
+        <div class="dp-insider-head">
+          <span class="dp-insider-icon">🕵️</span>
+          <div class="dp-insider-titles">
+            <div class="dp-insider-title">인사이더 거래</div>
+            <div class="dp-insider-sub">최근 6개월 · 임원·내부자 매매</div>
+          </div>
+          <span id="dp-insider-net" class="dp-insider-net zero">—</span>
+        </div>
+        <div class="dp-insider-summary">
+          <div class="dp-insider-sum-cell">
+            <div class="dp-insider-sum-key">매수</div>
+            <div id="dp-insider-buy" class="dp-insider-sum-val buy">—</div>
+          </div>
+          <div class="dp-insider-sum-cell">
+            <div class="dp-insider-sum-key">매도</div>
+            <div id="dp-insider-sell" class="dp-insider-sum-val sell">—</div>
+          </div>
+          <div class="dp-insider-sum-cell">
+            <div class="dp-insider-sum-key">건수</div>
+            <div id="dp-insider-count" class="dp-insider-sum-val">—</div>
+          </div>
+        </div>
+        <div id="dp-insider-body" class="dp-insider-body"></div>
+        <div class="dp-insider-footnote">
+          SEC Form 4 (yfinance) · 옵션행사·증여는 별도 분류 · 한국 종목은 미지원
+        </div>
+      </div>
+
+      <!-- 종목 일정 카드 -->
+      <div id="dp-events-card" class="dp-events-card" style="display:none; margin:0 20px 16px;">
+        <div class="dp-events-head">
+          <span class="dp-events-icon">📅</span>
+          <div class="dp-events-titles">
+            <div class="dp-events-title">종목 일정</div>
+            <div class="dp-events-sub">실적·배당락 (120일 이내)</div>
+          </div>
+          <span id="dp-events-count" class="dp-events-count">—</span>
+        </div>
+        <div id="dp-events-body" class="dp-events-body"></div>
+        <div class="dp-events-footnote">
+          yfinance 캘린더 · 매크로(FOMC/CPI 등)는 상단 스트립에서 확인
+        </div>
+      </div>
+
+      <!-- 오너십 지도 카드 -->
+      <div id="dp-ownership-card" class="dp-ownership-card" style="display:none; margin:0 20px 16px;">
+        <div class="dp-ownership-head">
+          <span class="dp-ownership-icon">👥</span>
+          <div class="dp-ownership-titles">
+            <div class="dp-ownership-title"><span id="dp-ownership-conf" class="dp-conf-dot estimated" title="추정치"></span>오너십 지도</div>
+            <div id="dp-ownership-meta" class="dp-ownership-meta">—</div>
+          </div>
+          <span id="dp-ownership-asof" class="dp-ownership-asof">—</span>
+        </div>
+        <div class="dp-ownership-body">
+          <div id="dp-ownership-bar" class="dp-own-bar"></div>
+          <div id="dp-ownership-legend" class="dp-own-legend"></div>
+          <div id="dp-ownership-top-wrap" style="display:none;">
+            <div class="dp-own-top-title">주요 보유자</div>
+            <div id="dp-ownership-top" class="dp-own-top-list"></div>
+          </div>
+          <div class="dp-ownership-footnote">
+            DEF 14A·13F·사업보고서 기준 근사치 · 분기마다 변동 가능
+          </div>
+        </div>
       </div>
     </section>
 

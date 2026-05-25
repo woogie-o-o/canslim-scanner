@@ -481,6 +481,7 @@ function onMarketChange(val) {
   _setSegActive('market-btn-group', val);
   loadSectors();
   runScan();
+  if (typeof _loadMacroStrip === 'function') _loadMacroStrip(val);
   return;
   setStockListMsg('섹터를 선택하거나 스캔 버튼을 눌러주세요.');
   setStatHTML('stat-total',  '—<span class="unit">개</span>');
@@ -2049,6 +2050,12 @@ function _populatePanelDetail(d, skipFourAxis) {
       loadDpFourAxis(tk);
     }
   }
+
+  // 새로운 카드 로드 (지분, 세그먼트, 이벤트, 인사이더)
+  try { _loadSegmentsCard(d.Ticker); } catch (e) { console.error('segments load failed:', e); }
+  try { _loadOwnershipCard(d.Ticker); } catch (e) { console.error('ownership load failed:', e); }
+  try { _loadEventsCard(d.Ticker); } catch (e) { console.error('events load failed:', e); }
+  try { _loadInsiderCard(d.Ticker); } catch (e) { console.error('insider load failed:', e); }
 }
 
 // ── 투자자 동향 카드 ─────────────────────────────────────────────────────
@@ -2147,6 +2154,373 @@ function _renderInvestorCard(d) {
       ${it.sub ? `<div style="font-size:10px; color:var(--text-tertiary); margin-top:2px;">${esc(it.sub)}</div>` : ''}
     </div>
   `).join('');
+}
+
+// ───────── 데이터 신뢰도 신호등 헬퍼 ─────────
+const _CONF_META = {
+  verified:   { cls: 'verified',   title: '검증완료 — 공시 1차 출처(10-K·DEF 14A·13F·사업보고서) 직접 인용' },
+  estimated:  { cls: 'estimated',  title: '추정치 — IR 자료·분기지연·재분류 등으로 차이 가능' },
+  unverified: { cls: 'unverified', title: '미확인 — 출처 부족, 참고용' }
+};
+function _applyConfDot(elId, confidence) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const key = String(confidence || 'estimated').toLowerCase();
+  const meta = _CONF_META[key] || _CONF_META.estimated;
+  el.className = `dp-conf-dot ${meta.cls}`;
+  el.title = meta.title;
+}
+
+// ───────── 매크로 이벤트 스트립 (상단 공통) ─────────
+const _MACRO_KIND_LABEL = { fomc:'FOMC', cpi:'CPI', nfp:'고용', bok:'한은', other:'기타' };
+function _macroDdayCls(d) {
+  if (d <= 0) return 'today';
+  if (d <= 3) return 'urgent';
+  if (d <= 14) return 'soon';
+  return '';
+}
+function _macroDdayText(d) {
+  if (d === 0) return 'D-day';
+  if (d > 0)  return `D-${d}`;
+  return `D+${-d}`;
+}
+async function _loadMacroStrip(region) {
+  const strip = document.getElementById('macro-events-strip');
+  const list  = document.getElementById('macro-events-strip-list');
+  if (!strip || !list) return;
+  const reg = String(region || 'US').toUpperCase();
+  try {
+    const res = await fetch(`/api/macro-events?region=${encodeURIComponent(reg)}`, { cache: 'no-store' });
+    if (!res.ok) { strip.classList.add('empty'); return; }
+    const j = await res.json();
+    const evs = (j && Array.isArray(j.events)) ? j.events.slice(0, 10) : [];
+    if (!evs.length) { list.innerHTML = ''; strip.classList.add('empty'); return; }
+    list.innerHTML = evs.map(e => {
+      const kind = String(e.kind || 'other').toLowerCase();
+      const label = _MACRO_KIND_LABEL[kind] || _MACRO_KIND_LABEL.other;
+      return `<span class="macro-chip" title="${esc(e.name)} · ${esc(e.date)}">
+        <span class="macro-chip-dday ${_macroDdayCls(e.dday)}">${_macroDdayText(e.dday)}</span>
+        <span class="macro-chip-kind ${kind}">${esc(label)}</span>
+        <span>${esc(e.name)}</span>
+      </span>`;
+    }).join('');
+    strip.classList.remove('empty');
+  } catch (e) {
+    console.error('macro strip load failed:', e);
+    strip.classList.add('empty');
+  }
+}
+
+// ───────── 매출 세그먼트 파이 ─────────
+const _SEG_COLORS = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#64748b'
+];
+function _segPolar(cx, cy, r, deg) {
+  const rad = (deg - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+}
+function _segArcPath(cx, cy, r, startDeg, endDeg) {
+  if (Math.abs(endDeg - startDeg) >= 359.999) {
+    return `M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy} Z`;
+  }
+  const a = _segPolar(cx, cy, r, startDeg);
+  const b = _segPolar(cx, cy, r, endDeg);
+  const large = (endDeg - startDeg) > 180 ? 1 : 0;
+  return `M ${cx} ${cy} L ${a.x} ${a.y} A ${r} ${r} 0 ${large} 1 ${b.x} ${b.y} Z`;
+}
+function _renderSegmentsCard(payload) {
+  const card = document.getElementById('dp-segments-card');
+  if (!card) return;
+  if (!payload || !payload.ok) { card.style.display = 'none'; return; }
+
+  const metaEl   = document.getElementById('dp-segments-meta');
+  const countEl  = document.getElementById('dp-segments-count');
+  const svg      = document.getElementById('dp-segments-svg');
+  const legend   = document.getElementById('dp-segments-legend');
+  if (!metaEl || !countEl || !svg || !legend) return;
+
+  const pie   = Array.isArray(payload.pie) ? payload.pie.slice() : [];
+  const all   = Array.isArray(payload.segments) ? payload.segments : [];
+  const fy    = payload.fy || '—';
+  const src   = payload.source || '';
+  metaEl.textContent  = `${fy}${src ? ' · ' + src : ''}`;
+  countEl.textContent = `${all.length}개 부문`;
+  _applyConfDot('dp-segments-conf', payload.confidence);
+
+  if (!pie.length) {
+    svg.innerHTML = '';
+    legend.innerHTML = '<div class="dp-segments-empty">세그먼트 비중을 표시할 데이터가 없습니다.</div>';
+    card.style.display = '';
+    return;
+  }
+
+  const total = pie.reduce((s, p) => s + Number(p.pct || 0), 0);
+  const norm = total > 0 ? (100 / total) : 1;
+
+  let acc = 0;
+  const slices = pie.map((p, i) => {
+    const pct = Number(p.pct || 0) * norm;
+    const start = acc;
+    const end = acc + (pct * 3.6);
+    acc = end;
+    const color = _SEG_COLORS[i % _SEG_COLORS.length];
+    const d = _segArcPath(50, 50, 48, start, end);
+    return `<path class="dp-seg-slice" d="${d}" fill="${color}" stroke="var(--card)" stroke-width="0.6"><title>${esc(p.name)} ${pct.toFixed(1)}%</title></path>`;
+  }).join('');
+  svg.innerHTML = slices;
+
+  const pieIdx = new Map();
+  pie.forEach((p, i) => pieIdx.set(p.name, i));
+  const rows = all.map(s => {
+    const v = Number(s.pct || 0);
+    const idx = pieIdx.get(s.name);
+    const color = (idx != null) ? _SEG_COLORS[idx % _SEG_COLORS.length] : '#94a3b8';
+    const negCls = v < 0 ? ' neg' : '';
+    const sign = v >= 0 ? '' : '−';
+    return `<div class="dp-seg-row">
+      <span class="dp-seg-swatch" style="background:${color};"></span>
+      <span class="dp-seg-name">${esc(s.name || '—')}</span>
+      <span class="dp-seg-pct${negCls}">${sign}${Math.abs(v).toFixed(1)}%</span>
+    </div>`;
+  }).join('');
+  legend.innerHTML = rows;
+
+  card.style.display = '';
+}
+async function _loadSegmentsCard(ticker) {
+  if (!ticker) return;
+  const card = document.getElementById('dp-segments-card');
+  if (card) card.style.display = 'none';
+  try {
+    const res = await fetch(`/api/segments/${encodeURIComponent(ticker)}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    _renderSegmentsCard(await res.json());
+  } catch (e) {
+    console.error('segments card load failed:', e);
+  }
+}
+
+// ───────── 인사이더 거래 ─────────
+const _INS_SIDE_LABEL = {
+  buy: '매수', sell: '매도', option: '옵션행사', grant: '부여', other: '기타'
+};
+function _insFmtVal(v) {
+  if (v == null || isNaN(v)) return '—';
+  const n = Math.abs(Number(v));
+  const sign = Number(v) < 0 ? '-' : '';
+  if (n >= 1e9) return `${sign}$${(n/1e9).toFixed(2)}B`;
+  if (n >= 1e6) return `${sign}$${(n/1e6).toFixed(2)}M`;
+  if (n >= 1e3) return `${sign}$${(n/1e3).toFixed(1)}K`;
+  return `${sign}$${n.toFixed(0)}`;
+}
+function _renderInsiderCard(payload) {
+  const card = document.getElementById('dp-insider-card');
+  if (!card) return;
+  if (!payload || !payload.ok) { card.style.display = 'none'; return; }
+  const body = document.getElementById('dp-insider-body');
+  const buyEl = document.getElementById('dp-insider-buy');
+  const sellEl = document.getElementById('dp-insider-sell');
+  const cntEl = document.getElementById('dp-insider-count');
+  const netEl = document.getElementById('dp-insider-net');
+  if (!body) return;
+
+  const sm  = payload.summary || {};
+  const txs = Array.isArray(payload.transactions) ? payload.transactions : [];
+  if (buyEl)  buyEl.textContent  = _insFmtVal(sm.buy);
+  if (sellEl) sellEl.textContent = _insFmtVal(sm.sell);
+  if (cntEl)  cntEl.textContent  = String(sm.count || txs.length);
+  if (netEl) {
+    const net = Number(sm.net || 0);
+    netEl.textContent = net > 0 ? `순매수 ${_insFmtVal(net)}` : net < 0 ? `순매도 ${_insFmtVal(-net)}` : '균형';
+    netEl.className = 'dp-insider-net ' + (net > 0 ? 'pos' : net < 0 ? 'neg' : 'zero');
+  }
+
+  if (!txs.length) {
+    body.innerHTML = '<div class="dp-insider-empty">최근 거래 데이터가 없습니다.</div>';
+    card.style.display = '';
+    return;
+  }
+
+  body.innerHTML = txs.map(t => {
+    const side = String(t.side || 'other').toLowerCase();
+    const label = _INS_SIDE_LABEL[side] || _INS_SIDE_LABEL.other;
+    const name = esc(t.name || '—');
+    const role = t.role ? `<div class="dp-ins-name-role">${esc(t.role)}</div>` : '';
+    return `<div class="dp-ins-row">
+      <span class="dp-ins-date">${esc(t.date)}</span>
+      <span class="dp-ins-side ${side}">${esc(label)}</span>
+      <div class="dp-ins-name"><div class="dp-ins-name-main">${name}</div>${role}</div>
+      <span class="dp-ins-val">${_insFmtVal(t.value)}</span>
+    </div>`;
+  }).join('');
+  card.style.display = '';
+}
+async function _loadInsiderCard(ticker) {
+  if (!ticker) return;
+  const card = document.getElementById('dp-insider-card');
+  if (card) card.style.display = 'none';
+  try {
+    const res = await fetch(`/api/insider/${encodeURIComponent(ticker)}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    _renderInsiderCard(await res.json());
+  } catch (e) {
+    console.error('insider card load failed:', e);
+  }
+}
+
+// ───────── 이벤트 캘린더 ─────────
+const _EVT_KIND_LABEL = {
+  earnings: '실적', dividend: '배당', fomc: 'FOMC',
+  cpi: 'CPI', nfp: '고용', bok: '한은', other: '기타'
+};
+function _evtDdayCls(dday) {
+  if (dday <= 0) return 'today';
+  if (dday <= 3) return 'urgent';
+  if (dday <= 14) return 'soon';
+  return '';
+}
+function _evtDdayText(dday) {
+  if (dday === 0) return 'D-day';
+  if (dday > 0)  return `D-${dday}`;
+  return `D+${-dday}`;
+}
+function _renderEventsCard(payload) {
+  const card = document.getElementById('dp-events-card');
+  if (!card) return;
+  const body = document.getElementById('dp-events-body');
+  const cnt  = document.getElementById('dp-events-count');
+  if (!body || !cnt) return;
+
+  const evs = (payload && Array.isArray(payload.events)) ? payload.events : [];
+  if (!payload || !payload.ok || !evs.length) {
+    body.innerHTML = '<div class="dp-events-empty">예정된 이벤트가 없습니다.</div>';
+    cnt.textContent = '0';
+    card.style.display = 'none';
+    return;
+  }
+  cnt.textContent = `${evs.length}건`;
+
+  body.innerHTML = evs.map(e => {
+    const kind = String(e.kind || 'other').toLowerCase();
+    const label = _EVT_KIND_LABEL[kind] || _EVT_KIND_LABEL.other;
+    return `<div class="dp-evt-row">
+      <span class="dp-evt-dday ${_evtDdayCls(e.dday)}">${_evtDdayText(e.dday)}</span>
+      <span class="dp-evt-kind ${kind}">${esc(label)}</span>
+      <span class="dp-evt-name">${esc(e.name)}</span>
+      <span class="dp-evt-date">${esc(e.date)}</span>
+    </div>`;
+  }).join('');
+  card.style.display = '';
+}
+async function _loadEventsCard(ticker) {
+  if (!ticker) return;
+  const card = document.getElementById('dp-events-card');
+  if (card) card.style.display = 'none';
+  try {
+    const res = await fetch(`/api/events/${encodeURIComponent(ticker)}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    _renderEventsCard(await res.json());
+  } catch (e) {
+    console.error('events card load failed:', e);
+  }
+}
+
+// ───────── 오너십 지도 ─────────
+const _OWN_KIND_COLORS = {
+  insider: '#8b5cf6',
+  foreign: '#06b6d4',
+  inst:    '#3b82f6',
+  retail:  '#94a3b8',
+  other:   '#64748b'
+};
+const _OWN_KIND_LABEL = {
+  insider: '내부자',
+  foreign: '외국인',
+  inst:    '기관',
+  retail:  '개인',
+  other:   '기타'
+};
+function _renderOwnershipCard(payload) {
+  const card = document.getElementById('dp-ownership-card');
+  if (!card) return;
+  if (!payload || !payload.ok) { card.style.display = 'none'; return; }
+
+  const metaEl   = document.getElementById('dp-ownership-meta');
+  const asofEl   = document.getElementById('dp-ownership-asof');
+  const barEl    = document.getElementById('dp-ownership-bar');
+  const legEl    = document.getElementById('dp-ownership-legend');
+  const topWrap  = document.getElementById('dp-ownership-top-wrap');
+  const topEl    = document.getElementById('dp-ownership-top');
+  if (!barEl || !legEl) return;
+
+  const bd = Array.isArray(payload.breakdown) ? payload.breakdown : [];
+  const top = Array.isArray(payload.top) ? payload.top : [];
+  const asof = payload.asof || '';
+  const src  = payload.source || '';
+  if (metaEl) metaEl.textContent = src || '—';
+  if (asofEl) asofEl.textContent = asof || '—';
+  _applyConfDot('dp-ownership-conf', payload.confidence);
+
+  if (!bd.length) {
+    barEl.innerHTML = '';
+    legEl.innerHTML = '<div class="dp-ownership-empty">지분 데이터를 표시할 수 없습니다.</div>';
+    if (topWrap) topWrap.style.display = 'none';
+    card.style.display = '';
+    return;
+  }
+
+  const total = bd.reduce((s, b) => s + Math.max(0, Number(b.pct || 0)), 0);
+  const norm = total > 0 ? (100 / total) : 1;
+
+  const segs = bd.map(b => {
+    const kind = String(b.kind || 'other').toLowerCase();
+    const color = _OWN_KIND_COLORS[kind] || _OWN_KIND_COLORS.other;
+    const pct  = Math.max(0, Number(b.pct || 0)) * norm;
+    return { name: b.name || _OWN_KIND_LABEL[kind] || '—', kind, color, pct, raw: Number(b.pct || 0) };
+  });
+
+  barEl.innerHTML = segs.map(s =>
+    `<div class="dp-own-seg" style="width:${s.pct.toFixed(2)}%;background:${s.color};" title="${esc(s.name)} ${s.raw.toFixed(1)}%"></div>`
+  ).join('');
+
+  legEl.innerHTML = segs.map(s =>
+    `<span class="dp-own-leg-item">
+       <span class="dp-own-leg-swatch" style="background:${s.color};"></span>
+       <span>${esc(s.name)}</span>
+       <span class="dp-own-leg-pct">${s.raw.toFixed(1)}%</span>
+     </span>`
+  ).join('');
+
+  if (topWrap && topEl) {
+    if (top.length) {
+      topEl.innerHTML = top.map(t => {
+        const v = Number(t.pct || 0);
+        return `<div class="dp-own-top-row">
+          <span class="dp-own-top-name">${esc(t.name || '—')}</span>
+          <span class="dp-own-top-pct">${v.toFixed(2)}%</span>
+        </div>`;
+      }).join('');
+      topWrap.style.display = '';
+    } else {
+      topEl.innerHTML = '';
+      topWrap.style.display = 'none';
+    }
+  }
+
+  card.style.display = '';
+}
+async function _loadOwnershipCard(ticker) {
+  if (!ticker) return;
+  const card = document.getElementById('dp-ownership-card');
+  if (card) card.style.display = 'none';
+  try {
+    const res = await fetch(`/api/ownership/${encodeURIComponent(ticker)}`, { cache: 'no-store' });
+    if (!res.ok) return;
+    _renderOwnershipCard(await res.json());
+  } catch (e) {
+    console.error('ownership card load failed:', e);
+  }
 }
 
 // ── 영어 → 한국어 번역 테이블 ────────────────────────────────────────────
@@ -3431,6 +3805,7 @@ document.addEventListener('DOMContentLoaded', () => {
     runScan();
     loadMacro();
     setInterval(loadMacro, 15 * 60 * 1000);
+    if (typeof _loadMacroStrip === 'function') _loadMacroStrip(currentMarket);
   }
 });
 
