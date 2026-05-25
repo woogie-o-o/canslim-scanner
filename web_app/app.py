@@ -92,9 +92,12 @@ def _inject_asset_versions():
 
 # Gzip 압축 — JSON API 응답 크기 60~70% 절감
 # (스캔 응답이 10MB+ 가 될 수 있어 모바일/원거리 클라이언트에서 비압축 시 타임아웃 발생)
+# 알고리즘 br/gzip 만 허용 — zstd 는 Chrome 123+ 가 Accept-Encoding 에 광고하지만
+# 일부 환경(Safari/구버전/프록시/확장)에서 디코딩 실패 → fetch network error → 무한 재시도.
 _FLASK_COMPRESS_OK = False
 try:
     from flask_compress import Compress as _Compress
+    app.config.setdefault("COMPRESS_ALGORITHM", ["br", "gzip", "deflate"])
     _Compress(app)
     _FLASK_COMPRESS_OK = True
 except ImportError:
@@ -2406,6 +2409,17 @@ def api_deep_analysis(ticker: str):
     except Exception as e:
         logging.exception("deep-analysis failed: %s", ticker)
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/bucket-stats")
+def api_bucket_stats():
+    from one_liner import _bucket_counter
+    total = sum(_bucket_counter.values())
+    data = [
+        {"bucket": k, "count": v, "pct": round(v / total * 100, 1) if total else 0}
+        for k, v in _bucket_counter.most_common()
+    ]
+    return jsonify({"total": total, "distribution": data})
 
 
 # ── 멀티배거 파인더 — 상태(blueprint 와 공유) ─────────────────────────────

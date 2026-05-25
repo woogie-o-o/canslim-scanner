@@ -108,6 +108,34 @@ def test_api_scan_response_carries_content_encoding():
     )
 
 
+def test_flask_compress_excludes_zstd_for_browser_compatibility():
+    """zstd 는 Chrome 123+ 가 Accept-Encoding 에 광고하지만 Safari/구버전/프록시/확장에서
+    디코딩 실패 → fetch network error → 브라우저는 무한 재시도 → 사용자는 '연결 안됨' 로 본다.
+
+    회귀 사례: COMPRESS_ALGORITHM 설정 없이 flask-compress 가 Accept-Encoding 의 zstd 를
+    1순위로 골라 응답함. 사용자가 '전체 스캔하면 연결이 안돼' 신고.
+    """
+    from web_app.app import app
+    client = app.test_client()
+    # Chrome/Edge 가 보내는 기본 Accept-Encoding 그대로.
+    resp = client.get(
+        "/api/scan?market=US&strategy=BALANCED",
+        headers={"Accept-Encoding": "gzip, deflate, br, zstd"},
+    )
+    assert resp.status_code == 200
+    enc = resp.headers.get("Content-Encoding", "")
+    body_len = int(resp.headers.get("Content-Length") or len(resp.data) or 0)
+    if body_len < 5000:
+        pytest.skip(f"response too small to compress ({body_len}B) — warming cache")
+    assert enc != "zstd", (
+        "flask-compress 가 zstd 를 선택했음 — 브라우저 호환성 깨짐. "
+        "app.config['COMPRESS_ALGORITHM'] 에서 zstd 제외 필요."
+    )
+    assert enc in ("br", "gzip", "deflate"), (
+        f"안전한 인코딩만 허용 — got {enc!r}"
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 4) /api/scan 엔드포인트 존재 + 200
 # ─────────────────────────────────────────────────────────────────────────────
