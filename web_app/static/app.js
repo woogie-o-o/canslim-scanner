@@ -885,6 +885,41 @@ function _renderMoatDetail(d) {
   document.getElementById('dp-moat-detail').textContent = detail || meta.desc;
   document.getElementById('dp-moat-source').textContent = sourceTxt;
   _applyConfDot('dp-moat-conf', data.confidence);
+
+  // 5축 해자 바 차트
+  var chartEl = document.getElementById('dp-moat-axes');
+  if (chartEl) {
+    var sc = data.scores;
+    if (sc && typeof sc === 'object') {
+      var axes = [
+        { key: 'switching_costs',    label: '전환비용' },
+        { key: 'network_effects',    label: '네트워크' },
+        { key: 'ip_efficiency',      label: 'IP·R&D' },
+        { key: 'cost_advantage',     label: '비용우위' },
+        { key: 'roic_sustainability', label: 'ROIC' },
+      ];
+      var total = 0;
+      var html = '';
+      for (var i = 0; i < axes.length; i++) {
+        var v = sc[axes[i].key] || 0;
+        total += v;
+        var pct = (v / 4 * 100).toFixed(0);
+        var cls = v >= 3 ? 'moat-ax-high' : v >= 2 ? 'moat-ax-mid' : 'moat-ax-low';
+        html += '<div class="moat-ax-row">'
+          + '<span class="moat-ax-label">' + axes[i].label + '</span>'
+          + '<div class="moat-ax-track"><div class="moat-ax-fill ' + cls + '" style="width:' + pct + '%"></div></div>'
+          + '<span class="moat-ax-val">' + v + '</span>'
+          + '</div>';
+      }
+      html += '<div class="moat-ax-total">가산점 <strong>+' + (total / 2).toFixed(1) + '</strong> / 10</div>';
+      chartEl.innerHTML = html;
+      chartEl.style.display = '';
+    } else {
+      chartEl.innerHTML = '';
+      chartEl.style.display = 'none';
+    }
+  }
+
   card.style.display = '';
 }
 

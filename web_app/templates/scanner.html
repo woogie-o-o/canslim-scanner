@@ -782,6 +782,19 @@ td.score-col {
   color: var(--text-secondary);
   font-style: italic;
 }
+/* 5축 해자 바 차트 */
+.dp-moat-axes { padding: 10px 16px 4px; }
+.moat-ax-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.moat-ax-label { width: 56px; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-align: right; flex-shrink: 0; }
+.moat-ax-track { flex: 1; height: 8px; background: var(--muted); border-radius: 4px; overflow: hidden; }
+.moat-ax-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.moat-ax-high { background: var(--success, #16A34A); }
+.moat-ax-mid  { background: var(--warning, #F59E0B); }
+.moat-ax-low  { background: var(--destructive, #DC2626); }
+.moat-ax-val { width: 16px; font-size: 11px; font-weight: 700; color: var(--text-primary); text-align: center; flex-shrink: 0; }
+.moat-ax-total { text-align: right; font-size: 12px; color: var(--text-secondary); margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--border); }
+.moat-ax-total strong { color: var(--success, #16A34A); font-size: 13px; }
+
 .dp-moat-footnote {
   margin-top: 12px;
   padding-top: 10px;
@@ -3018,6 +3031,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
             <div class="dp-moat-key">왜 경쟁사가 따라잡기 어려운가</div>
             <div id="dp-moat-detail" class="dp-moat-val">—</div>
           </div>
+          <div id="dp-moat-axes" class="dp-moat-axes" style="display:none;"></div>
           <div class="dp-moat-footnote">
             모닝스타 5종 분류 기준 · 사전 큐레이션 (러셀 1000 + KOSPI/KOSDAQ 주요)
           </div>
