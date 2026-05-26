@@ -5556,19 +5556,6 @@
       "roic_sustainability": 2
     }
   },
-  "CFLT": {
-    "category": "SWITCHING",
-    "label": "이벤트 스트리밍",
-    "detail": "Confluent은 Apache Kafka 창시자들이 설립한 이벤트 스트리밍 플랫폼의 사실상 표준으로 매니지드 Confluent Cloud로 SaaS 전환 중이다. 실시간 데이터 파이프라인이 한번 깔리면 교체가 사실상 불가능하다.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 4,
-      "network_effects": 1,
-      "ip_efficiency": 0,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
-    }
-  },
   "GTLB": {
     "category": "SWITCHING",
     "label": "DevOps 플랫폼",
@@ -16719,19 +16706,6 @@
       "roic_sustainability": 2
     }
   },
-  "035500.KQ": {
-    "category": "INTANGIBLE",
-    "label": "K-뷰티 브랜드 IP",
-    "detail": "글로벌 K-뷰티 브랜드를 보유하며, 한류 문화와 결합한 브랜드 자산·R&D 포뮬러가 무형자산 해자이다.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 1,
-      "ip_efficiency": 2,
-      "cost_advantage": 2,
-      "roic_sustainability": 2
-    }
-  },
   "003230.KS": {
     "category": "INTANGIBLE",
     "label": "K-푸드 브랜드력",
@@ -16824,19 +16798,6 @@
     }
   },
   "003960.KS": {
-    "category": "INTANGIBLE",
-    "label": "K-푸드 브랜드력",
-    "detail": "K-푸드·음료 브랜드를 보유하며, 글로벌 한식 트렌드와 유통망 확장이 브랜드 무형자산을 강화한다.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 1,
-      "cost_advantage": 2,
-      "roic_sustainability": 2
-    }
-  },
-  "049770.KS": {
     "category": "INTANGIBLE",
     "label": "K-푸드 브랜드력",
     "detail": "K-푸드·음료 브랜드를 보유하며, 글로벌 한식 트렌드와 유통망 확장이 브랜드 무형자산을 강화한다.",
@@ -17994,19 +17955,6 @@
     }
   },
   "131090.KQ": {
-    "category": "SWITCHING",
-    "label": "보안 솔루션 락인",
-    "detail": "엔드포인트·네트워크 보안 솔루션을 제공하며, 기업 인프라 통합과 보안 정책 종속이 전환비용을 높인다.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 3,
-      "network_effects": 1,
-      "ip_efficiency": 2,
-      "cost_advantage": 1,
-      "roic_sustainability": 1
-    }
-  },
-  "379640.KQ": {
     "category": "SWITCHING",
     "label": "보안 솔루션 락인",
     "detail": "엔드포인트·네트워크 보안 솔루션을 제공하며, 기업 인프라 통합과 보안 정책 종속이 전환비용을 높인다.",

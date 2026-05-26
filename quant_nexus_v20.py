@@ -8813,7 +8813,6 @@ class QuantNexusApp:
         "002900.KS": "TYM",                 # 농기계
         "090350.KS": "노루페인트",          # 페인트
         "001680.KS": "대상",                # 종합식품
-        "049770.KS": "동원F&B",             # 종합식품
         "000400.KS": "롯데손해보험",        # 손해보험
         "041920.KQ": "메디아나",            # 의료기기
         "007210.KS": "벽산",                # 건자재
@@ -8831,12 +8830,10 @@ class QuantNexusApp:
         "014790.KS": "한라",                # 건설·기계
         "025750.KS": "한솔홈데코",          # 건자재
         "004960.KS": "한신공영",            # 건설
-        "379640.KQ": "한싹",                # 보안
         "300720.KS": "한일시멘트",          # 시멘트
         "139130.KS": "iM금융지주",          # 구 DGB금융지주(2024 사명변경)
         "139480.KS": "이마트",              # 유통
         "001680.KS": "대상",                # (중복방지)
-        "035500.KQ": "비비안",              # 패션 (보강)
         "067160.KQ": "SOOP",                # 라이브플랫폼 (중복방지)
         # ── 2026-05 12차 추가: 면세/관광·보안·바이럴 테마 신규 종목 ────────
         "204620.KQ": "글로벌텍스프리",      # 외국인 사후면세 환급
@@ -9483,7 +9480,6 @@ class QuantNexusApp:
         "CEVA": "시바",
         "CF": "CF 인더스트리즈",
         "CFG": "시티즌스 파이낸셜",
-        "CFLT": "컨플루언트",
         "CG": "칼라일그룹",
         "CGNX": "코그넥스",
         "CGON": "CG 온콜로지",
@@ -10425,9 +10421,7 @@ class QuantNexusApp:
         "CART": "메이플베어(인스타카트)",
         "CHPT": "차지포인트",
         "DNA": "긴코 바이오웍스",
-        "ERJ": "엠브라에르",
         "EVGO": "이브이고",
-        "IRBT": "아이로봇",
         "LEGN": "레전드 바이오텍",
         "MNSO": "미니소",
         "MRCY": "머큐리 시스템즈",
@@ -10865,7 +10859,6 @@ class QuantNexusApp:
         "SBSI": "Southside Bancshares, Inc.",
         "SCL": "Stepan Company",
         "SDGR": "Schrödinger, Inc.",
-        "SENEA": "Seneca Foods Corporation",
         "SFM": "Sprouts Farmers Market, Inc.",
         "SFNC": "Simmons First National Corpo..",
         "SGRY": "Surgery Partners, Inc.",
@@ -10937,8 +10930,6 @@ class QuantNexusApp:
         "UMBF": "UMB Financial Corporation",
         "UNFI": "United Natural Foods, Inc.",
         "UNIT": "Uniti Group Inc.",
-        "URA": "Global X Uranium ETF",
-        "URNM": "Sprott Uranium Miners ETF",
         "USAC": "USA Compression Partners, LP",
         "USFD": "US Foods Holding Corp.",
         "USLM": "United States Lime & Mineral..",
@@ -11084,7 +11075,6 @@ class QuantNexusApp:
         "VRSK": "보험 리스크 · 데이터 분석",
         # AI 플랫폼 추가
         "BOX": "클라우드 · 콘텐츠 · 협업",
-        "CFLT": "카프카 · 데이터 스트리밍",
         "DDOG": "클라우드 · 모니터링 · APM",
         "DOCN": "SMB · 클라우드 · VPS",
         "ESTC": "검색 엔진 · 로그 분석",
@@ -12078,9 +12068,7 @@ class QuantNexusApp:
         "CART": "온라인 식료품 배달 플랫폼",
         "CHPT": "EV 충전 인프라 1위",
         "DNA":  "합성 생물학 · 바이오 파운드리",
-        "ERJ":  "지역항공기 · 방산 · eVTOL",
         "EVGO": "DC 급속충전 네트워크",
-        "IRBT": "가정용 청소 로봇(룸바)",
         "LEGN": "CAR-T 면역항암 ADR",
         "MNSO": "글로벌 밸류 리테일 체인",
         "MRCY": "방산 전자전 · 센서 처리",
@@ -12121,7 +12109,7 @@ class QuantNexusApp:
                                       "RGTI","SMCI","STX","UI","VIAV","VRT","WDC","WULF"],
                 "Cybersecurity":        ["AKAM","BB","CHKP","CRWD","DBX","FTNT","GEN","LAES","NET","OKTA","PANW","PRGS","QLYS","RPD",
                                       "S","SAIL","TENB","VRNS","ZS"],
-                "SaaS & Software":      ["ADBE","ADSK","APP","APPF","BILL","BL","BSY","CDNS","CFLT","CRM","CTSH","CWAN","DOCU","DUOL",
+                "SaaS & Software":      ["ADBE","ADSK","APP","APPF","BILL","BL","BSY","CDNS","CRM","CTSH","CWAN","DOCU","DUOL",
                                       "EPAM","FFIV","FRSH","GLOB","GTLB","HUBS","JKHY","LPSN",
                                       "MANH","MGNI","MNDY","NOW","PCOR","PCTY","PTC","RAMP",
                                       "RNG","SHOP","SNPS","TRMB","TTD","TWLO","TYL","VEEV",
@@ -12169,7 +12157,7 @@ class QuantNexusApp:
 
             # ── 4. 산업 & 방산 ────────────────────────────────────────────────
             "🏭 Industrial & Defense": {
-                "Aerospace & Defense":  ["ACHR","AIR","ASTS","AVAV","AXON","BA","BAH","BKSY","BWXT","CACI","CRS","CW","DCO","DRS","ERJ",
+                "Aerospace & Defense":  ["ACHR","AIR","ASTS","AVAV","AXON","BA","BAH","BKSY","BWXT","CACI","CRS","CW","DCO","DRS",
                                       "ESLT","GD","GE","HAYW","HII","HWM","HXL","JOBY","KTOS",
                                       "LDOS","LHX","LMT","LPTH","LUNR","MOG-A","MRCY","NOC",
                                       "PL","RDW","RKLB","RTX","SAIC","TDG","TXT","VSEC"],
@@ -12188,7 +12176,7 @@ class QuantNexusApp:
                 "Transportation":       ["AAL","ARCB","CHRW","CNI","CP","CSX","DAL","EXPD","FDX","GXO","HTLD","HUBG","JBHT","JBLU",
                                       "KNX","LUV","LYFT","MATX","MRTN","NSC","ODFL","RXO",
                                       "SAIA","SNDR","UAL","UBER","UNP","UPS","WERN","XPO","ZIM"],
-                "Robotics & Drones":    ["AVAV","IRBT","ONDS","PRCT","RCAT","SERV","TER","UMAC"]
+                "Robotics & Drones":    ["AVAV","ONDS","PRCT","RCAT","SERV","TER","UMAC"]
             },
 
             # ── 5. 에너지 ────────────────────────────────────────────────────
@@ -12201,7 +12189,7 @@ class QuantNexusApp:
                                       "WES","WMB"],
                 "Clean Energy":         ["ARRY","BE","CSIQ","DQ","ENPH","FCEL","FLNC","FSLR","GEV","JKS","MAXN","NEE","NOVA","NXT",
                                       "PLUG","RUN","SEDG","SHLS","SPWR","STEM"],
-                "Nuclear & Uranium":    ["BWX","BWXT","CCJ","CEG","DNN","EU","GLATF","LEU","NNE","OKLO","SMR","TLN","UEC","URA","URNM",
+                "Nuclear & Uranium":    ["BWX","BWXT","CCJ","CEG","DNN","EU","GLATF","LEU","NNE","OKLO","SMR","TLN","UEC",
                                       "UUUU","VST"],
                 "Utilities":            ["AEE","AEP","AES","ATO","AVA","AWK","BEP","BKH","CLNE","CMS","CNP","CWT","D","DTE","DUK","ED",
                                       "EIX","ES","ETR","EVRG","EXC","FE","HE","IDA","LNT","MDU",
@@ -12270,7 +12258,7 @@ class QuantNexusApp:
                                       "TAP","WVVI"],
                 "Food & Household":     ["BYND","CAG","CALM","CENTA","CHD","CHEF","CL","CLX","CPB","DAR","EPC","FRPT","GIS","GO","HAIN",
                                       "HSY","INGR","IPAR","JJSF","K","KHC","KMB","KVUE","LW",
-                                      "MDLZ","MKC","PG","POST","SENEA","SJM","SMPL","SPB","SYY",
+                                      "MDLZ","MKC","PG","POST","SJM","SMPL","SPB","SYY",
                                       "TSN","UNFI","USFD","VITL","WBA"],
                 "Cannabis":             ["ACB","CGC","SNDL","TLRY"],
                 "Agriculture & Agri":   ["ADM","AGRO","ANDE","AVD","BG","CF","CORT","CSAN","CTVA","DOLE","FDP","FMC","LMNR","MOS","NTR",
@@ -12467,8 +12455,8 @@ class QuantNexusApp:
                 '자율주행·전장': ['000270.KS', '005380.KS', '009150.KS', '011070.KS', '012330.KS', '307950.KS', '051360.KQ', '161390.KS', '018880.KS', '204320.KS', '005850.KS', '075180.KS', '267270.KS', '097520.KS', '396270.KQ', '054450.KQ', '053450.KQ', '047310.KQ', '084730.KQ', '011210.KS', '007340.KS', '025540.KS', '094170.KQ', '123040.KQ'],
             },
             '🛍️ K-소비재': {
-                'K-뷰티': ['003350.KS', '051900.KS', '090430.KS', '192820.KS', '237880.KQ', '278470.KS', '352480.KQ', '483650.KS', '161890.KS', '002790.KS', '241710.KQ', '123690.KS', '257720.KQ', '018290.KQ', '439090.KQ', '383220.KS', '020000.KS', '093050.KS', '200130.KQ', '194700.KQ', '214150.KQ', '950140.KQ', '214450.KQ', '044820.KS', '035500.KQ'],
-                'K-푸드·음료': ['003230.KS', '004370.KS', '005180.KS', '007310.KS', '033780.KS', '097950.KS', '271560.KS', '280360.KS', '475560.KS', '005740.KS', '339770.KS', '005440.KS', '003960.KS', '001800.KS', '005300.KS', '049770.KS', '003380.KQ', '006040.KS', '007070.KS', '282330.KS', '027410.KS', '000080.KS', '001680.KS'],
+                'K-뷰티': ['003350.KS', '051900.KS', '090430.KS', '192820.KS', '237880.KQ', '278470.KS', '352480.KQ', '483650.KS', '161890.KS', '002790.KS', '241710.KQ', '123690.KS', '257720.KQ', '018290.KQ', '439090.KQ', '383220.KS', '020000.KS', '093050.KS', '200130.KQ', '194700.KQ', '214150.KQ', '950140.KQ', '214450.KQ', '044820.KS'],
+                'K-푸드·음료': ['003230.KS', '004370.KS', '005180.KS', '007310.KS', '033780.KS', '097950.KS', '271560.KS', '280360.KS', '475560.KS', '005740.KS', '339770.KS', '005440.KS', '003960.KS', '001800.KS', '005300.KS', '003380.KQ', '006040.KS', '007070.KS', '282330.KS', '027410.KS', '000080.KS', '001680.KS'],
                 '면세·여행': ['003490.KS', '008770.KS', '039130.KS', '079160.KS', '023530.KS', '004170.KS', '282330.KS', '035250.KS', '114090.KS', '020560.KS', '089590.KS', '272450.KS', '032350.KS', '034230.KS', '027410.KS', '069960.KS', '007070.KS', '139480.KS', '021240.KS', '950170.KQ'],
             },
             '💰 금융·밸류업': {
@@ -12497,8 +12485,8 @@ class QuantNexusApp:
                 '생활인프라·환경': ['021240.KS', '382800.KQ', '383310.KQ'],
             },
             '🔒 사이버보안': {
-                '엔드포인트·네트워크보안': ['042510.KQ', '053800.KQ', '136540.KQ', '150900.KQ', '203650.KQ', '170790.KQ', '053300.KQ', '054940.KQ', '411080.KQ', '456010.KQ', '053350.KQ', '488280.KQ', '131090.KQ', '379640.KQ', '064400.KS', '018260.KS', '022100.KS', '023590.KS', '032190.KQ', '093320.KQ', '304100.KQ', '377480.KQ', '402030.KQ', '012750.KS'],
-                'AI위협분석·제로트러스트': ['053300.KQ', '054940.KQ', '115500.KQ', '411080.KQ', '456010.KQ', '488280.KQ', '042510.KQ', '203650.KQ', '136540.KQ', '150900.KQ', '053800.KQ', '053350.KQ', '170790.KQ', '379640.KQ', '131090.KQ', '064400.KS', '018260.KS', '022100.KS', '023590.KS', '304100.KQ', '377480.KQ', '402030.KQ', '093320.KQ'],
+                '엔드포인트·네트워크보안': ['042510.KQ', '053800.KQ', '136540.KQ', '150900.KQ', '203650.KQ', '170790.KQ', '053300.KQ', '054940.KQ', '411080.KQ', '456010.KQ', '053350.KQ', '488280.KQ', '131090.KQ', '064400.KS', '018260.KS', '022100.KS', '023590.KS', '032190.KQ', '093320.KQ', '304100.KQ', '377480.KQ', '402030.KQ', '012750.KS'],
+                'AI위협분석·제로트러스트': ['053300.KQ', '054940.KQ', '115500.KQ', '411080.KQ', '456010.KQ', '488280.KQ', '042510.KQ', '203650.KQ', '136540.KQ', '150900.KQ', '053800.KQ', '053350.KQ', '170790.KQ', '131090.KQ', '064400.KS', '018260.KS', '022100.KS', '023590.KS', '304100.KQ', '377480.KQ', '402030.KQ', '093320.KQ'],
             },
             '🛰️ 우주·위성': {
                 '위성·발사체': ['099320.KQ', '189300.KQ', '211270.KQ', '274090.KQ', '437730.KQ', '474170.KQ', '047810.KS', '005870.KS', '064350.KS', '272210.KS', '321370.KQ', '377330.KQ', '347700.KQ', '007660.KS', '012450.KS', '489790.KS', '079550.KS', '214430.KQ', '010170.KQ', '082920.KQ', '017960.KS', '010820.KS', '065450.KQ'],
