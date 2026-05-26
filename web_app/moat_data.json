@@ -1760,19 +1760,6 @@
       "roic_sustainability": 2
     }
   },
-  "K": {
-    "category": "INTANGIBLE",
-    "label": "시리얼 브랜드",
-    "detail": "Frosted Flakes·Special K·Pringles 등 100년+ 브랜드 — 미국 시리얼 점유율 28%로 2위. 2023년 Kellanova(스낵)와 WK Kellogg(시리얼) 분할로 성장사업 분리, Mars가 Kellanova 인수 합의.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 4,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
-    }
-  },
   "HSY": {
     "category": "INTANGIBLE",
     "label": "초콜릿",
@@ -2040,19 +2027,6 @@
     "category": "INTANGIBLE",
     "label": "WB·HBO 라이브러리",
     "detail": "Warner Bros 영화·HBO·DC·Discovery 채널 보유 — Harry Potter·Game of Thrones·CNN 등 100년+ IP 자산. 부채 400억달러 부담과 케이블 가입자 이탈로 디레버리징과 Max 스트리밍 전환이 과제.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 4,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
-    }
-  },
-  "PARA": {
-    "category": "INTANGIBLE",
-    "label": "Paramount IP",
-    "detail": "CBS 방송·Showtime·Paramount Pictures·Nickelodeon 보유 — Top Gun·Mission Impossible·SpongeBob IP. Skydance 합병 진행 중이며 스트리밍 전환과 케이블 매출 감소의 균형이 관건.",
     "confidence": "heuristic",
     "scores": {
       "switching_costs": 0,
@@ -3188,19 +3162,6 @@
       "roic_sustainability": 2
     }
   },
-  "X": {
-    "category": "COST",
-    "label": "통합 제철",
-    "detail": "미국 전통 BOF 고로와 빅리버 EAF 미니밀 병행 — 일본제철 인수 추진(정치 이슈). 자동차·건설·관용 강판 공급, 노후 BOF가 비용 부담.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 0,
-      "cost_advantage": 3,
-      "roic_sustainability": 2
-    }
-  },
   "DD": {
     "category": "INTANGIBLE",
     "label": "특수화학",
@@ -4300,19 +4261,6 @@
       "ip_efficiency": 3,
       "cost_advantage": 0,
       "roic_sustainability": 2
-    }
-  },
-  "HOLX": {
-    "category": "INTANGIBLE",
-    "label": "여성 진단",
-    "detail": "Hologic은 디지털 유방촬영술 3D Genius·세포진단·골밀도 등 여성 건강 진단 장비 글로벌 1위다. 유방암 스크리닝 표준화로 설치 베이스·소모품 매출이 안정적인 비즈니스다.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 3,
-      "cost_advantage": 0,
-      "roic_sustainability": 3
     }
   },
   "WST": {
@@ -6168,19 +6116,6 @@
       "roic_sustainability": 2
     }
   },
-  "EXAS": {
-    "category": "INTANGIBLE",
-    "label": "대장암 스크리닝",
-    "detail": "Exact Sciences의 Cologuard가 분변 DNA 대장암 스크리닝 시장 사실상 표준 — Cologuard Plus 차세대 버전 FDA 승인. Oncotype DX 유방암 재발예측과 다중암 조기진단(MCED) 파이프라인이 차기 성장축.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 4,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
-    }
-  },
   "NTRA": {
     "category": "INTANGIBLE",
     "label": "유전자 진단",
@@ -6400,19 +6335,6 @@
       "network_effects": 0,
       "ip_efficiency": 0,
       "cost_advantage": 3,
-      "roic_sustainability": 2
-    }
-  },
-  "GPS": {
-    "category": "INTANGIBLE",
-    "label": "Gap·Old Navy",
-    "detail": "Old Navy(가성비)·Gap(미국 캐주얼)·Banana Republic(직장복)·Athleta(애슬레저) 4브랜드 — Old Navy가 매출 55% 차지. 패스트패션·D2C 경쟁으로 브랜드 자산 약화 중.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 4,
-      "cost_advantage": 0,
       "roic_sustainability": 2
     }
   },
@@ -7503,19 +7425,6 @@
     "category": "INTANGIBLE",
     "label": "독립대리점 손보",
     "detail": "Cincinnati Financial 손보·생보.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 3,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
-    }
-  },
-  "ERIE": {
-    "category": "INTANGIBLE",
-    "label": "에리에 손보",
-    "detail": "Erie Indemnity 펜실베이니아 손보.",
     "confidence": "heuristic",
     "scores": {
       "switching_costs": 0,
@@ -9231,19 +9140,6 @@
       "ip_efficiency": 1,
       "cost_advantage": 2,
       "roic_sustainability": 4
-    }
-  },
-  "SKX": {
-    "category": "INTANGIBLE",
-    "label": "Skechers",
-    "detail": "Skechers는 컴포트·중가 풋웨어로 글로벌 매출 3위 신발 브랜드다. Nike·Adidas가 외면한 캐주얼·시니어 컴포트 카테고리를 장악하며 중국·유럽에서 빠르게 점유를 확대 중이다.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 4,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
     }
   },
   "CROX": {
@@ -19982,19 +19878,6 @@
       "roic_sustainability": 1
     }
   },
-  "CTRA": {
-    "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 1,
-      "cost_advantage": 3,
-      "roic_sustainability": 1
-    }
-  },
   "EC": {
     "category": "COST",
     "label": "O&G Scale Advantage",
@@ -20227,19 +20110,6 @@
       "ip_efficiency": 2,
       "cost_advantage": 2,
       "roic_sustainability": 1
-    }
-  },
-  "BWX": {
-    "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 3,
-      "network_effects": 0,
-      "ip_efficiency": 2,
-      "cost_advantage": 2,
-      "roic_sustainability": 2
     }
   },
   "CCJ": {
@@ -20607,19 +20477,6 @@
     }
   },
   "PEPG": {
-    "category": "INTANGIBLE",
-    "label": "GLP-1 Drug IP",
-    "detail": "GLP-1/obesity therapeutic developer with proprietary clinical data and patent protection on novel mechanisms.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 0,
-      "ip_efficiency": 3,
-      "cost_advantage": 0,
-      "roic_sustainability": 1
-    }
-  },
-  "TERN": {
     "category": "INTANGIBLE",
     "label": "GLP-1 Drug IP",
     "detail": "GLP-1/obesity therapeutic developer with proprietary clinical data and patent protection on novel mechanisms.",
@@ -21178,19 +21035,6 @@
       "roic_sustainability": 1
     }
   },
-  "TPX": {
-    "category": "INTANGIBLE",
-    "label": "Luxury Brand IP",
-    "detail": "Luxury or apparel brand with intangible brand equity and pricing power from heritage and perception.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 2,
-      "cost_advantage": 1,
-      "roic_sustainability": 1
-    }
-  },
   "BYD": {
     "category": "EFFICIENT_SCALE",
     "label": "Gaming License Moat",
@@ -21270,19 +21114,6 @@
     }
   },
   "SYY": {
-    "category": "COST",
-    "label": "CPG Distribution Scale",
-    "detail": "Consumer packaged goods company with distribution scale and shelf-space dominance in retail channels.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 0,
-      "cost_advantage": 2,
-      "roic_sustainability": 1
-    }
-  },
-  "WBA": {
     "category": "COST",
     "label": "CPG Distribution Scale",
     "detail": "Consumer packaged goods company with distribution scale and shelf-space dominance in retail channels.",
@@ -21400,19 +21231,6 @@
     }
   },
   "IAC": {
-    "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 3,
-      "ip_efficiency": 2,
-      "cost_advantage": 1,
-      "roic_sustainability": 1
-    }
-  },
-  "IAS": {
     "category": "NETWORK",
     "label": "AdTech Data Network",
     "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
@@ -21594,19 +21412,6 @@
       "roic_sustainability": 1
     }
   },
-  "MPW": {
-    "category": "EFFICIENT_SCALE",
-    "label": "HC REIT Scale",
-    "detail": "Healthcare REIT with specialized medical facility portfolio and long-term operator lease structures.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 0,
-      "ip_efficiency": 0,
-      "cost_advantage": 2,
-      "roic_sustainability": 1
-    }
-  },
   "CVCO": {
     "category": "COST",
     "label": "Homebuilder Scale",
@@ -21634,19 +21439,6 @@
     }
   },
   "OPEN": {
-    "category": "COST",
-    "label": "Homebuilder Scale",
-    "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 1,
-      "cost_advantage": 2,
-      "roic_sustainability": 1
-    }
-  },
-  "RDFN": {
     "category": "COST",
     "label": "Homebuilder Scale",
     "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
@@ -21894,19 +21686,6 @@
     }
   },
   "PKG": {
-    "category": "COST",
-    "label": "Packaging Scale",
-    "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 0,
-      "ip_efficiency": 1,
-      "cost_advantage": 2,
-      "roic_sustainability": 2
-    }
-  },
-  "SEE": {
     "category": "COST",
     "label": "Packaging Scale",
     "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
@@ -22336,19 +22115,6 @@
     }
   },
   "GSAT": {
-    "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 1,
-      "ip_efficiency": 2,
-      "cost_advantage": 1,
-      "roic_sustainability": 1
-    }
-  },
-  "JNPR": {
     "category": "INTANGIBLE",
     "label": "5G/Satellite Tech",
     "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
@@ -25052,19 +24818,6 @@
       "roic_sustainability": 1
     }
   },
-  "MRO": {
-    "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Low-cost acreage with basin-level scale advantages.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 1,
-      "cost_advantage": 3,
-      "roic_sustainability": 1
-    }
-  },
   "NOG": {
     "category": "COST",
     "label": "O&G Scale Advantage",
@@ -25209,19 +24962,6 @@
     }
   },
   "MAXN": {
-    "category": "INTANGIBLE",
-    "label": "Clean Energy Tech",
-    "detail": "IP in solar, storage, or grid optimization.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 2,
-      "cost_advantage": 2,
-      "roic_sustainability": 1
-    }
-  },
-  "NOVA": {
     "category": "INTANGIBLE",
     "label": "Clean Energy Tech",
     "detail": "IP in solar, storage, or grid optimization.",
@@ -25806,19 +25546,6 @@
       "roic_sustainability": 3
     }
   },
-  "SAVA": {
-    "category": "INTANGIBLE",
-    "label": "Pharma IP Portfolio",
-    "detail": "Deep patent portfolio with global distribution and drug franchises.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 0,
-      "ip_efficiency": 4,
-      "cost_advantage": 2,
-      "roic_sustainability": 3
-    }
-  },
   "SUPN": {
     "category": "INTANGIBLE",
     "label": "Pharma IP Portfolio",
@@ -25885,19 +25612,6 @@
     }
   },
   "BHVN": {
-    "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "Proprietary platform technology with clinical pipeline and patent protection.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 3,
-      "cost_advantage": 0,
-      "roic_sustainability": 1
-    }
-  },
-  "DCPH": {
     "category": "INTANGIBLE",
     "label": "ADC/Gene Therapy IP",
     "detail": "Proprietary platform technology with clinical pipeline and patent protection.",
@@ -26170,19 +25884,6 @@
       "roic_sustainability": 2
     }
   },
-  "AXNX": {
-    "category": "SWITCHING",
-    "label": "MedTech Certification",
-    "detail": "FDA-cleared devices with clinical workflow integration creating switching costs.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 3,
-      "network_effects": 0,
-      "ip_efficiency": 2,
-      "cost_advantage": 1,
-      "roic_sustainability": 2
-    }
-  },
   "BRKR": {
     "category": "SWITCHING",
     "label": "MedTech Certification",
@@ -26418,19 +26119,6 @@
     }
   },
   "CHE": {
-    "category": "NETWORK",
-    "label": "Healthcare Platform",
-    "detail": "Healthcare services with patient data network effects and provider lock-in.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 2,
-      "ip_efficiency": 1,
-      "cost_advantage": 1,
-      "roic_sustainability": 1
-    }
-  },
-  "CTLT": {
     "category": "NETWORK",
     "label": "Healthcare Platform",
     "detail": "Healthcare services with patient data network effects and provider lock-in.",
