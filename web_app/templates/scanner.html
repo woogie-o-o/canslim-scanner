@@ -482,12 +482,7 @@ html, body {
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
   overflow: auto;
-  flex: 1 1 auto;
   min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--brand) 52%, var(--border)) transparent;
-  -ms-overflow-style: none;
-  overscroll-behavior: contain;
 }
 
 table.stock-table {
@@ -1546,11 +1541,11 @@ td.score-col {
 .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .stock-table-wrap::-webkit-scrollbar { height: 14px; width: 0; }
 .stock-table-wrap::-webkit-scrollbar:vertical { display: none; width: 0; }
-.stock-table-wrap::-webkit-scrollbar:horizontal { height: 14px; }
+.stock-table-wrap::-webkit-scrollbar:horizontal { height: 10px; }
 .stock-table-wrap::-webkit-scrollbar-track:horizontal {
   background: color-mix(in srgb, var(--surface-page) 70%, transparent);
   border-radius: 999px;
-  margin-inline: 34px;
+  margin-inline: 10px;
 }
 .stock-table-wrap::-webkit-scrollbar-thumb:horizontal {
   background: color-mix(in srgb, var(--brand) 52%, var(--border));
@@ -2614,7 +2609,8 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     background: var(--card);
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   .stock-card {
     display: flex;
