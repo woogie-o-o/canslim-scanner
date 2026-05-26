@@ -25,29 +25,12 @@ html, body {
 /* ── App Shell ─────────────────────────────────────────────── */
 .app-shell {
   display: grid;
-  /* topbar / macro-events-strip / disclaimer / macro-strip / stats-bar / ix-discovery-card / content
+  /* topbar / macro-events-strip / macro-strip / stats-bar / ix-discovery-card / content
      1fr 는 마지막(content) 만 — stats-bar 가 1fr 를 먹어 그 아래 빈 공간이 생기는 버그 방지. */
-  grid-template-rows: 60px auto auto auto auto auto 1fr;
+  grid-template-rows: 60px auto auto auto auto 1fr;
   height: 100dvh;
   overflow: hidden;
   max-width: 100vw;
-}
-
-/* ── Disclaimer Band (공개 사이트 면책 고지) ──────────────── */
-.disclaimer-band {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 24px;
-  background: rgba(245, 158, 11, 0.08);
-  border-bottom: 1px solid rgba(245, 158, 11, 0.25);
-  color: var(--text-secondary);
-  font-size: 11.5px;
-  line-height: 1.4;
-}
-.disclaimer-band b { color: var(--text-primary); font-weight: 700; }
-@media (max-width: 768px) {
-  .disclaimer-band { padding: 6px 16px; font-size: 10.5px; }
 }
 
 /* ── Macro Strip (신호등 띠) ───────────────────────────────── */
@@ -68,10 +51,6 @@ html, body {
   z-index: 90;
 }
 .macro-strip::-webkit-scrollbar { display: none; width: 0; height: 0; }
-.macro-strip::after {
-  content: "";
-  flex: 0 0 24px;
-}
 .macro-items {
   display: flex;
   align-items: center;
@@ -315,10 +294,6 @@ html, body {
   -ms-overflow-style: none;
 }
 .filter-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
-.filter-chips::after {
-  content: "";
-  flex: 0 0 18px;
-}
 .chip {
   display: inline-flex;
   align-items: center;
@@ -509,8 +484,8 @@ html, body {
   overflow: auto;
   flex: 1 1 auto;
   min-height: 0;
-  padding-right: 56px;
-  scrollbar-width: none;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--brand) 52%, var(--border)) transparent;
   -ms-overflow-style: none;
   overscroll-behavior: contain;
 }
@@ -519,31 +494,6 @@ table.stock-table {
   width: 100%;
   min-width: 1120px;
   border-collapse: collapse;
-}
-
-.stock-table-xscroll {
-  flex: none;
-  height: 16px;
-  margin: 0 34px 6px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--brand) 52%, var(--border)) transparent;
-}
-.stock-table-xscroll::-webkit-scrollbar { height: 14px; }
-.stock-table-xscroll::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--surface-page) 70%, transparent);
-  border-radius: 999px;
-}
-.stock-table-xscroll::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--brand) 52%, var(--border));
-  border: 4px solid transparent;
-  border-radius: 999px;
-  background-clip: content-box;
-}
-.stock-table-xscroll-spacer {
-  width: 1120px;
-  height: 1px;
 }
 
 .stock-table thead tr {
@@ -1594,7 +1544,20 @@ td.score-col {
 .main::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb,
 .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-.stock-table-wrap::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.stock-table-wrap::-webkit-scrollbar { height: 14px; width: 0; }
+.stock-table-wrap::-webkit-scrollbar:vertical { display: none; width: 0; }
+.stock-table-wrap::-webkit-scrollbar:horizontal { height: 14px; }
+.stock-table-wrap::-webkit-scrollbar-track:horizontal {
+  background: color-mix(in srgb, var(--surface-page) 70%, transparent);
+  border-radius: 999px;
+  margin-inline: 34px;
+}
+.stock-table-wrap::-webkit-scrollbar-thumb:horizontal {
+  background: color-mix(in srgb, var(--brand) 52%, var(--border));
+  border: 4px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
 
 /* ── Detail Modal (Center Popup) ───────────────────────────── */
 .detail-overlay {
@@ -2583,19 +2546,25 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .stats-bar {
     padding: 6px 8px;
     height: auto;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 6px 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
   }
-  .stat-item { padding: 0 10px 0 0; margin-right: 10px; }
+  .stats-bar::-webkit-scrollbar { display: none; width: 0; height: 0; }
+  .stat-item { flex: none; padding: 0 10px 0 0; margin-right: 10px; }
   .stat-label { font-size: 12px; }
   .stat-value { font-size: 14px; }
   .filter-chips {
-    width: 100%;
-    overflow-x: auto;
+    width: auto;
+    overflow-x: visible;
     flex-wrap: nowrap;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    padding: 6px 0;
+    padding: 0;
     gap: 8px;
   }
   .filter-chips::-webkit-scrollbar { display: none; }
@@ -2635,8 +2604,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 
   .main { padding: 6px 4px; overflow-y: auto; }
 
-  .stock-table-wrap,
-  .stock-table-xscroll { display: none; }
+  .stock-table-wrap { display: none; }
   .stock-table { min-width: 640px; }
 
   /* ── Mobile Card List ─────────────────────────────── */
@@ -2896,12 +2864,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     <span id="macro-events-strip-list" style="display:flex;gap:6px;"></span>
   </div>
 
-  <!-- Disclaimer Band -->
-  <div class="disclaimer-band" role="note">
-    <span aria-hidden="true">⚠️</span>
-    <span>본 사이트의 모든 점수·등급·진입 신호는 <b>투자 권유가 아닌 알고리즘 스크리닝 결과</b>입니다. 투자 판단과 손익 책임은 본인에게 있습니다.</span>
-  </div>
-
   <!-- Macro Strip (신호등 띠) -->
   <div class="macro-strip" id="macro-strip">
     <span class="macro-signal unknown" id="macro-signal">⚪ <span>로딩…</span></span>
@@ -2973,9 +2935,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
             <tr><td colspan="14" class="state-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</td></tr>
           </tbody>
         </table>
-      </div>
-      <div id="stock-table-xscroll" class="stock-table-xscroll" aria-hidden="true">
-        <div id="stock-table-xscroll-spacer" class="stock-table-xscroll-spacer"></div>
       </div>
       <div id="mobile-stock-list" class="mobile-stock-list">
         <div class="mobile-stock-list-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</div>

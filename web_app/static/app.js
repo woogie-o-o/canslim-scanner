@@ -1406,7 +1406,6 @@ function renderStockTable(stocks) {
       : '필터 조건에 맞는 종목이 없습니다.';
     tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(_currentFilter === 'all' ? '결과 없음' : emptyMsg)}</td></tr>`;
     _updateMobileList([], _currentFilter === 'all' ? '결과 없음' : emptyMsg);
-    requestAnimationFrame(syncStockTableXScroll);
     return;
   }
 
@@ -1428,58 +1427,6 @@ function renderStockTable(stocks) {
   }
   tbody.innerHTML = view.map((s, i) => renderStockRow(s, i + 1)).join('');
   _updateMobileList(view);
-  requestAnimationFrame(syncStockTableXScroll);
-}
-
-let _stockXScrollBound = false;
-let _stockXScrollSyncing = false;
-let _stockXScrollObserver = null;
-
-function _bindStockTableXScroll() {
-  const wrap = document.querySelector('.stock-table-wrap');
-  const rail = document.getElementById('stock-table-xscroll');
-  if (!wrap || !rail || _stockXScrollBound) return;
-
-  wrap.addEventListener('scroll', () => {
-    if (_stockXScrollSyncing) return;
-    _stockXScrollSyncing = true;
-    rail.scrollLeft = wrap.scrollLeft;
-    _stockXScrollSyncing = false;
-  }, { passive: true });
-
-  rail.addEventListener('scroll', () => {
-    if (_stockXScrollSyncing) return;
-    _stockXScrollSyncing = true;
-    wrap.scrollLeft = rail.scrollLeft;
-    _stockXScrollSyncing = false;
-  }, { passive: true });
-
-  window.addEventListener('resize', () => requestAnimationFrame(syncStockTableXScroll), { passive: true });
-
-  if ('ResizeObserver' in window) {
-    _stockXScrollObserver = new ResizeObserver(() => requestAnimationFrame(syncStockTableXScroll));
-    _stockXScrollObserver.observe(wrap);
-  }
-
-  _stockXScrollBound = true;
-}
-
-function syncStockTableXScroll() {
-  const wrap = document.querySelector('.stock-table-wrap');
-  const rail = document.getElementById('stock-table-xscroll');
-  const spacer = document.getElementById('stock-table-xscroll-spacer');
-  if (!wrap || !rail || !spacer) return;
-
-  _bindStockTableXScroll();
-
-  const maxScroll = Math.max(0, wrap.scrollWidth - wrap.clientWidth);
-  rail.hidden = maxScroll <= 2;
-  if (rail.hidden) return;
-
-  spacer.style.width = `${maxScroll + rail.clientWidth}px`;
-  if (rail.scrollLeft !== wrap.scrollLeft) {
-    rail.scrollLeft = wrap.scrollLeft;
-  }
 }
 
 function _deltaBadge(stock) {
