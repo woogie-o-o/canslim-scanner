@@ -332,7 +332,7 @@ _FALLBACK_UA = (
 # UI 섹터 트리에는 그대로 노출되며(역사적 컨텍스트), fetch 만 차단된다.
 # ════════════════════════════════════════════════════════════════════════
 _US_DELISTED: set[str] = {
-    "MYR", "MMC", "CMA", "SNV", "CIVI", "HES", "NOVA", "MRO",
+          "NOVA", "MRO",
     "SAVA", "DCPH", "AXNX", "EXAS", "CTLT", "GPS",
 }
 _DELISTED_CACHE_PATH = os.path.join(_YF_CACHE_DIR, "delisted.json") \
@@ -8797,7 +8797,6 @@ class QuantNexusApp:
         "322310.KQ": "오킨스전자",          # 반도체 테스트소켓
         "058970.KS": "엠로",                # 공급망 SCM SW
         "035890.KQ": "서희건설",            # 중견건설
-        "090460.KQ": "비에이치",            # 스마트폰 FPCB
         "049070.KQ": "인탑스",              # 모바일·로봇 케이스
         "248070.KQ": "솔루엠",              # 전자부품·ESL
         "009290.KS": "광동제약",            # 비타500·헛개차
@@ -9628,7 +9627,6 @@ class QuantNexusApp:
         "GTLB": "깃랩",
         "HCA": "HCA 헬스케어",
         "HD": "홈디포",
-        "HES": "헤스",
         "HIG": "하트포드 파이낸셜",
         "HII": "헌팅턴 잉걸스",
         "HIMS": "힘스앤허스",
@@ -9750,7 +9748,6 @@ class QuantNexusApp:
         "MSTR": "마이크로스트래티지",
         "MTH": "메리티지 홈즈",
         "MU": "마이크론",
-        "MYR": "MYR 그룹",
         "NBIS": "네비우스",
         "NDAQ": "나스닥",
         "NEE": "넥스트에라 에너지",
@@ -9993,7 +9990,6 @@ class QuantNexusApp:
         "WEX": "WEX",
         "WFC": "웰스파고",
         "WING": "윙스톱",
-        "WIRE": "엔코어 와이어",
         "WK": "워크이바",
         "WMB": "윌리엄스 컴퍼니즈",
         "WMT": "월마트",
@@ -10291,7 +10287,6 @@ class QuantNexusApp:
         "PTON": "펠로톤 인터랙티브",
         "LAES": "실즈큐",
         "AEVA": "아에바",
-        "LAZR": "루미나 테크놀로지스",
         "RUM":  "럼블",
         "RDFN": "레드핀",
         "SES":  "SES AI",
@@ -10321,9 +10316,6 @@ class QuantNexusApp:
         "BYND": "비욘드미트",
         "CCL": "카니발",
         "CGC": "캐노피 그로스",
-        "CHK": "체사피크 에너지",
-        "CIVI": "시비타스 리소시즈",
-        "CMA": "코메리카",
         "CMS": "CMS 에너지",
         "CNP": "센터포인트 에너지",
         "CRGY": "크레센트 에너지",
@@ -10360,7 +10352,6 @@ class QuantNexusApp:
         "LKQ": "LKQ 코퍼레이션",
         "MAS": "마스코",
         "MGM": "MGM 리조트",
-        "MMC": "마쉬앤맥레난",
         "MPW": "메디컬 프로퍼티즈",
         "MTB": "M&T 뱅크",
         "MTD": "메틀러 톨레도",
@@ -10391,7 +10382,6 @@ class QuantNexusApp:
         "SIRI": "시리우스XM",
         "SNA": "스냅온",
         "SNDL": "선들 그로어",
-        "SNV": "시너버스 파이낸셜",
         "STE": "스테리스",
         "SWK": "스탠리 블랙앤데커",
         "TCEHY": "텐센트 (ADR)",
@@ -11470,7 +11460,6 @@ class QuantNexusApp:
         "DVN": "셰일 오일 · 탐사 · 생산",
         "EOG": "셰일 · 탐사 · 생산",
         "FANG": "퍼미안 분지 · 셰일 원유",
-        "HES": "탐사 · 생산 · 가이아나 원유",
         "MPC": "정유 · 휘발유 · 미드스트림",
         "MRO": "탐사 · 생산 · 오일가스",
         "OXY": "서부 텍사스 · 오일 탐사",
@@ -11594,8 +11583,6 @@ class QuantNexusApp:
         "TT": "냉난방 · HVAC · 기후 제어",
         "TXT": "항공 · 방산 · 산업",
         "AYI": "조명 · 빌딩 관리 시스템",
-        "MYR": "전기 공사 · 인프라",
-        "WIRE": "전선 · 케이블 · 구리",
         # 방산·우주 추가
         "HII": "군함 · 항공모함 · 잠수함",
         "KTOS": "드론 · 미사일 · 방산",
@@ -11934,7 +11921,6 @@ class QuantNexusApp:
         "PTON": "홈피트니스 · 인터랙티브 바이크",
         "LAES": "양자내성 암호 · 보안 칩 · IoT",
         "AEVA": "4D FMCW 라이다 · 자율주행 센서",
-        "LAZR": "라이다 · 자율주행 인지 시스템",
         "RUM":  "동영상 플랫폼 · 클라우드 서비스",
         "RDFN": "온라인 부동산 중개 플랫폼",
         "SES":  "리튬메탈 배터리 · UAM · EV",
@@ -11968,9 +11954,6 @@ class QuantNexusApp:
         "BYND": "식물성 대체육",
         "CCL": "크루즈 라인",
         "CGC": "캐나다 대마초",
-        "CHK": "셰일 천연가스",
-        "CIVI": "DJ분지 · 퍼미안 E&P",
-        "CMA": "텍사스 기반 지역은행",
         "CMS": "미시간 전력 · 가스",
         "CNP": "휴스턴 전력 · 가스",
         "CRGY": "독립 E&P",
@@ -12007,7 +11990,6 @@ class QuantNexusApp:
         "LKQ": "자동차 애프터마켓 부품",
         "MAS": "주거용 인테리어",
         "MGM": "라스베이거스 카지노",
-        "MMC": "보험 중개 · 컨설팅",
         "MPW": "병원 부동산 리츠",
         "MTB": "뉴욕 기반 지역은행",
         "MTD": "정밀 계측 기기",
@@ -12038,7 +12020,6 @@ class QuantNexusApp:
         "SIRI": "위성 라디오 · 팟캐스트",
         "SNA": "프로용 공구",
         "SNDL": "캐나다 대마 · 주류",
-        "SNV": "조지아 지역은행",
         "STE": "감염 예방 · 멸균",
         "SWK": "전동공구 · 보안",
         "TCEHY": "중국 빅테크 · 위챗·게임",
@@ -12138,11 +12119,11 @@ class QuantNexusApp:
                                       "RELY","RPAY","SE","SOFI","SYF","TOST","UPST","V","XYZ"],
                 "Exchanges & Data":     ["CBOE","CME","FDS","ICE","MCO","MKTX","MSCI","NDAQ","SPGI","TRI","VIRT","VRSK"],
                 "Mega Banks & IB":      ["ABCB","ASB","AX","BAC","BANF","BANR","BK","BKU","BMO","BOH","BPOP","C","CATY","CBSH","CBU",
-                                      "CFG","CFR","CMA","COLB","CVBF","DCOM","EFSC","EWBC",
+                                      "CFG","CFR","COLB","CVBF","DCOM","EFSC","EWBC",
                                       "FCF","FFIN","FHB","FHN","FITB","FNB","FULT","GBCI","GS",
                                       "HBAN","HOMB","HSBC","HWC","IBOC","INDB","JPM","KEY",
                                       "LCNB","MS","MTB","NBTB","NTRS","NWBI","ONB","OZK","PB",
-                                      "PNC","PNFP","RF","RY","SBCF","SBSI","SCHW","SFNC","SNV",
+                                      "PNC","PNFP","RF","RY","SBCF","SBSI","SCHW","SFNC",
                                       "SSB","STBA","STT","TCBI","TD","TFC","TMP","TOWN","TRMK",
                                       "UBSI","UMBF","USB","VLY","WABC","WAFD","WAL","WBS","WFC",
                                       "WSFS","WTFC","ZION"],
@@ -12150,7 +12131,7 @@ class QuantNexusApp:
                                       "HTGC","IVZ","KKR","LPLA","MAIN","NMFC","OBDC","OWL",
                                       "PSEC","RJF","SAR","STEP","TPVG","TROW","TWO"],
                 "Insurance":            ["ACGL","AFG","AFL","AIG","AJG","ALL","AON","BRK-B","BRO","CB","CINF","EG","EQH","ERIE","FAF",
-                                      "FNF","GL","HIG","KMPR","KNSL","LMND","MET","MFC","MMC",
+                                      "FNF","GL","HIG","KMPR","KNSL","LMND","MET","MFC",
                                       "ORI","PGR","PLMR","PRA","PRU","RLI","RNR","ROOT","SIGI",
                                       "SLF","STC","THG","TRV","WDFC","WRB","WTW"]
             },
@@ -12161,8 +12142,8 @@ class QuantNexusApp:
                                       "ESLT","GD","GE","HAYW","HII","HWM","HXL","JOBY","KTOS",
                                       "LDOS","LHX","LMT","LPTH","LUNR","MOG-A","MRCY","NOC",
                                       "PL","RDW","RKLB","RTX","SAIC","TDG","TXT","VSEC"],
-                "Power Grid & Infra":   ["ATKR","AYI","EME","ETN","FLUX","GEV","GNE","GNRC","HON","HUBB","MYR","NVT","POWL","PRIM",
-                                      "PWR","SHLS","SPXC","TPC","VRT","WATT","WIRE","XPEL"],
+                "Power Grid & Infra":   ["ATKR","AYI","EME","ETN","FLUX","GEV","GNE","GNRC","HON","HUBB","NVT","POWL","PRIM",
+                                      "PWR","SHLS","SPXC","TPC","VRT","WATT","XPEL"],
                 "Industrials":          ["AAON","ACA","AGCO","AIT","ALLE","ALSN","AME","AMRC","AOS","APG","ASGN","B","BCPC","BLD",
                                       "BLDR","BMI","CARR","CAT","CBT","CGNX","CMI","CNM","CR",
                                       "CSL","DCI","DE","DOV","EBC","ENS","ESAB","FAST","FBIN",
@@ -12181,8 +12162,8 @@ class QuantNexusApp:
 
             # ── 5. 에너지 ────────────────────────────────────────────────────
             "⚡ Energy": {
-                "Oil & Gas Majors":     ["APA","AR","BKR","CHK","CHRD","CIVI","COP","CRGY","CTRA","CVX","DVN","EC","EOG","EQT","FANG",
-                                      "HES","MGY","MPC","MRO","MTDR","NOG","OVV","OXY","PBR",
+                "Oil & Gas Majors":     ["APA","AR","BKR","CHRD","COP","CRGY","CTRA","CVX","DVN","EC","EOG","EQT","FANG",
+                                      "MGY","MPC","MRO","MTDR","NOG","OVV","OXY","PBR",
                                       "PR","PSX","RRC","SLB","SM","TALO","TPL","VLO","WTI",
                                       "XOM"],
                 "Midstream & Pipeline": ["AM","DKL","DTM","ENB","ET","HESM","KMI","LNG","MPLX","OKE","PAA","PBA","TRGP","TRP","VG",
@@ -12238,7 +12219,7 @@ class QuantNexusApp:
                                       "MCD","NDLS","PLAY","PZZA","QSR","SBUX","SHAK","TACO",
                                       "TXRH","WEN","WING","YUM"],
                 "Auto & EV":            ["ADNT","AEVA","ALV","APTV","AUR","BLNK","BWA","CHPT","CVNA","CWH","EVGO","F","FOXF","GM",
-                                      "GNTX","GT","HMC","HOG","LAZR","LCID","LCII","LEA","LI",
+                                      "GNTX","GT","HMC","HOG","LCID","LCII","LEA","LI",
                                       "NIO","ON","OUST","PATK","RIVN","SMP","STLA","THRM","TM",
                                       "TSLA","VC","XPEV"],
                 "Luxury & Apparel":     ["BIRK","CPRI","CROX","DECK","EL","ELF","FIGS","GIII","GIL","GOOS","LEVI","LULU","MOV","NKE",

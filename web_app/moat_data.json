@@ -869,19 +869,6 @@
       "roic_sustainability": 2
     }
   },
-  "MMC": {
-    "category": "INTANGIBLE",
-    "label": "보험 브로커리지",
-    "detail": "Marsh·Guy Carpenter로 글로벌 보험·재보험 브로커 1위, Mercer·Oliver Wyman으로 HR·전략 컨설팅까지 묶은 130개국 플랫폼이다. 기업 위험관리 RFP에서 의무 후보로 들어가며 갱신율 95% 이상의 락인을 보인다.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 1,
-      "ip_efficiency": 3,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
-    }
-  },
   "AON": {
     "category": "INTANGIBLE",
     "label": "보험 컨설팅",
@@ -4462,19 +4449,6 @@
     "category": "COST",
     "label": "셰일 다각화",
     "detail": "Devon Energy는 퍼미안·이글포드·앵커포인트 등 미국 다지역 셰일 E&P 다각화 사업자다. 변동배당(고정+변동) 모델로 유가 사이클 자본환원을 정형화한 첫 사례로 평가된다.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 0,
-      "cost_advantage": 3,
-      "roic_sustainability": 3
-    }
-  },
-  "HES": {
-    "category": "COST",
-    "label": "가이아나 매장량",
-    "detail": "Hess Corporation은 가이아나 Stabroek 광구(엑손모빌 운영) 30% 지분으로 거대 매장량을 보유했다. Chevron이 530억달러에 인수 합의했으나 ExxonMobil ROFR 분쟁 중이다.",
     "confidence": "heuristic",
     "scores": {
       "switching_costs": 0,
@@ -12564,19 +12538,6 @@
       "roic_sustainability": 2
     }
   },
-  "090460.KQ": {
-    "category": "INTANGIBLE",
-    "label": "비에이치 FPCB",
-    "detail": "아이폰 OLED 디스플레이용 RF-PCB 핵심 공급사로 삼성디스플레이를 거쳐 애플에 납품합니다. 갤럭시·전기차 배터리 BMS용 FPCB로 라인업을 확장하고 있습니다.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 3,
-      "cost_advantage": 0,
-      "roic_sustainability": 2
-    }
-  },
   "095610.KQ": {
     "category": "EFFICIENT_SCALE",
     "label": "테스 PECVD·식각",
@@ -12795,19 +12756,6 @@
       "network_effects": 0,
       "ip_efficiency": 0,
       "cost_advantage": 3,
-      "roic_sustainability": 2
-    }
-  },
-  "CIVI": {
-    "category": "COST",
-    "label": "Civitas DJ Basin",
-    "detail": "DJ Basin 통합 후 무배출 운영으로 단위원가를 낮춘 셰일 E&P입니다.",
-    "confidence": "heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 0,
-      "cost_advantage": 4,
       "roic_sustainability": 2
     }
   },
@@ -21152,19 +21100,6 @@
       "roic_sustainability": 0
     }
   },
-  "LAZR": {
-    "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
-    "detail": "Automotive or EV technology company with proprietary platform, sensor, or manufacturing IP.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 1,
-      "network_effects": 0,
-      "ip_efficiency": 2,
-      "cost_advantage": 1,
-      "roic_sustainability": 0
-    }
-  },
   "OUST": {
     "category": "INTANGIBLE",
     "label": "EV/Auto Tech",
@@ -23310,19 +23245,6 @@
       "roic_sustainability": 2
     }
   },
-  "CMA": {
-    "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank benefiting from regulatory barriers, deposit scale, and relationship lending.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 1,
-      "ip_efficiency": 0,
-      "cost_advantage": 2,
-      "roic_sustainability": 2
-    }
-  },
   "COLB": {
     "category": "EFFICIENT_SCALE",
     "label": "Bank Scale Moat",
@@ -23610,19 +23532,6 @@
     }
   },
   "SFNC": {
-    "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank benefiting from regulatory barriers, deposit scale, and relationship lending.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 1,
-      "ip_efficiency": 0,
-      "cost_advantage": 2,
-      "roic_sustainability": 2
-    }
-  },
-  "SNV": {
     "category": "EFFICIENT_SCALE",
     "label": "Bank Scale Moat",
     "detail": "Large bank benefiting from regulatory barriers, deposit scale, and relationship lending.",
@@ -24376,19 +24285,6 @@
       "roic_sustainability": 2
     }
   },
-  "MYR": {
-    "category": "COST",
-    "label": "Grid Infra Scale",
-    "detail": "Power infrastructure with scale economies and critical positioning.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 0,
-      "ip_efficiency": 2,
-      "cost_advantage": 3,
-      "roic_sustainability": 2
-    }
-  },
   "SHLS": {
     "category": "COST",
     "label": "Grid Infra Scale",
@@ -24429,19 +24325,6 @@
     }
   },
   "WATT": {
-    "category": "COST",
-    "label": "Grid Infra Scale",
-    "detail": "Power infrastructure with scale economies and critical positioning.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 2,
-      "network_effects": 0,
-      "ip_efficiency": 2,
-      "cost_advantage": 3,
-      "roic_sustainability": 2
-    }
-  },
-  "WIRE": {
     "category": "COST",
     "label": "Grid Infra Scale",
     "detail": "Power infrastructure with scale economies and critical positioning.",
@@ -25153,19 +25036,6 @@
       "network_effects": 0,
       "ip_efficiency": 3,
       "cost_advantage": 1,
-      "roic_sustainability": 1
-    }
-  },
-  "CHK": {
-    "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Low-cost acreage with basin-level scale advantages.",
-    "confidence": "sector_heuristic",
-    "scores": {
-      "switching_costs": 0,
-      "network_effects": 0,
-      "ip_efficiency": 1,
-      "cost_advantage": 3,
       "roic_sustainability": 1
     }
   },
