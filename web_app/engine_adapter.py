@@ -17,6 +17,8 @@ from collections import OrderedDict
 _VIX_CACHE: dict = {"value": None, "ts": 0.0}
 _VIX_CACHE_LOCK = threading.Lock()
 _VIX_TTL_SEC = 300.0
+_VIX_BG_INFLIGHT = {"on": False}
+_VIX_BG_LOCK = threading.Lock()
 
 # 프로젝트 경로 추가 (quant_nexus_v20.py가 있는 디렉토리)
 _BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -54,10 +56,15 @@ class ScanAdapter:
         # ── analyze_ticker가 사용하는 속성 (QuantNexusApp 인터페이스 호환) ──
         self.cache          = _qn.DataCache()
         self.engine         = _qn.WallStreetQuantStrategies()
-        self.vix_value      = self._fetch_vol_index(market)
+        # C1: VIX fetch는 cold start를 막지 않는다.
+        # 캐시가 비어 있으면 20.0으로 출발하고 백그라운드에서 채운다.
+        self.vix_value      = self._fetch_vol_index_nonblocking(market)
         self._scan_strategy = strategy
         self._scan_market   = market
         self._stats_lock    = threading.Lock()
+        # yfinance 429 글로벌 cooldown 게이트 (원본 엔진과 동일 인터페이스)
+        self._yf_cooldown_until = 0.0
+        self._yf_cooldown_lock  = threading.Lock()
         self.stats          = {
             "cache_hits": 0, "cache_misses": 0,
             "scanned": 0, "strong_buy": 0, "buy": 0, "hold": 0, "sell": 0,
@@ -88,6 +95,40 @@ class ScanAdapter:
 
     # ── 내부 초기화 ───────────────────────────────────────────────────────
 
+    @classmethod
+    def _fetch_vol_index_nonblocking(cls, market: str) -> float:
+        """캐시 hit이면 즉시 반환. 없으면 20.0 fallback + 백그라운드로 fetch.
+        cold start API 응답이 ^VIX 네트워크 5~25s에 묶이지 않게 한다.
+        """
+        now = time.time()
+        with _VIX_CACHE_LOCK:
+            cached = _VIX_CACHE["value"]
+            cached_ts = _VIX_CACHE["ts"]
+            if cached is not None and (now - cached_ts) < _VIX_TTL_SEC:
+                return float(cached)
+        # 중복 BG 호출 방지
+        with _VIX_BG_LOCK:
+            if not _VIX_BG_INFLIGHT["on"]:
+                _VIX_BG_INFLIGHT["on"] = True
+                threading.Thread(
+                    target=cls._vix_bg_worker,
+                    args=(market,),
+                    daemon=True,
+                    name="vix-bg-fetch",
+                ).start()
+        # stale 캐시라도 있으면 활용
+        if cached is not None:
+            return float(cached)
+        return 20.0
+
+    @classmethod
+    def _vix_bg_worker(cls, market: str) -> None:
+        try:
+            cls._fetch_vol_index(market)
+        finally:
+            with _VIX_BG_LOCK:
+                _VIX_BG_INFLIGHT["on"] = False
+
     @staticmethod
     def _fetch_vol_index(market: str) -> float:
         """VIX 종가. 실패 시 20.0 fallback.
@@ -107,11 +148,16 @@ class ScanAdapter:
                 return float(cached)
 
         import yfinance as _yf
+        # 모듈-레벨 yfinance cooldown 게이트 — _analyze_ticker와 동일 quota 공유.
+        try:
+            _qn._yf_cooldown_wait()
+        except Exception:
+            pass
         for attempt in range(3):
             if attempt == 1:
-                time.sleep(random.uniform(3.0, 5.0))
+                time.sleep(random.uniform(1.0, 2.0))
             elif attempt == 2:
-                time.sleep(random.uniform(8.0, 12.0))
+                time.sleep(random.uniform(3.0, 5.0))
             try:
                 v = _yf.Ticker("^VIX").history(period="5d")
                 if not v.empty:
@@ -124,6 +170,10 @@ class ScanAdapter:
                 msg = str(e)
                 if "rate" in msg or "Too Many" in msg or "429" in msg:
                     logging.warning("[Adapter] vol index rate-limited (%s, attempt %d): %s", market, attempt, e)
+                    try:
+                        _qn._yf_mark_rate_limited(30.0)
+                    except Exception:
+                        pass
                 else:
                     logging.warning("[Adapter] vol index fetch failed (%s): %s", market, e)
         if cached is not None and (now - cached_ts) < 900.0:
@@ -145,6 +195,42 @@ class ScanAdapter:
 
     def _log(self, msg: str) -> None:
         logging.debug("[ScanAdapter] %s", msg)
+
+    def _pre_build_scan_caches(self, tickers: list[str]) -> None:
+        """스캔 루프 전 1회 실행 — F5(종목명 dict) + F2b(KR 재무 병렬 사전 로드)."""
+        # F5: 종목명 사전 구축
+        _kr_names_d = getattr(self, "KR_NAMES", {})
+        _us_names_d = getattr(_qn.QuantNexusApp, "US_NAMES", {})
+        _sw = _qn._SWING_SCAN_STOCK_NAMES
+        _name_pre: dict[str, str] = {}
+        for _nt in tickers:
+            _is_kr_nt = _nt.endswith(".KS") or _nt.endswith(".KQ")
+            _nn = None
+            if _is_kr_nt and _sw is not None:
+                try:
+                    _c6n = _nt.split(".")[0].zfill(6)
+                    _nn2 = _sw.get_name(_c6n)
+                    if _nn2 and _nn2 != _c6n:
+                        _nn = _nn2
+                except Exception:
+                    pass
+            if not _nn:
+                _nn = _kr_names_d.get(_nt) if _is_kr_nt else _us_names_d.get(_nt)
+            if _nn:
+                _name_pre[_nt] = _nn
+        self._ticker_name_cache = _name_pre
+        # F2b: KR 재무 데이터 사전 병렬 로드
+        if self._market == "KR":
+            _fetch_fund = _qn.QuantNexusApp._fetch_naver_fundamentals
+            _kr_uncached = [
+                t for t in tickers
+                if (t.endswith(".KS") or t.endswith(".KQ"))
+                and t.split(".")[0] not in self._naver_fund_cache
+            ]
+            if _kr_uncached:
+                logging.debug("[ScanAdapter] KR 재무 사전 로드 %d개", len(_kr_uncached))
+                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as _nex:
+                    list(_nex.map(lambda t: _fetch_fund(self, t), _kr_uncached))
 
     def _fetch_naver_target(self, ticker: str):
         """(DEPRECATED) DCF 목표가로 대체됨 — 호환성 유지용."""
@@ -209,9 +295,10 @@ class ScanAdapter:
         result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
         return apply_to_row(result) if result else result
 
-    def scan_sector(self, sector: str, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "4")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:
+    def scan_sector(self, sector: str, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "8")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:
         """특정 섹터 종목을 병렬 분석 후 TotalScore 내림차순 반환."""
         tickers = self._sectors.get(sector, [])
+        self._pre_build_scan_caches(tickers)
         results: list[dict] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {
@@ -232,7 +319,7 @@ class ScanAdapter:
         results.sort(key=lambda x: x.get("TotalScore", 0), reverse=True)
         return results
 
-    def scan_all(self, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "4")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:
+    def scan_all(self, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "8")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:
         """전체 섹터 종목을 병렬 분석 (중복 ticker 제거) 후 TotalScore 내림차순 반환."""
         ticker_sector: dict[str, str] = {}
         for sector, tickers in self._sectors.items():
@@ -240,6 +327,8 @@ class ScanAdapter:
                 if t not in ticker_sector:
                     ticker_sector[t] = sector
 
+        all_tickers = list(ticker_sector.keys())
+        self._pre_build_scan_caches(all_tickers)
         results: list[dict] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {

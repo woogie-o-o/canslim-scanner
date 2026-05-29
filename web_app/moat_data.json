@@ -235,7 +235,7 @@
   },
   "ZS": {
     "category": "SWITCHING",
-    "label": "Zero Trust",
+    "label": "제로트러스트 보안",
     "detail": "Zscaler는 글로벌 150여개 PoP 기반 클라우드 보안 게이트웨이로 사용자가 어디서든 동일 보안정책을 적용받게 한다. VPN·하드웨어 방화벽을 대체하는 SASE 1위로 대기업 표준화가 진행 중이다.",
     "confidence": "heuristic",
     "scores": {
@@ -301,7 +301,7 @@
   },
   "TEAM": {
     "category": "SWITCHING",
-    "label": "Jira·Confluence",
+    "label": "지라·컨플루언스",
     "detail": "Jira는 글로벌 개발팀 이슈트래커 표준이고 Confluence는 위키·문서가 누적되며 가치가 커진다. 한 번 도입하면 수년치 티켓·문서·연동이 쌓여 다른 도구로 옮기는 비용이 천문학적이다.",
     "confidence": "heuristic",
     "scores": {
@@ -340,7 +340,7 @@
   },
   "AMD": {
     "category": "INTANGIBLE",
-    "label": "Zen·EPYC",
+    "label": "Zen·EPYC CPU 코어",
     "detail": "Zen 아키텍처 기반 EPYC 서버 CPU로 데이터센터 점유율을 30%대까지 끌어올렸고, Instinct MI300 GPU로 AI 가속까지 듀얼 라인업을 갖췄다. TSMC 첨단공정과 칩렛 설계가 원가·성능 우위다.",
     "confidence": "heuristic",
     "scores": {
@@ -471,7 +471,7 @@
   },
   "ARM": {
     "category": "INTANGIBLE",
-    "label": "ARM ISA",
+    "label": "ARM 명령어셋 IP",
     "detail": "ARM 명령어셋은 글로벌 스마트폰 AP의 99%, 자동차·IoT·서버 CPU로 빠르게 확장 중인 사실상의 모바일 표준이다. 라이선스+로열티 비즈니스 모델로 칩 출하량에 비례해 매출이 늘어난다.",
     "confidence": "heuristic",
     "scores": {
@@ -577,7 +577,7 @@
   },
   "PYPL": {
     "category": "NETWORK",
-    "label": "PayPal·Venmo",
+    "label": "페이팔·벤모",
     "detail": "PayPal은 글로벌 활성계정 4억개로 크로스보더 결제·이커머스 체크아웃에 깊이 박혀 있고, Venmo는 미국 P2P 결제 1위로 젊은층 락인이 강하다. 양면 네트워크가 핵심 자산이다.",
     "confidence": "heuristic",
     "scores": {
@@ -722,7 +722,7 @@
   },
   "BLK": {
     "category": "EFFICIENT_SCALE",
-    "label": "ETF·Aladdin",
+    "label": "ETF·알라딘 플랫폼",
     "detail": "iShares ETF로 글로벌 운용자산 11.5조달러를 보유해 세계 최대 운용사 지위가 흔들리지 않는다. 리스크관리 플랫폼 Aladdin은 운용사·연기금 200여곳이 사용하는 사실상 산업 표준 SaaS다.",
     "confidence": "verified",
     "source": "morningstar_moat_etf_20260522",
@@ -1339,7 +1339,7 @@
   },
   "DXCM": {
     "category": "INTANGIBLE",
-    "label": "CGM",
+    "label": "연속혈당측정기",
     "detail": "Dexcom G7과 Abbott Libre가 연속혈당측정 글로벌 듀오폴리 — 1형 당뇨 표준치료에서 2형·GLP-1 병용 비당뇨까지 시장 확장 중. Stelo OTC 출시로 라이프스타일 모니터링까지 적용 영역 확대.",
     "confidence": "heuristic",
     "scores": {
@@ -1666,7 +1666,7 @@
   },
   "CHD": {
     "category": "INTANGIBLE",
-    "label": "Arm & Hammer",
+    "label": "Arm & Hammer 브랜드",
     "detail": "Arm & Hammer 베이킹소다·OxiClean·Trojan 등 가성비 브랜드 14개로 매출 75% — 대형 경쟁사가 무시하는 틈새 카테고리에서 1~2위 차지. 영업마진 20%대로 P&G 대비 ROIC 우위.",
     "confidence": "heuristic",
     "scores": {
@@ -1799,7 +1799,7 @@
   },
   "DECK": {
     "category": "INTANGIBLE",
-    "label": "UGG·HOKA",
+    "label": "어그·호카 브랜드",
     "detail": "UGG 셰입스킨 부츠 카테고리 독점·HOKA 러닝화가 연 30%+ 성장 — HOKA는 두꺼운 미드솔로 마라톤 시장 점유 급상승. 두 브랜드가 매출 95% 차지하나 직영 D2C 비중 확대로 마진 우위.",
     "confidence": "heuristic",
     "scores": {
@@ -1825,7 +1825,7 @@
   },
   "TPR": {
     "category": "INTANGIBLE",
-    "label": "Coach·Kate",
+    "label": "코치·케이트 브랜드",
     "detail": "Coach(접근가능 럭셔리)·Kate Spade·Stuart Weitzman 보유 — Coach가 매출 75% 차지하며 매트한 가죽 핸드백으로 Z세대 호응. Capri(Versace·Jimmy Choo) 합병은 FTC가 차단.",
     "confidence": "heuristic",
     "scores": {
@@ -1838,7 +1838,7 @@
   },
   "PVH": {
     "category": "INTANGIBLE",
-    "label": "Calvin·Tommy",
+    "label": "캘빈·타미 브랜드",
     "detail": "Calvin Klein·Tommy Hilfiger 두 글로벌 브랜드로 매출 90억달러 — 라이선스·도매 의존도 높아 D2C 전환이 과제. 두 브랜드 모두 미국·유럽·아시아 균형 분포로 지역 리스크 분산.",
     "confidence": "heuristic",
     "scores": {
@@ -1929,7 +1929,7 @@
   },
   "TTWO": {
     "category": "INTANGIBLE",
-    "label": "GTA·NBA2K",
+    "label": "GTA·NBA2K 게임 IP",
     "detail": "GTA 시리즈 누적 4억장+·NBA 2K 농구게임 독점 — GTA 6가 2025년 출시 예정으로 게임 역사 최대 매출 기대. Zynga 인수로 모바일 진출했으나 통합 과정 마진 압박 중.",
     "confidence": "heuristic",
     "scores": {
@@ -2179,7 +2179,7 @@
   },
   "PCAR": {
     "category": "INTANGIBLE",
-    "label": "Peterbilt·Kenworth",
+    "label": "피터빌트·켄워스 트럭",
     "detail": "Peterbilt·Kenworth·DAF 프리미엄 트럭 브랜드로 북미 Class 8 점유 30% — 차주 운전사 충성도와 잔존가치가 압도적. PACCAR Financial과 부품 사업이 안정 캐시.",
     "confidence": "heuristic",
     "scores": {
@@ -2792,7 +2792,7 @@
   },
   "D": {
     "category": "EFFICIENT_SCALE",
-    "label": "Dominion",
+    "label": "도미니언 전력",
     "detail": "버지니아·노스캐롤라이나·사우스캐롤라이나에서 700만 고객에게 전력·가스를 공급 — 북버지니아 'Data Center Alley'(전세계 데이터센터 트래픽 70%) 수요를 독점적으로 흡수한다. 해상풍력 2.6GW 건설로 신재생 전환도 가속한다.",
     "confidence": "heuristic",
     "scores": {
@@ -3643,7 +3643,7 @@
   },
   "FSLY": {
     "category": "SWITCHING",
-    "label": "CDN",
+    "label": "콘텐츠 전송망",
     "detail": "Fastly는 개발자 친화 CDN·엣지 컴퓨팅에서 미디어·이커머스 대형 고객을 보유하지만, Cloudflare·AWS CloudFront와의 경쟁으로 해자 폭은 제한적이고 고객 집중도 위험이 있다.",
     "confidence": "heuristic",
     "scores": {
@@ -3891,7 +3891,7 @@
   },
   "PTC": {
     "category": "INTANGIBLE",
-    "label": "PLM·CAD",
+    "label": "PLM·CAD 설계SW",
     "detail": "PTC는 Creo CAD·Windchill PLM과 ThingWorx 산업 IoT·Vuforia AR로 제조업 디지털 스레드를 제공한다. 구독 전환 완료로 ARR 두 자릿수 성장 중이다.",
     "confidence": "heuristic",
     "scores": {
@@ -4560,7 +4560,7 @@
   "_section_us_extended_tech": "── US Tech / Internet 확장 ──",
   "WDC": {
     "category": "INTANGIBLE",
-    "label": "HDD·NAND",
+    "label": "HDD·낸드 저장장치",
     "detail": "Western Digital은 Seagate·Toshiba와 함께 HDD 3강을 이루며 데이터센터 니어라인 HDD 수요를 흡수한다. 키오시아와의 NAND 합작으로 3D NAND 글로벌 2위권 점유를 확보, 2024년 사업 분할로 HDD·플래시 각각의 가치 재평가가 진행 중이다.",
     "confidence": "heuristic",
     "scores": {
@@ -4730,7 +4730,7 @@
   },
   "STM": {
     "category": "INTANGIBLE",
-    "label": "MCU·SiC",
+    "label": "MCU·SiC 전력반도체",
     "detail": "STMicro는 유럽 자동차·산업용 MCU와 SiC 파워디바이스의 강자로, 테슬라 모델3 인버터에 SiC를 공급하며 EV 전력반도체 시장을 선점했다. ST-NXP-인피니언 유럽 3강 구도에서 차량 MCU 안정 수요를 누린다.",
     "confidence": "heuristic",
     "scores": {
@@ -4743,7 +4743,7 @@
   },
   "AMKR": {
     "category": "INTANGIBLE",
-    "label": "OSAT",
+    "label": "반도체 후공정",
     "detail": "Amkor는 ASE에 이은 글로벌 OSAT(외주 패키징·테스트) 2위로, 애플·퀄컴·엔비디아의 첨단 패키징(2.5D·SiP) 수요를 흡수한다. 애리조나 신공장으로 미국 첨단 패키징 수요(TSMC 인접)를 겨냥한다.",
     "confidence": "heuristic",
     "scores": {
@@ -4796,7 +4796,7 @@
   },
   "RPD": {
     "category": "SWITCHING",
-    "label": "SIEM·SOC",
+    "label": "SIEM·보안관제",
     "detail": "Rapid7은 InsightIDR SIEM·InsightVM 취약점 관리를 통합한 보안 운영(SecOps) SaaS 플랫폼으로 중견기업 SOC 수요를 흡수한다. MDR(매니지드 탐지·대응) 서비스 결합으로 ARR 안정성을 키운다.",
     "confidence": "heuristic",
     "scores": {
@@ -5097,7 +5097,7 @@
   },
   "RNG": {
     "category": "SWITCHING",
-    "label": "UCaaS",
+    "label": "클라우드 통신 플랫폼",
     "detail": "RingCentral은 클라우드 PBX·UCaaS(통합커뮤니케이션) 선두로 Zoom Phone·Microsoft Teams와 경쟁한다. Avaya·Mitel 등 레거시 PBX 교체 수요와 AT&T 등 통신사 화이트라벨 파트너십이 성장축이다.",
     "confidence": "heuristic",
     "scores": {
@@ -5137,7 +5137,7 @@
   "_section_us_health_extended": "── US 헬스케어 확장 ──",
   "MOH": {
     "category": "EFFICIENT_SCALE",
-    "label": "Medicaid",
+    "label": "메디케이드 보험",
     "detail": "Molina Healthcare는 메디케이드 관리의료 전문 — 21개 주에서 5백만명+ 저소득층 회원 관리. 메디케이드 재인증(redetermination) 회원 이탈과 의료비 상승이 단기 압력이나 정부 사업 전문성이 해자다.",
     "confidence": "heuristic",
     "scores": {
@@ -5150,7 +5150,7 @@
   },
   "CNC": {
     "category": "EFFICIENT_SCALE",
-    "label": "Medicaid",
+    "label": "메디케이드 보험",
     "detail": "Centene은 메디케이드·ACA 교환소(Marketplace)·트리케어 정부 보험 회원 2700만명+로 미국 메디케이드 1위. 비핵심 자산 매각으로 사업 단순화 진행 중 — 메디케이드 재인증이 단기 리스크다.",
     "confidence": "heuristic",
     "scores": {
@@ -5254,7 +5254,7 @@
   },
   "WAT": {
     "category": "INTANGIBLE",
-    "label": "HPLC·MS",
+    "label": "HPLC·질량분석 장비",
     "detail": "Waters는 HPLC(액체크로마토)·질량분석 장비 글로벌 톱 — 제약 QC 분석실 인스톨드 베이스에 결합된 컬럼·소모품 리커링 매출이 50%+. BD Biosciences·진단 사업 합병 발표로 라이프사이언스 다각화 진행.",
     "confidence": "heuristic",
     "scores": {
@@ -5632,7 +5632,7 @@
   },
   "URBN": {
     "category": "INTANGIBLE",
-    "label": "Urban Outfitters",
+    "label": "어반아웃피터스",
     "detail": "Urban Outfitters(Z세대)·Anthropologie(30대 여성)·Free People(보헤미안) 세대별 브랜드 — Nuuly 의류 구독 서비스로 신성장. 브랜드별 명확한 타겟팅으로 백화점 대비 차별화.",
     "confidence": "heuristic",
     "scores": {
@@ -5723,7 +5723,7 @@
   },
   "FLUT": {
     "category": "NETWORK",
-    "label": "FanDuel·Sky Bet",
+    "label": "팬듀얼·스카이베트",
     "detail": "FanDuel이 미국 OSB·iGaming 점유 1위(40%대) — 영국 Sky Bet·Paddy Power·호주 Sportsbet 등 글로벌 포트폴리오. 미국 상장 전환으로 멀티플 리레이팅 기대.",
     "confidence": "heuristic",
     "scores": {
@@ -5840,7 +5840,7 @@
   },
   "EXPE": {
     "category": "NETWORK",
-    "label": "OTA·VRBO",
+    "label": "OTA·바캉스 렌탈",
     "detail": "Expedia·Hotels.com·VRBO 등 OTA 글로벌 2위 — VRBO가 Airbnb 대비 가족·완전 임대 차별화. B2B(Egencia·Vrbo Pro)로 호텔·항공사 백엔드 공급해 매출 다각화.",
     "confidence": "heuristic",
     "scores": {
@@ -5931,7 +5931,7 @@
   },
   "HOG": {
     "category": "INTANGIBLE",
-    "label": "Harley-Davidson",
+    "label": "할리데이비슨 브랜드",
     "detail": "Harley-Davidson 미국 대형 모터사이클 점유 1위·HOG(Harley Owners Group) 100만 회원 커뮤니티 — 베이비부머 고령화로 수요 감소 위기, LiveWire 전기 모터사이클로 신세대 공략 시도.",
     "confidence": "heuristic",
     "scores": {
@@ -5958,7 +5958,7 @@
   "_section_us_industrials_extended": "── US 산업재 확장 ──",
   "CARR": {
     "category": "INTANGIBLE",
-    "label": "HVAC",
+    "label": "냉난방공조 시스템",
     "detail": "주거·상업 HVAC와 수송 냉장(Carrier Transicold) 글로벌 1위 — UTC 분사 후 순수 HVAC 집중. Viessmann 인수로 유럽 히트펌프 확장.",
     "confidence": "heuristic",
     "scores": {
@@ -6376,7 +6376,7 @@
   },
   "FLR": {
     "category": "EFFICIENT_SCALE",
-    "label": "EPC",
+    "label": "EPC 종합 건설",
     "detail": "글로벌 EPC(에너지·화학·광산·인프라) 메이저 — 대형 프로젝트 입찰 능력과 리스크 관리. NuScale SMR 지분 등 소형원전 진입.",
     "confidence": "heuristic",
     "scores": {
@@ -6546,7 +6546,7 @@
   },
   "BEN": {
     "category": "INTANGIBLE",
-    "label": "Franklin Templeton",
+    "label": "프랭클린템플턴 운용",
     "detail": "Franklin Resources 자산운용.",
     "confidence": "heuristic",
     "scores": {
@@ -6847,7 +6847,7 @@
   },
   "EPC": {
     "category": "INTANGIBLE",
-    "label": "Edgewell",
+    "label": "에지웰 생활용품",
     "detail": "Edgewell의 Schick 면도기·Banana Boat 선크림·Hawaiian Tropic·Playtex — Schick가 P&G Gillette 대비 점유 작아 가성비 포지셔닝. P&G·Unilever 대비 마케팅 예산 열위.",
     "confidence": "heuristic",
     "scores": {
@@ -6925,7 +6925,7 @@
   },
   "TAP": {
     "category": "INTANGIBLE",
-    "label": "Coors·Miller",
+    "label": "쿠어스·밀러 브랜드",
     "detail": "Molson Coors의 Coors Light·Miller Lite·Blue Moon — Bud Light 보이콧 후 Miller Lite·Coors Light가 반사이익으로 점유 상승. 미국 맥주 시장 둔화 중이나 캔 라이트 맥주 강점 유지.",
     "confidence": "heuristic",
     "scores": {
@@ -6938,7 +6938,7 @@
   },
   "DEO": {
     "category": "INTANGIBLE",
-    "label": "Johnnie Walker",
+    "label": "조니워커 브랜드",
     "detail": "Diageo의 Johnnie Walker(스카치 1위)·Smirnoff·Tanqueray·Captain Morgan·Guinness — 글로벌 주류 매출 1위. 200개국 유통과 200년+ 브랜드 자산으로 가격 결정권 보유.",
     "confidence": "heuristic",
     "scores": {
@@ -6951,7 +6951,7 @@
   },
   "BUD": {
     "category": "INTANGIBLE",
-    "label": "Budweiser",
+    "label": "버드와이저 브랜드",
     "detail": "AB InBev의 Budweiser·Stella Artois·Corona·Michelob — 글로벌 맥주 점유 1위(25%). 신흥국 매출 비중 높아 환율 노출, 미국 Bud Light 보이콧 영향은 회복 중.",
     "confidence": "heuristic",
     "scores": {
@@ -6964,7 +6964,7 @@
   },
   "SAM": {
     "category": "INTANGIBLE",
-    "label": "Sam Adams·Truly",
+    "label": "샘 애덤스·트룰리",
     "detail": "Boston Beer의 Sam Adams 크래프트맥주·Truly 하드셀처·Twisted Tea·Dogfish Head — Truly가 White Claw와 하드셀처 양강이었으나 카테고리 정점 후 둔화. Twisted Tea가 성장 동력.",
     "confidence": "heuristic",
     "scores": {
@@ -7160,7 +7160,7 @@
   },
   "SUI": {
     "category": "EFFICIENT_SCALE",
-    "label": "MH·RV",
+    "label": "조립주택·RV 차량",
     "detail": "미국·캐나다·영국에 670+ 모바일홈·RV·마리나 커뮤니티를 보유 — 토지 임대 모델이라 자본 지출이 낮고 잔존 임차율이 99%대다. zoning 규제로 신규 모바일홈 파크 인허가가 사실상 불가능한 희소 자산이다.",
     "confidence": "heuristic",
     "scores": {
@@ -7173,7 +7173,7 @@
   },
   "ELS": {
     "category": "EFFICIENT_SCALE",
-    "label": "MH·RV",
+    "label": "조립주택·RV 차량",
     "detail": "미국·캐나다에 450+ 모바일홈·RV·캠핑 커뮤니티를 보유 — 플로리다·애리조나·캘리포니아 등 은퇴자 메카에 집중한다. 토지 임대 구조로 인플레 연동 임대료 인상이 매년 5%+ 가능하다.",
     "confidence": "heuristic",
     "scores": {
@@ -7356,7 +7356,7 @@
   "_section_us_misc_extended": "── US 미디어·통신·기타 ──",
   "FOX": {
     "category": "INTANGIBLE",
-    "label": "Fox News",
+    "label": "폭스 뉴스 채널",
     "detail": "Fox News 케이블뉴스 시청률 압도적 1위와 Fox Sports(NFL·MLB 중계권) — 디즈니에 엔터 자산 매각 후 뉴스·스포츠 라이브 집중. 가족(머독) 지배.",
     "confidence": "heuristic",
     "scores": {
@@ -7369,7 +7369,7 @@
   },
   "FOXA": {
     "category": "INTANGIBLE",
-    "label": "Fox News",
+    "label": "폭스 뉴스 채널",
     "detail": "Fox News는 미국 케이블 뉴스 시청률 1위로 20년 넘게 보수층 핵심 시청자를 독점한다. NFL·MLB 스포츠 중계권과 결합한 광고·재송신료 이중수익 구조가 견조하며 케이블 코드커팅 속도도 가장 느린 편이다.",
     "confidence": "heuristic",
     "scores": {
@@ -7395,7 +7395,7 @@
   },
   "TKO": {
     "category": "INTANGIBLE",
-    "label": "UFC·WWE",
+    "label": "UFC·WWE 격투 IP",
     "detail": "TKO Group는 UFC(MMA)와 WWE(프로레슬링) 두 글로벌 격투 IP를 독점 보유한다. ESPN·Netflix·Peacock 등과의 장기 중계권 계약 갱신마다 두 자릿수 단가 인상으로 협상력을 입증했다.",
     "confidence": "heuristic",
     "scores": {
@@ -7421,7 +7421,7 @@
   },
   "LYV": {
     "category": "INTANGIBLE",
-    "label": "Ticketmaster",
+    "label": "티켓마스터 예매망",
     "detail": "Live Nation은 Ticketmaster로 북미 콘서트 티켓팅을 70%+ 점유하고 자체 프로모션·공연장 운영까지 수직통합했다. 아티스트·공연장·팬을 묶는 양면 네트워크가 신규 진입을 차단한다.",
     "confidence": "heuristic",
     "scores": {
@@ -7434,7 +7434,7 @@
   },
   "MTCH": {
     "category": "NETWORK",
-    "label": "Tinder·Hinge",
+    "label": "틴더·힌지 매칭",
     "detail": "Match Group는 Tinder·Hinge 등 데이팅 앱 포트폴리오로 글로벌 1위를 차지한다. 사용자가 많을수록 매칭 풀이 커지는 양면 네트워크 효과로 신규 진입자가 임계질량 확보가 어렵다.",
     "confidence": "heuristic",
     "scores": {
@@ -7447,7 +7447,7 @@
   },
   "BMBL": {
     "category": "NETWORK",
-    "label": "Bumble",
+    "label": "범블 매칭 네트워크",
     "detail": "Bumble은 '여성이 먼저 메시지' 차별화로 Tinder 대비 안전·진지 매칭 포지셔닝을 구축했다. 다만 데이팅 앱 전반 사용자 피로와 Tinder의 압도적 규모로 네트워크 효과 강도는 2위권에 머문다.",
     "confidence": "heuristic",
     "scores": {
@@ -7499,7 +7499,7 @@
   },
   "BABA": {
     "category": "NETWORK",
-    "label": "Taobao·Tmall",
+    "label": "타오바오·티몰",
     "detail": "Alibaba는 Taobao·Tmall로 중국 이커머스 GMV 1위를 유지하고 Alibaba Cloud는 중국 클라우드 1위다. 판매자·구매자 양면 네트워크와 Alipay 결제 인프라가 핵심 해자다.",
     "confidence": "heuristic",
     "scores": {
@@ -7525,7 +7525,7 @@
   },
   "PDD": {
     "category": "NETWORK",
-    "label": "Pinduoduo·Temu",
+    "label": "핀둬둬·테무 이커머스",
     "detail": "PDD는 중국 단체구매 Pinduoduo로 저소득 도시·농촌을 장악했고 Temu로 글로벌 초저가 직구 시장을 공습 중이다. 공장 직거래 가격경쟁력+소셜 바이럴이 양면 네트워크를 키운다.",
     "confidence": "heuristic",
     "scores": {
@@ -7538,7 +7538,7 @@
   },
   "BILI": {
     "category": "NETWORK",
-    "label": "Bilibili",
+    "label": "비리비리 커뮤니티",
     "detail": "Bilibili는 중국 Z세대 ACG(애니·게임·만화) 콘텐츠 커뮤니티 1위로 월 사용자 3억+를 보유한다. 크리에이터·팬 양면 네트워크와 충성도 높은 멤버십(대회원) 구조가 차별점이다.",
     "confidence": "heuristic",
     "scores": {
@@ -7577,7 +7577,7 @@
   },
   "TCEHY": {
     "category": "NETWORK",
-    "label": "WeChat",
+    "label": "위챗 소셜 네트워크",
     "detail": "Tencent의 WeChat은 월 사용자 13억의 중국 슈퍼앱으로 메시징·결제·미니프로그램을 독점한다. 게임 퍼블리싱 글로벌 1위, 핀테크(WeChat Pay)·클라우드까지 망라한 디지털 인프라다.",
     "confidence": "heuristic",
     "scores": {
@@ -7590,7 +7590,7 @@
   },
   "AFRM": {
     "category": "NETWORK",
-    "label": "BNPL",
+    "label": "후불결제 플랫폼",
     "detail": "Affirm은 가맹점-소비자 양면 네트워크 BNPL로 Amazon·Shopify·Walmart 결제에 통합됐다. 다만 Klarna·Apple Pay Later·금리 사이클 노출로 차별화 강도는 중간 수준이다.",
     "confidence": "heuristic",
     "scores": {
@@ -7656,7 +7656,7 @@
   },
   "JBLU": {
     "category": "COST",
-    "label": "LCC",
+    "label": "저비용항공사",
     "detail": "JetBlue는 미국 동부·트랜스컨티넨탈 노선과 Mint 비즈니스 클래스로 중간 포지셔닝을 가진 LCC다. Spirit 합병 무산 후 수익성 회복과 노선 합리화가 핵심 과제다.",
     "confidence": "heuristic",
     "scores": {
@@ -7786,7 +7786,7 @@
   },
   "CROX": {
     "category": "INTANGIBLE",
-    "label": "Crocs·HEYDUDE",
+    "label": "크록스·헤이듀드 브랜드",
     "detail": "Crocs는 시그니처 클로그로 컬트 브랜드 충성도를 만든 풋웨어 회사로 Jibbitz 차밍·콜라보로 ARPU를 끌어올린다. HEYDUDE 인수로 캐주얼 슈즈 카테고리도 확장했으나 통합이 진행 중이다.",
     "confidence": "heuristic",
     "scores": {
@@ -7799,7 +7799,7 @@
   },
   "ONON": {
     "category": "INTANGIBLE",
-    "label": "On Running",
+    "label": "온 러닝 신발",
     "detail": "On은 CloudTec 쿠셔닝 기술과 Federer 투자로 프리미엄 러닝·라이프스타일 신발 시장에서 빠르게 성장 중인 스위스 브랜드다. Hoka와 함께 Nike의 프리미엄 점유를 잠식한다.",
     "confidence": "heuristic",
     "scores": {
@@ -7812,7 +7812,7 @@
   },
   "BIRK": {
     "category": "INTANGIBLE",
-    "label": "Birkenstock",
+    "label": "버켄스탁 브랜드",
     "detail": "Birkenstock은 250년+ 헤리티지 콜크 풋베드 샌들 브랜드로 의료·웰니스 포지셔닝으로 D2C·럭셔리 백화점 채널에서 가격 프리미엄을 유지한다. L Catterton 투자 후 상장했다.",
     "confidence": "heuristic",
     "scores": {
@@ -7825,7 +7825,7 @@
   },
   "VFC": {
     "category": "INTANGIBLE",
-    "label": "Vans·North Face",
+    "label": "반스·노스페이스",
     "detail": "VF Corp은 Vans·The North Face·Timberland 등 어패럴 멀티브랜드 보유사다. Vans 부진으로 실적 압박이 큰 가운데 비핵심 브랜드 매각·구조조정으로 턴어라운드 시도 중이다.",
     "confidence": "heuristic",
     "scores": {
@@ -7864,7 +7864,7 @@
   },
   "OXM": {
     "category": "INTANGIBLE",
-    "label": "Tommy Bahama",
+    "label": "타미바하마 브랜드",
     "detail": "Oxford Industries는 Tommy Bahama·Lilly Pulitzer 등 라이프스타일 리조트웨어 브랜드를 보유한다. 자체 매장·레스토랑 운영으로 브랜드 경험을 직접 통제하는 수직 통합 모델이다.",
     "confidence": "heuristic",
     "scores": {
@@ -7982,7 +7982,7 @@
   "_section_us_health_biotech_extended": "── US 바이오·헬스케어 추가 ──",
   "CRSP": {
     "category": "INTANGIBLE",
-    "label": "CRISPR",
+    "label": "크리스퍼 유전자편집",
     "detail": "CRISPR Therapeutics는 Vertex와 공동개발한 Casgevy가 겸상적혈구·수혈의존성 베타지중해빈혈 첫 CRISPR 유전자편집 치료제로 FDA 승인 — 상업화 초기 단계. CTX112 등 동종 CAR-T 파이프라인이 다음 모멘텀.",
     "confidence": "heuristic",
     "scores": {
@@ -8034,7 +8034,7 @@
   },
   "ARWR": {
     "category": "INTANGIBLE",
-    "label": "siRNA",
+    "label": "siRNA 유전자치료",
     "detail": "Arrowhead Pharmaceuticals는 TRiM siRNA 플랫폼으로 간·폐·CNS 등 다장기 표적 전달 — plozasiran 가족성 카일로미크론혈증 BLA 제출, Sarepta·BMS 등과 파트너십으로 비희석 자금 확보.",
     "confidence": "heuristic",
     "scores": {
@@ -8112,7 +8112,7 @@
   },
   "EXEL": {
     "category": "INTANGIBLE",
-    "label": "Cabometyx",
+    "label": "카보메틱스 약물 IP",
     "detail": "Exelixis의 Cabometyx(카보잔티닙)가 신장암·간암 표준치료 — 미국 매출 18억달러+로 캐시카우. zanzalintinib 차세대 TKI와 XL309 등 파이프라인이 2030년 특허 만료 대비 후속 동력이다.",
     "confidence": "heuristic",
     "scores": {
@@ -8164,7 +8164,7 @@
   },
   "MDGL": {
     "category": "INTANGIBLE",
-    "label": "NASH",
+    "label": "지방간염 치료제",
     "detail": "Madrigal Pharmaceuticals의 Rezdiffra(레스메티롬)가 비알코올성지방간염(NASH/MASH) 첫 FDA 승인 약 — 사실상 독점으로 상업화 본격화. Novo Wegovy 라벨 확장 등 GLP-1 경쟁이 중장기 시장 분할 리스크다.",
     "confidence": "heuristic",
     "scores": {
@@ -8828,7 +8828,7 @@
   },
   "010120.KS": {
     "category": "EFFICIENT_SCALE",
-    "label": "LS Electric",
+    "label": "LS일렉트릭 전력기기",
     "detail": "전력기기·자동화(PLC·인버터) 국내 1위, 미국·중동 변압기·배전반 수주 호조로 송배전 슈퍼사이클의 직접 수혜. 친환경 배전·ESS·EV 충전 인프라로 신사업 확장.",
     "confidence": "heuristic",
     "scores": {
@@ -8841,7 +8841,7 @@
   },
   "229640.KS": {
     "category": "INTANGIBLE",
-    "label": "LS Marine Solution",
+    "label": "LS마린솔루션 해저케이블",
     "detail": "해저케이블 시공 전문 EPC로 국내 유일급 해상풍력 케이블 시공 트랙레코드 보유, HVDC·해상풍력 전력망 확대 사이클의 직접 수혜주다.",
     "confidence": "heuristic",
     "scores": {
@@ -9284,7 +9284,7 @@
   },
   "095340.KQ": {
     "category": "INTANGIBLE",
-    "label": "ISC",
+    "label": "ISC 반도체 테스트",
     "detail": "반도체 후공정 테스트 소켓 글로벌 톱티어로, 러버·포고 소켓 라인업을 보유. SK하이닉스·삼성전자·글로벌 IDM향 메모리·SoC·HBM 테스트 소켓 수요가 실적 동인이다.",
     "confidence": "heuristic",
     "scores": {
@@ -9349,7 +9349,7 @@
   },
   "035760.KQ": {
     "category": "INTANGIBLE",
-    "label": "CJ ENM",
+    "label": "CJ ENM 콘텐츠 IP",
     "detail": "tvN·OCN 등 방송 채널과 티빙 OTT, 음악·영화·커머스(CJ온스타일)를 묶은 종합 콘텐츠 기업. 스튜디오드래곤 자회사 IP와 한류 음악 IP가 글로벌 OTT향 공급의 자산이다.",
     "confidence": "heuristic",
     "scores": {
@@ -10637,7 +10637,7 @@
   },
   "LI": {
     "category": "INTANGIBLE",
-    "label": "Li Auto EREV SUV",
+    "label": "리오토 EREV SUV",
     "detail": "중국 가족용 EREV(주행거리연장형) SUV에 특화된 브랜드입니다.",
     "confidence": "heuristic",
     "scores": {
@@ -10702,7 +10702,7 @@
   },
   "BE": {
     "category": "COST",
-    "label": "Bloom Energy SOFC",
+    "label": "블룸에너지 SOFC",
     "detail": "데이터센터·산업용 SOFC 연료전지에서 상업화 진척 1위 업체입니다.",
     "confidence": "heuristic",
     "scores": {
@@ -10715,7 +10715,7 @@
   },
   "EIX": {
     "category": "EFFICIENT_SCALE",
-    "label": "Edison International",
+    "label": "에디슨 전력",
     "detail": "남부 캘리포니아 SCE 규제 유틸리티 보유로 산불 회복·전력화 투자 수혜를 받습니다.",
     "confidence": "heuristic",
     "scores": {
@@ -16046,8 +16046,8 @@
   },
   "BBAI": {
     "category": "SWITCHING",
-    "label": "AI Platform Lock-in",
-    "detail": "Offers AI platform or cloud services where customer data and workflows create high switching costs.",
+    "label": "AI 플랫폼 락인",
+    "detail": "고객 데이터와 워크플로가 큰 전환비용을 만드는 AI 플랫폼·클라우드 서비스 제공사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16059,8 +16059,8 @@
   },
   "GRRR": {
     "category": "SWITCHING",
-    "label": "AI Platform Lock-in",
-    "detail": "Offers AI platform or cloud services where customer data and workflows create high switching costs.",
+    "label": "AI 플랫폼 락인",
+    "detail": "고객 데이터와 워크플로가 큰 전환비용을 만드는 AI 플랫폼·클라우드 서비스 제공사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16072,8 +16072,8 @@
   },
   "PATH": {
     "category": "SWITCHING",
-    "label": "AI Platform Lock-in",
-    "detail": "Offers AI platform or cloud services where customer data and workflows create high switching costs.",
+    "label": "AI 플랫폼 락인",
+    "detail": "고객 데이터와 워크플로가 큰 전환비용을 만드는 AI 플랫폼·클라우드 서비스 제공사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16085,8 +16085,8 @@
   },
   "RBRK": {
     "category": "SWITCHING",
-    "label": "AI Platform Lock-in",
-    "detail": "Offers AI platform or cloud services where customer data and workflows create high switching costs.",
+    "label": "AI 플랫폼 락인",
+    "detail": "고객 데이터와 워크플로가 큰 전환비용을 만드는 AI 플랫폼·클라우드 서비스 제공사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16098,8 +16098,8 @@
   },
   "SOUN": {
     "category": "SWITCHING",
-    "label": "AI Platform Lock-in",
-    "detail": "Offers AI platform or cloud services where customer data and workflows create high switching costs.",
+    "label": "AI 플랫폼 락인",
+    "detail": "고객 데이터와 워크플로가 큰 전환비용을 만드는 AI 플랫폼·클라우드 서비스 제공사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16111,8 +16111,8 @@
   },
   "TEM": {
     "category": "SWITCHING",
-    "label": "AI Platform Lock-in",
-    "detail": "Offers AI platform or cloud services where customer data and workflows create high switching costs.",
+    "label": "AI 플랫폼 락인",
+    "detail": "고객 데이터와 워크플로가 큰 전환비용을 만드는 AI 플랫폼·클라우드 서비스 제공사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16124,8 +16124,8 @@
   },
   "AAOI": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16137,8 +16137,8 @@
   },
   "ANET": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16150,8 +16150,8 @@
   },
   "APLD": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16163,8 +16163,8 @@
   },
   "CLSK": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16176,8 +16176,8 @@
   },
   "CLS": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16189,8 +16189,8 @@
   },
   "COHR": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16202,8 +16202,8 @@
   },
   "CORZ": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16215,8 +16215,8 @@
   },
   "CRDO": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16228,8 +16228,8 @@
   },
   "CRWV": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16241,8 +16241,8 @@
   },
   "CSCO": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16254,8 +16254,8 @@
   },
   "IONQ": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16267,8 +16267,8 @@
   },
   "IREN": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16280,8 +16280,8 @@
   },
   "LITE": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16293,8 +16293,8 @@
   },
   "NBIS": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16306,8 +16306,8 @@
   },
   "NTAP": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16319,8 +16319,8 @@
   },
   "QBTS": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16332,8 +16332,8 @@
   },
   "RGTI": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16345,8 +16345,8 @@
   },
   "SMCI": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16358,8 +16358,8 @@
   },
   "VRT": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16371,8 +16371,8 @@
   },
   "WULF": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Provides critical AI infrastructure (networking, cooling, power, compute) with technical differentiation in data center buildout.",
+    "label": "AI 인프라 기술",
+    "detail": "데이터센터 구축에 필수적인 네트워크·냉각·전력·컴퓨트 인프라를 기술 차별화로 제공한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16384,8 +16384,8 @@
   },
   "BB": {
     "category": "SWITCHING",
-    "label": "Cybersecurity Lock-in",
-    "detail": "Cybersecurity solutions integrated into enterprise infrastructure with high switching costs due to security policy dependencies.",
+    "label": "사이버보안 락인",
+    "detail": "기업 인프라에 통합된 사이버보안 솔루션으로 보안 정책 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16397,8 +16397,8 @@
   },
   "LAES": {
     "category": "SWITCHING",
-    "label": "Cybersecurity Lock-in",
-    "detail": "Cybersecurity solutions integrated into enterprise infrastructure with high switching costs due to security policy dependencies.",
+    "label": "사이버보안 락인",
+    "detail": "기업 인프라에 통합된 사이버보안 솔루션으로 보안 정책 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16410,8 +16410,8 @@
   },
   "VRNS": {
     "category": "SWITCHING",
-    "label": "Cybersecurity Lock-in",
-    "detail": "Cybersecurity solutions integrated into enterprise infrastructure with high switching costs due to security policy dependencies.",
+    "label": "사이버보안 락인",
+    "detail": "기업 인프라에 통합된 사이버보안 솔루션으로 보안 정책 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16423,8 +16423,8 @@
   },
   "APP": {
     "category": "SWITCHING",
-    "label": "SaaS Workflow Lock-in",
-    "detail": "Enterprise SaaS platform deeply embedded in customer workflows, creating high switching costs through data and process dependencies.",
+    "label": "SaaS 워크플로 락인",
+    "detail": "고객 워크플로에 깊이 내장된 엔터프라이즈 SaaS 플랫폼으로 데이터·프로세스 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16436,8 +16436,8 @@
   },
   "MGNI": {
     "category": "SWITCHING",
-    "label": "SaaS Workflow Lock-in",
-    "detail": "Enterprise SaaS platform deeply embedded in customer workflows, creating high switching costs through data and process dependencies.",
+    "label": "SaaS 워크플로 락인",
+    "detail": "고객 워크플로에 깊이 내장된 엔터프라이즈 SaaS 플랫폼으로 데이터·프로세스 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16449,8 +16449,8 @@
   },
   "PCOR": {
     "category": "SWITCHING",
-    "label": "SaaS Workflow Lock-in",
-    "detail": "Enterprise SaaS platform deeply embedded in customer workflows, creating high switching costs through data and process dependencies.",
+    "label": "SaaS 워크플로 락인",
+    "detail": "고객 워크플로에 깊이 내장된 엔터프라이즈 SaaS 플랫폼으로 데이터·프로세스 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16462,8 +16462,8 @@
   },
   "RAMP": {
     "category": "SWITCHING",
-    "label": "SaaS Workflow Lock-in",
-    "detail": "Enterprise SaaS platform deeply embedded in customer workflows, creating high switching costs through data and process dependencies.",
+    "label": "SaaS 워크플로 락인",
+    "detail": "고객 워크플로에 깊이 내장된 엔터프라이즈 SaaS 플랫폼으로 데이터·프로세스 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16475,8 +16475,8 @@
   },
   "TTD": {
     "category": "SWITCHING",
-    "label": "SaaS Workflow Lock-in",
-    "detail": "Enterprise SaaS platform deeply embedded in customer workflows, creating high switching costs through data and process dependencies.",
+    "label": "SaaS 워크플로 락인",
+    "detail": "고객 워크플로에 깊이 내장된 엔터프라이즈 SaaS 플랫폼으로 데이터·프로세스 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16488,8 +16488,8 @@
   },
   "ZBRA": {
     "category": "SWITCHING",
-    "label": "SaaS Workflow Lock-in",
-    "detail": "Enterprise SaaS platform deeply embedded in customer workflows, creating high switching costs through data and process dependencies.",
+    "label": "SaaS 워크플로 락인",
+    "detail": "고객 워크플로에 깊이 내장된 엔터프라이즈 SaaS 플랫폼으로 데이터·프로세스 의존성이 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16501,8 +16501,8 @@
   },
   "ALAB": {
     "category": "INTANGIBLE",
-    "label": "AI GPU·HBM Core",
-    "detail": "Designs or manufactures cutting-edge AI GPUs or HBM chips with significant IP moat in advanced packaging and compute architecture.",
+    "label": "AI GPU·HBM 코어",
+    "detail": "첨단 AI GPU·HBM 칩 설계·제조 기업으로 어드밴스드 패키징과 연산 아키텍처에 강한 IP 해자를 가진다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16514,8 +16514,8 @@
   },
   "AMBA": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16527,8 +16527,8 @@
   },
   "DIOD": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16540,8 +16540,8 @@
   },
   "INDI": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16553,8 +16553,8 @@
   },
   "MPWR": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16566,8 +16566,8 @@
   },
   "POET": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16579,8 +16579,8 @@
   },
   "POWI": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16592,8 +16592,8 @@
   },
   "SLAB": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16605,8 +16605,8 @@
   },
   "SITM": {
     "category": "INTANGIBLE",
-    "label": "Analog/Fabless IP",
-    "detail": "Fabless or analog semiconductor designer with proprietary IP in power management, signal processing, or mixed-signal domains.",
+    "label": "아날로그·팹리스 IP",
+    "detail": "전력관리·신호처리·믹스드시그널 분야의 독자 IP를 보유한 팹리스·아날로그 반도체 설계사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16618,8 +16618,8 @@
   },
   "ACLS": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16631,8 +16631,8 @@
   },
   "AEHR": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16644,8 +16644,8 @@
   },
   "AEIS": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16657,8 +16657,8 @@
   },
   "AZTA": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16670,8 +16670,8 @@
   },
   "CAMT": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16683,8 +16683,8 @@
   },
   "COHU": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16696,8 +16696,8 @@
   },
   "ICHR": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16709,8 +16709,8 @@
   },
   "KLIC": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16722,8 +16722,8 @@
   },
   "NVMI": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16735,8 +16735,8 @@
   },
   "ONTO": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16748,8 +16748,8 @@
   },
   "UCTT": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16761,8 +16761,8 @@
   },
   "VECO": {
     "category": "INTANGIBLE",
-    "label": "Semicap Equipment IP",
-    "detail": "Semiconductor capital equipment maker with proprietary process technology and recipe-level customer lock-in.",
+    "label": "반도체 장비 IP",
+    "detail": "독자 공정 기술과 레시피 단위 고객 락인을 가진 반도체 장비 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -16774,8 +16774,8 @@
   },
   "CEVA": {
     "category": "INTANGIBLE",
-    "label": "Memory/Packaging Tech",
-    "detail": "Memory or advanced packaging technology provider with process know-how and customer qualification barriers.",
+    "label": "메모리·패키징 기술",
+    "detail": "공정 노하우와 고객 인증 장벽을 가진 메모리·어드밴스드 패키징 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16787,8 +16787,8 @@
   },
   "NVTS": {
     "category": "INTANGIBLE",
-    "label": "Memory/Packaging Tech",
-    "detail": "Memory or advanced packaging technology provider with process know-how and customer qualification barriers.",
+    "label": "메모리·패키징 기술",
+    "detail": "공정 노하우와 고객 인증 장벽을 가진 메모리·어드밴스드 패키징 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16800,8 +16800,8 @@
   },
   "SIMO": {
     "category": "INTANGIBLE",
-    "label": "Memory/Packaging Tech",
-    "detail": "Memory or advanced packaging technology provider with process know-how and customer qualification barriers.",
+    "label": "메모리·패키징 기술",
+    "detail": "공정 노하우와 고객 인증 장벽을 가진 메모리·어드밴스드 패키징 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16813,8 +16813,8 @@
   },
   "SNDK": {
     "category": "INTANGIBLE",
-    "label": "Memory/Packaging Tech",
-    "detail": "Memory or advanced packaging technology provider with process know-how and customer qualification barriers.",
+    "label": "메모리·패키징 기술",
+    "detail": "공정 노하우와 고객 인증 장벽을 가진 메모리·어드밴스드 패키징 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16826,8 +16826,8 @@
   },
   "BITF": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16839,8 +16839,8 @@
   },
   "BMNR": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16852,8 +16852,8 @@
   },
   "BTBT": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16865,8 +16865,8 @@
   },
   "BTDR": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16878,8 +16878,8 @@
   },
   "CIFR": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16891,8 +16891,8 @@
   },
   "CRCL": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16904,8 +16904,8 @@
   },
   "HUT": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16917,8 +16917,8 @@
   },
   "MARA": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16930,8 +16930,8 @@
   },
   "MSTR": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16943,8 +16943,8 @@
   },
   "RIOT": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16956,8 +16956,8 @@
   },
   "SOLS": {
     "category": "NONE",
-    "label": "Crypto Mining/Infra",
-    "detail": "Cryptocurrency mining or blockchain infrastructure with limited structural moat; competitive advantage depends on energy costs and hashrate scale.",
+    "label": "암호화폐 채굴·인프라",
+    "detail": "암호화폐 채굴·블록체인 인프라로 구조적 해자는 약하며, 전기료와 해시레이트 규모에 따라 경쟁력이 좌우된다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -16969,8 +16969,8 @@
   },
   "ALLY": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16982,8 +16982,8 @@
   },
   "FISV": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -16995,8 +16995,8 @@
   },
   "FOUR": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17008,8 +17008,8 @@
   },
   "IBKR": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17021,8 +17021,8 @@
   },
   "PGY": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17034,8 +17034,8 @@
   },
   "SYF": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17047,8 +17047,8 @@
   },
   "TOST": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17060,8 +17060,8 @@
   },
   "UPST": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17073,8 +17073,8 @@
   },
   "XYZ": {
     "category": "NETWORK",
-    "label": "Fintech Network",
-    "detail": "Fintech or payment platform with network effects from merchant/consumer flywheel and embedded financial data.",
+    "label": "핀테크 네트워크",
+    "detail": "가맹점·소비자 양방향 플라이휠과 내장된 금융 데이터로 네트워크 효과를 가진 핀테크·결제 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17086,8 +17086,8 @@
   },
   "TRI": {
     "category": "NETWORK",
-    "label": "Exchange Data Moat",
-    "detail": "Financial exchange or data provider with network effects from liquidity pools and proprietary datasets.",
+    "label": "거래소 데이터 해자",
+    "detail": "유동성 풀과 독자 데이터셋의 네트워크 효과를 가진 거래소·금융 데이터 제공자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17099,8 +17099,8 @@
   },
   "BMO": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17112,8 +17112,8 @@
   },
   "CFG": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17125,8 +17125,8 @@
   },
   "EWBC": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17138,8 +17138,8 @@
   },
   "FITB": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17151,8 +17151,8 @@
   },
   "HBAN": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17164,8 +17164,8 @@
   },
   "HSBC": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17177,8 +17177,8 @@
   },
   "KEY": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17190,8 +17190,8 @@
   },
   "MTB": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17203,8 +17203,8 @@
   },
   "PB": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17216,8 +17216,8 @@
   },
   "PNFP": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17229,8 +17229,8 @@
   },
   "RF": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17242,8 +17242,8 @@
   },
   "RY": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17255,8 +17255,8 @@
   },
   "TD": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17268,8 +17268,8 @@
   },
   "WAL": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17281,8 +17281,8 @@
   },
   "ZION": {
     "category": "EFFICIENT_SCALE",
-    "label": "Bank Scale Moat",
-    "detail": "Large bank or investment bank benefiting from regulatory barriers, scale economies in deposits, and relationship-driven lending.",
+    "label": "은행 규모 해자",
+    "detail": "규제 장벽, 예금 규모의 경제, 관계 기반 대출 영업의 우위를 가진 대형 은행·투자은행이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17294,8 +17294,8 @@
   },
   "AMG": {
     "category": "SWITCHING",
-    "label": "Alt Asset Lock-in",
-    "detail": "Alternative asset manager with sticky LP capital commitments and long fund lifecycles creating structural switching costs.",
+    "label": "대체자산 락인",
+    "detail": "대체자산 운용사로 LP 자본의 약정 기간과 펀드 장기 운용이 구조적 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17307,8 +17307,8 @@
   },
   "BAM": {
     "category": "SWITCHING",
-    "label": "Alt Asset Lock-in",
-    "detail": "Alternative asset manager with sticky LP capital commitments and long fund lifecycles creating structural switching costs.",
+    "label": "대체자산 락인",
+    "detail": "대체자산 운용사로 LP 자본의 약정 기간과 펀드 장기 운용이 구조적 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17320,8 +17320,8 @@
   },
   "HIG": {
     "category": "EFFICIENT_SCALE",
-    "label": "Insurance Scale",
-    "detail": "Insurance provider with actuarial data advantage and regulatory barriers to entry.",
+    "label": "보험 규모",
+    "detail": "보험 통계 데이터 우위와 규제 진입장벽을 가진 보험사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17333,8 +17333,8 @@
   },
   "ACHR": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17346,8 +17346,8 @@
   },
   "AXON": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17359,8 +17359,8 @@
   },
   "BWXT": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17372,8 +17372,8 @@
   },
   "CW": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17385,8 +17385,8 @@
   },
   "HWM": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17398,8 +17398,8 @@
   },
   "JOBY": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17411,8 +17411,8 @@
   },
   "KTOS": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17424,8 +17424,8 @@
   },
   "LPTH": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17437,8 +17437,8 @@
   },
   "LUNR": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17450,8 +17450,8 @@
   },
   "PL": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17463,8 +17463,8 @@
   },
   "TXT": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Aerospace/defense contractor with long-term government contracts, security clearances, and program-level switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "항공우주·방산 계약업체로 장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 락인을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -17476,8 +17476,8 @@
   },
   "GEV": {
     "category": "COST",
-    "label": "Grid Infra Scale",
-    "detail": "Power grid and electrical infrastructure provider benefiting from scale economies and critical infrastructure positioning.",
+    "label": "전력망 인프라 규모",
+    "detail": "규모의 경제와 핵심 인프라 입지의 이점을 가진 전력망·전기 인프라 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17489,8 +17489,8 @@
   },
   "HUBB": {
     "category": "COST",
-    "label": "Grid Infra Scale",
-    "detail": "Power grid and electrical infrastructure provider benefiting from scale economies and critical infrastructure positioning.",
+    "label": "전력망 인프라 규모",
+    "detail": "규모의 경제와 핵심 인프라 입지의 이점을 가진 전력망·전기 인프라 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17502,8 +17502,8 @@
   },
   "NVT": {
     "category": "COST",
-    "label": "Grid Infra Scale",
-    "detail": "Power grid and electrical infrastructure provider benefiting from scale economies and critical infrastructure positioning.",
+    "label": "전력망 인프라 규모",
+    "detail": "규모의 경제와 핵심 인프라 입지의 이점을 가진 전력망·전기 인프라 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17515,8 +17515,8 @@
   },
   "POWL": {
     "category": "COST",
-    "label": "Grid Infra Scale",
-    "detail": "Power grid and electrical infrastructure provider benefiting from scale economies and critical infrastructure positioning.",
+    "label": "전력망 인프라 규모",
+    "detail": "규모의 경제와 핵심 인프라 입지의 이점을 가진 전력망·전기 인프라 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17528,8 +17528,8 @@
   },
   "PRIM": {
     "category": "COST",
-    "label": "Grid Infra Scale",
-    "detail": "Power grid and electrical infrastructure provider benefiting from scale economies and critical infrastructure positioning.",
+    "label": "전력망 인프라 규모",
+    "detail": "규모의 경제와 핵심 인프라 입지의 이점을 가진 전력망·전기 인프라 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -17541,8 +17541,8 @@
   },
   "ALSN": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17554,8 +17554,8 @@
   },
   "CGNX": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17567,8 +17567,8 @@
   },
   "GFL": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17580,8 +17580,8 @@
   },
   "GGG": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17593,8 +17593,8 @@
   },
   "LKQ": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17606,8 +17606,8 @@
   },
   "MOD": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17619,8 +17619,8 @@
   },
   "PNR": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17632,8 +17632,8 @@
   },
   "QXO": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17645,8 +17645,8 @@
   },
   "SNA": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17658,8 +17658,8 @@
   },
   "SWK": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17671,8 +17671,8 @@
   },
   "TTC": {
     "category": "COST",
-    "label": "Industrial Scale",
-    "detail": "Diversified industrial company with manufacturing scale, distribution networks, and established customer relationships.",
+    "label": "산업재 규모",
+    "detail": "제조 규모·유통망·고객 관계가 검증된 종합 산업재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17684,8 +17684,8 @@
   },
   "SAIA": {
     "category": "COST",
-    "label": "Transport Network Scale",
-    "detail": "Transportation company with route density and fleet scale creating cost advantages in freight logistics.",
+    "label": "물류망 규모",
+    "detail": "노선 밀도와 차량 규모가 화물 물류 원가 우위를 만드는 운송 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17697,8 +17697,8 @@
   },
   "ZIM": {
     "category": "COST",
-    "label": "Transport Network Scale",
-    "detail": "Transportation company with route density and fleet scale creating cost advantages in freight logistics.",
+    "label": "물류망 규모",
+    "detail": "노선 밀도와 차량 규모가 화물 물류 원가 우위를 만드는 운송 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17710,8 +17710,8 @@
   },
   "CRGY": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17723,8 +17723,8 @@
   },
   "EC": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17736,8 +17736,8 @@
   },
   "MTDR": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17749,8 +17749,8 @@
   },
   "PBR": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17762,8 +17762,8 @@
   },
   "PR": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17775,8 +17775,8 @@
   },
   "RRC": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17788,8 +17788,8 @@
   },
   "SM": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17801,8 +17801,8 @@
   },
   "TPL": {
     "category": "COST",
-    "label": "O&G Scale Advantage",
-    "detail": "Oil and gas producer with low-cost acreage, basin-level scale advantages, and proven reserves.",
+    "label": "석유·가스 규모 우위",
+    "detail": "저비용 광구, 분지 단위 규모 우위, 검증된 매장량을 가진 석유·가스 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -17814,8 +17814,8 @@
   },
   "LNG": {
     "category": "EFFICIENT_SCALE",
-    "label": "Pipeline Monopoly",
-    "detail": "Midstream pipeline operator with geographic route monopoly and long-term take-or-pay contracts.",
+    "label": "송유관 독점",
+    "detail": "지역 노선 독점과 장기 take-or-pay 계약을 가진 미드스트림 송유관 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17827,8 +17827,8 @@
   },
   "OKE": {
     "category": "EFFICIENT_SCALE",
-    "label": "Pipeline Monopoly",
-    "detail": "Midstream pipeline operator with geographic route monopoly and long-term take-or-pay contracts.",
+    "label": "송유관 독점",
+    "detail": "지역 노선 독점과 장기 take-or-pay 계약을 가진 미드스트림 송유관 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17840,8 +17840,8 @@
   },
   "PAA": {
     "category": "EFFICIENT_SCALE",
-    "label": "Pipeline Monopoly",
-    "detail": "Midstream pipeline operator with geographic route monopoly and long-term take-or-pay contracts.",
+    "label": "송유관 독점",
+    "detail": "지역 노선 독점과 장기 take-or-pay 계약을 가진 미드스트림 송유관 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17853,8 +17853,8 @@
   },
   "PBA": {
     "category": "EFFICIENT_SCALE",
-    "label": "Pipeline Monopoly",
-    "detail": "Midstream pipeline operator with geographic route monopoly and long-term take-or-pay contracts.",
+    "label": "송유관 독점",
+    "detail": "지역 노선 독점과 장기 take-or-pay 계약을 가진 미드스트림 송유관 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17866,8 +17866,8 @@
   },
   "TRP": {
     "category": "EFFICIENT_SCALE",
-    "label": "Pipeline Monopoly",
-    "detail": "Midstream pipeline operator with geographic route monopoly and long-term take-or-pay contracts.",
+    "label": "송유관 독점",
+    "detail": "지역 노선 독점과 장기 take-or-pay 계약을 가진 미드스트림 송유관 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17879,8 +17879,8 @@
   },
   "VG": {
     "category": "EFFICIENT_SCALE",
-    "label": "Pipeline Monopoly",
-    "detail": "Midstream pipeline operator with geographic route monopoly and long-term take-or-pay contracts.",
+    "label": "송유관 독점",
+    "detail": "지역 노선 독점과 장기 take-or-pay 계약을 가진 미드스트림 송유관 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17892,8 +17892,8 @@
   },
   "ARRY": {
     "category": "INTANGIBLE",
-    "label": "Clean Energy Tech",
-    "detail": "Clean energy technology provider with IP in solar, storage, or grid optimization systems.",
+    "label": "청정에너지 기술",
+    "detail": "태양광·에너지저장·전력망 최적화 IP를 보유한 청정에너지 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17905,8 +17905,8 @@
   },
   "FCEL": {
     "category": "INTANGIBLE",
-    "label": "Clean Energy Tech",
-    "detail": "Clean energy technology provider with IP in solar, storage, or grid optimization systems.",
+    "label": "청정에너지 기술",
+    "detail": "태양광·에너지저장·전력망 최적화 IP를 보유한 청정에너지 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17918,8 +17918,8 @@
   },
   "FLNC": {
     "category": "INTANGIBLE",
-    "label": "Clean Energy Tech",
-    "detail": "Clean energy technology provider with IP in solar, storage, or grid optimization systems.",
+    "label": "청정에너지 기술",
+    "detail": "태양광·에너지저장·전력망 최적화 IP를 보유한 청정에너지 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17931,8 +17931,8 @@
   },
   "NXT": {
     "category": "INTANGIBLE",
-    "label": "Clean Energy Tech",
-    "detail": "Clean energy technology provider with IP in solar, storage, or grid optimization systems.",
+    "label": "청정에너지 기술",
+    "detail": "태양광·에너지저장·전력망 최적화 IP를 보유한 청정에너지 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17944,8 +17944,8 @@
   },
   "STEM": {
     "category": "INTANGIBLE",
-    "label": "Clean Energy Tech",
-    "detail": "Clean energy technology provider with IP in solar, storage, or grid optimization systems.",
+    "label": "청정에너지 기술",
+    "detail": "태양광·에너지저장·전력망 최적화 IP를 보유한 청정에너지 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -17957,8 +17957,8 @@
   },
   "CCJ": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17970,8 +17970,8 @@
   },
   "CEG": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17983,8 +17983,8 @@
   },
   "DNN": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -17996,8 +17996,8 @@
   },
   "LEU": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18009,8 +18009,8 @@
   },
   "NNE": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18022,8 +18022,8 @@
   },
   "TLN": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18035,8 +18035,8 @@
   },
   "UEC": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18048,8 +18048,8 @@
   },
   "UUUU": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18061,8 +18061,8 @@
   },
   "VST": {
     "category": "INTANGIBLE",
-    "label": "Nuclear/Uranium Barrier",
-    "detail": "Nuclear energy or uranium supply chain participant with extreme regulatory barriers and specialized technical know-how.",
+    "label": "원전·우라늄 진입장벽",
+    "detail": "극도로 높은 규제 장벽과 전문 기술 노하우를 요구하는 원전·우라늄 공급망 참여자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18074,8 +18074,8 @@
   },
   "AES": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18087,8 +18087,8 @@
   },
   "ATO": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18100,8 +18100,8 @@
   },
   "CNP": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18113,8 +18113,8 @@
   },
   "EVRG": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18126,8 +18126,8 @@
   },
   "LNT": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18139,8 +18139,8 @@
   },
   "NI": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18152,8 +18152,8 @@
   },
   "NRG": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18165,8 +18165,8 @@
   },
   "PNW": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18178,8 +18178,8 @@
   },
   "PPL": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18191,8 +18191,8 @@
   },
   "WTRG": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
-    "detail": "Regulated utility with geographic monopoly, stable rate base, and regulatory barriers to competition.",
+    "label": "규제 유틸리티",
+    "detail": "지역 독점, 안정적인 요금 기반, 경쟁 진입 규제 장벽을 가진 규제 유틸리티 사업자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18204,8 +18204,8 @@
   },
   "AZN": {
     "category": "INTANGIBLE",
-    "label": "Pharma IP Portfolio",
-    "detail": "Large pharmaceutical company with deep patent portfolio, global distribution, and multi-decade drug franchises.",
+    "label": "제약 IP 포트폴리오",
+    "detail": "두터운 특허 포트폴리오, 글로벌 유통망, 수십 년 단위 약물 프랜차이즈를 가진 대형 제약사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18217,8 +18217,8 @@
   },
   "GSK": {
     "category": "INTANGIBLE",
-    "label": "Pharma IP Portfolio",
-    "detail": "Large pharmaceutical company with deep patent portfolio, global distribution, and multi-decade drug franchises.",
+    "label": "제약 IP 포트폴리오",
+    "detail": "두터운 특허 포트폴리오, 글로벌 유통망, 수십 년 단위 약물 프랜차이즈를 가진 대형 제약사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18230,8 +18230,8 @@
   },
   "NVO": {
     "category": "INTANGIBLE",
-    "label": "Pharma IP Portfolio",
-    "detail": "Large pharmaceutical company with deep patent portfolio, global distribution, and multi-decade drug franchises.",
+    "label": "제약 IP 포트폴리오",
+    "detail": "두터운 특허 포트폴리오, 글로벌 유통망, 수십 년 단위 약물 프랜차이즈를 가진 대형 제약사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18243,8 +18243,8 @@
   },
   "NVS": {
     "category": "INTANGIBLE",
-    "label": "Pharma IP Portfolio",
-    "detail": "Large pharmaceutical company with deep patent portfolio, global distribution, and multi-decade drug franchises.",
+    "label": "제약 IP 포트폴리오",
+    "detail": "두터운 특허 포트폴리오, 글로벌 유통망, 수십 년 단위 약물 프랜차이즈를 가진 대형 제약사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18256,8 +18256,8 @@
   },
   "SNY": {
     "category": "INTANGIBLE",
-    "label": "Pharma IP Portfolio",
-    "detail": "Large pharmaceutical company with deep patent portfolio, global distribution, and multi-decade drug franchises.",
+    "label": "제약 IP 포트폴리오",
+    "detail": "두터운 특허 포트폴리오, 글로벌 유통망, 수십 년 단위 약물 프랜차이즈를 가진 대형 제약사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18269,8 +18269,8 @@
   },
   "ALT": {
     "category": "INTANGIBLE",
-    "label": "GLP-1 Drug IP",
-    "detail": "GLP-1/obesity therapeutic developer with proprietary clinical data and patent protection on novel mechanisms.",
+    "label": "GLP-1 비만약 IP",
+    "detail": "신규 작용기전 특허와 독자 임상 데이터를 가진 GLP-1·비만 치료제 개발사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18282,8 +18282,8 @@
   },
   "CGON": {
     "category": "INTANGIBLE",
-    "label": "GLP-1 Drug IP",
-    "detail": "GLP-1/obesity therapeutic developer with proprietary clinical data and patent protection on novel mechanisms.",
+    "label": "GLP-1 비만약 IP",
+    "detail": "신규 작용기전 특허와 독자 임상 데이터를 가진 GLP-1·비만 치료제 개발사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18295,8 +18295,8 @@
   },
   "GPCR": {
     "category": "INTANGIBLE",
-    "label": "GLP-1 Drug IP",
-    "detail": "GLP-1/obesity therapeutic developer with proprietary clinical data and patent protection on novel mechanisms.",
+    "label": "GLP-1 비만약 IP",
+    "detail": "신규 작용기전 특허와 독자 임상 데이터를 가진 GLP-1·비만 치료제 개발사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18308,8 +18308,8 @@
   },
   "LNTH": {
     "category": "INTANGIBLE",
-    "label": "GLP-1 Drug IP",
-    "detail": "GLP-1/obesity therapeutic developer with proprietary clinical data and patent protection on novel mechanisms.",
+    "label": "GLP-1 비만약 IP",
+    "detail": "신규 작용기전 특허와 독자 임상 데이터를 가진 GLP-1·비만 치료제 개발사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18321,8 +18321,8 @@
   },
   "PEPG": {
     "category": "INTANGIBLE",
-    "label": "GLP-1 Drug IP",
-    "detail": "GLP-1/obesity therapeutic developer with proprietary clinical data and patent protection on novel mechanisms.",
+    "label": "GLP-1 비만약 IP",
+    "detail": "신규 작용기전 특허와 독자 임상 데이터를 가진 GLP-1·비만 치료제 개발사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18334,8 +18334,8 @@
   },
   "ARVN": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18347,8 +18347,8 @@
   },
   "BNTX": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18360,8 +18360,8 @@
   },
   "IMVT": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18373,8 +18373,8 @@
   },
   "INSM": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18386,8 +18386,8 @@
   },
   "KRYS": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18399,8 +18399,8 @@
   },
   "KYMR": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18412,8 +18412,8 @@
   },
   "RCUS": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18425,8 +18425,8 @@
   },
   "RVMD": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "ADC or gene therapy developer with proprietary platform technology and clinical-stage pipeline.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "ADC·유전자치료 개발사로 독자 플랫폼 기술과 임상 단계 파이프라인이 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18438,8 +18438,8 @@
   },
   "CDNA": {
     "category": "SWITCHING",
-    "label": "MedTech Certification",
-    "detail": "Medical device maker with FDA-cleared products and clinical workflow integration creating switching costs.",
+    "label": "의료기기 인증 해자",
+    "detail": "FDA 승인 제품과 임상 워크플로 통합으로 전환비용을 만드는 의료기기 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18451,8 +18451,8 @@
   },
   "GEHC": {
     "category": "SWITCHING",
-    "label": "MedTech Certification",
-    "detail": "Medical device maker with FDA-cleared products and clinical workflow integration creating switching costs.",
+    "label": "의료기기 인증 해자",
+    "detail": "FDA 승인 제품과 임상 워크플로 통합으로 전환비용을 만드는 의료기기 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18464,8 +18464,8 @@
   },
   "HSIC": {
     "category": "SWITCHING",
-    "label": "MedTech Certification",
-    "detail": "Medical device maker with FDA-cleared products and clinical workflow integration creating switching costs.",
+    "label": "의료기기 인증 해자",
+    "detail": "FDA 승인 제품과 임상 워크플로 통합으로 전환비용을 만드는 의료기기 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18477,8 +18477,8 @@
   },
   "NVCR": {
     "category": "SWITCHING",
-    "label": "MedTech Certification",
-    "detail": "Medical device maker with FDA-cleared products and clinical workflow integration creating switching costs.",
+    "label": "의료기기 인증 해자",
+    "detail": "FDA 승인 제품과 임상 워크플로 통합으로 전환비용을 만드는 의료기기 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18490,8 +18490,8 @@
   },
   "RVTY": {
     "category": "SWITCHING",
-    "label": "MedTech Certification",
-    "detail": "Medical device maker with FDA-cleared products and clinical workflow integration creating switching costs.",
+    "label": "의료기기 인증 해자",
+    "detail": "FDA 승인 제품과 임상 워크플로 통합으로 전환비용을 만드는 의료기기 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18503,8 +18503,8 @@
   },
   "TMDX": {
     "category": "SWITCHING",
-    "label": "MedTech Certification",
-    "detail": "Medical device maker with FDA-cleared products and clinical workflow integration creating switching costs.",
+    "label": "의료기기 인증 해자",
+    "detail": "FDA 승인 제품과 임상 워크플로 통합으로 전환비용을 만드는 의료기기 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -18516,8 +18516,8 @@
   },
   "ACHC": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
-    "detail": "Healthcare services platform with patient data network effects and provider ecosystem lock-in.",
+    "label": "헬스케어 플랫폼",
+    "detail": "환자 데이터의 네트워크 효과와 의료기관 생태계 락인을 가진 헬스케어 서비스 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18529,8 +18529,8 @@
   },
   "HIMS": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
-    "detail": "Healthcare services platform with patient data network effects and provider ecosystem lock-in.",
+    "label": "헬스케어 플랫폼",
+    "detail": "환자 데이터의 네트워크 효과와 의료기관 생태계 락인을 가진 헬스케어 서비스 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18542,8 +18542,8 @@
   },
   "OSCR": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
-    "detail": "Healthcare services platform with patient data network effects and provider ecosystem lock-in.",
+    "label": "헬스케어 플랫폼",
+    "detail": "환자 데이터의 네트워크 효과와 의료기관 생태계 락인을 가진 헬스케어 서비스 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -18555,8 +18555,8 @@
   },
   "W": {
     "category": "NETWORK",
-    "label": "E-commerce Network",
-    "detail": "E-commerce or travel platform with marketplace network effects between buyers and sellers.",
+    "label": "이커머스 네트워크",
+    "detail": "구매자·판매자 간 마켓플레이스 네트워크 효과를 가진 이커머스·여행 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18568,8 +18568,8 @@
   },
   "AEO": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18581,8 +18581,8 @@
   },
   "ANF": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18594,8 +18594,8 @@
   },
   "BBWI": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18607,8 +18607,8 @@
   },
   "FND": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18620,8 +18620,8 @@
   },
   "GME": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18633,8 +18633,8 @@
   },
   "KR": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18646,8 +18646,8 @@
   },
   "KSS": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18659,8 +18659,8 @@
   },
   "OLLI": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
-    "detail": "Large retailer with purchasing scale, store density, and supply chain efficiency creating cost advantages.",
+    "label": "유통 규모 우위",
+    "detail": "구매 규모, 매장 밀도, 공급망 효율성이 원가 우위를 만드는 대형 유통사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18672,8 +18672,8 @@
   },
   "BROS": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18685,8 +18685,8 @@
   },
   "CAVA": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18698,8 +18698,8 @@
   },
   "DNUT": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18711,8 +18711,8 @@
   },
   "DPZ": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18724,8 +18724,8 @@
   },
   "DRI": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18737,8 +18737,8 @@
   },
   "SHAK": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18750,8 +18750,8 @@
   },
   "TXRH": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18763,8 +18763,8 @@
   },
   "WING": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
-    "detail": "Restaurant chain with recognized brand, standardized operations, and franchise/unit economics flywheel.",
+    "label": "외식 브랜드 IP",
+    "detail": "검증된 브랜드, 표준화된 운영, 프랜차이즈 유닛 이코노믹스 플라이휠을 가진 외식 체인이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18776,8 +18776,8 @@
   },
   "AEVA": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
-    "detail": "Automotive or EV technology company with proprietary platform, sensor, or manufacturing IP.",
+    "label": "전기차·자동차 기술",
+    "detail": "자동차·전기차 기술 기업으로 독자 플랫폼·센서·제조 IP가 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18789,8 +18789,8 @@
   },
   "CVNA": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
-    "detail": "Automotive or EV technology company with proprietary platform, sensor, or manufacturing IP.",
+    "label": "전기차·자동차 기술",
+    "detail": "자동차·전기차 기술 기업으로 독자 플랫폼·센서·제조 IP가 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18802,8 +18802,8 @@
   },
   "OUST": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
-    "detail": "Automotive or EV technology company with proprietary platform, sensor, or manufacturing IP.",
+    "label": "전기차·자동차 기술",
+    "detail": "자동차·전기차 기술 기업으로 독자 플랫폼·센서·제조 IP가 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18815,8 +18815,8 @@
   },
   "VC": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
-    "detail": "Automotive or EV technology company with proprietary platform, sensor, or manufacturing IP.",
+    "label": "전기차·자동차 기술",
+    "detail": "자동차·전기차 기술 기업으로 독자 플랫폼·센서·제조 IP가 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18828,8 +18828,8 @@
   },
   "CPRI": {
     "category": "INTANGIBLE",
-    "label": "Luxury Brand IP",
-    "detail": "Luxury or apparel brand with intangible brand equity and pricing power from heritage and perception.",
+    "label": "럭셔리 브랜드 IP",
+    "detail": "헤리티지와 브랜드 인식에서 비롯된 무형 브랜드 자산과 가격 결정력을 가진 럭셔리·의류 브랜드다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18841,8 +18841,8 @@
   },
   "GIL": {
     "category": "INTANGIBLE",
-    "label": "Luxury Brand IP",
-    "detail": "Luxury or apparel brand with intangible brand equity and pricing power from heritage and perception.",
+    "label": "럭셔리 브랜드 IP",
+    "detail": "헤리티지와 브랜드 인식에서 비롯된 무형 브랜드 자산과 가격 결정력을 가진 럭셔리·의류 브랜드다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18854,8 +18854,8 @@
   },
   "MOV": {
     "category": "INTANGIBLE",
-    "label": "Luxury Brand IP",
-    "detail": "Luxury or apparel brand with intangible brand equity and pricing power from heritage and perception.",
+    "label": "럭셔리 브랜드 IP",
+    "detail": "헤리티지와 브랜드 인식에서 비롯된 무형 브랜드 자산과 가격 결정력을 가진 럭셔리·의류 브랜드다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18867,8 +18867,8 @@
   },
   "PTON": {
     "category": "INTANGIBLE",
-    "label": "Luxury Brand IP",
-    "detail": "Luxury or apparel brand with intangible brand equity and pricing power from heritage and perception.",
+    "label": "럭셔리 브랜드 IP",
+    "detail": "헤리티지와 브랜드 인식에서 비롯된 무형 브랜드 자산과 가격 결정력을 가진 럭셔리·의류 브랜드다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18880,8 +18880,8 @@
   },
   "BYD": {
     "category": "EFFICIENT_SCALE",
-    "label": "Gaming License Moat",
-    "detail": "Hotel or casino operator with limited gaming licenses and prime location advantages.",
+    "label": "카지노 라이선스 해자",
+    "detail": "제한된 카지노 라이선스와 프라임 입지를 가진 호텔·카지노 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18893,8 +18893,8 @@
   },
   "CCEP": {
     "category": "INTANGIBLE",
-    "label": "Beverage Brand Power",
-    "detail": "Beverage company with iconic brand portfolio and global distribution creating intangible asset moat.",
+    "label": "음료 브랜드 파워",
+    "detail": "글로벌 유통망과 상징적인 브랜드 포트폴리오를 보유한 음료 기업으로 무형자산 해자가 강하다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18906,8 +18906,8 @@
   },
   "BYND": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
-    "detail": "Consumer packaged goods company with distribution scale and shelf-space dominance in retail channels.",
+    "label": "생활용품 유통 규모",
+    "detail": "유통 규모와 소매 진열대 지배력이 큰 생활소비재(CPG) 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18919,8 +18919,8 @@
   },
   "CPB": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
-    "detail": "Consumer packaged goods company with distribution scale and shelf-space dominance in retail channels.",
+    "label": "생활용품 유통 규모",
+    "detail": "유통 규모와 소매 진열대 지배력이 큰 생활소비재(CPG) 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18932,8 +18932,8 @@
   },
   "KHC": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
-    "detail": "Consumer packaged goods company with distribution scale and shelf-space dominance in retail channels.",
+    "label": "생활용품 유통 규모",
+    "detail": "유통 규모와 소매 진열대 지배력이 큰 생활소비재(CPG) 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18945,8 +18945,8 @@
   },
   "KVUE": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
-    "detail": "Consumer packaged goods company with distribution scale and shelf-space dominance in retail channels.",
+    "label": "생활용품 유통 규모",
+    "detail": "유통 규모와 소매 진열대 지배력이 큰 생활소비재(CPG) 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18958,8 +18958,8 @@
   },
   "SYY": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
-    "detail": "Consumer packaged goods company with distribution scale and shelf-space dominance in retail channels.",
+    "label": "생활용품 유통 규모",
+    "detail": "유통 규모와 소매 진열대 지배력이 큰 생활소비재(CPG) 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -18971,8 +18971,8 @@
   },
   "ACB": {
     "category": "NONE",
-    "label": "Cannabis Commodity",
-    "detail": "Cannabis company in fragmented market with limited structural moat due to regulatory uncertainty and commodity dynamics.",
+    "label": "대마 상품화 시장",
+    "detail": "규제 불확실성과 상품화 압력이 큰 분절된 시장의 대마 기업으로 구조적 해자는 제한적이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -18984,8 +18984,8 @@
   },
   "CGC": {
     "category": "NONE",
-    "label": "Cannabis Commodity",
-    "detail": "Cannabis company in fragmented market with limited structural moat due to regulatory uncertainty and commodity dynamics.",
+    "label": "대마 상품화 시장",
+    "detail": "규제 불확실성과 상품화 압력이 큰 분절된 시장의 대마 기업으로 구조적 해자는 제한적이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -18997,8 +18997,8 @@
   },
   "SNDL": {
     "category": "NONE",
-    "label": "Cannabis Commodity",
-    "detail": "Cannabis company in fragmented market with limited structural moat due to regulatory uncertainty and commodity dynamics.",
+    "label": "대마 상품화 시장",
+    "detail": "규제 불확실성과 상품화 압력이 큰 분절된 시장의 대마 기업으로 구조적 해자는 제한적이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19010,8 +19010,8 @@
   },
   "TLRY": {
     "category": "NONE",
-    "label": "Cannabis Commodity",
-    "detail": "Cannabis company in fragmented market with limited structural moat due to regulatory uncertainty and commodity dynamics.",
+    "label": "대마 상품화 시장",
+    "detail": "규제 불확실성과 상품화 압력이 큰 분절된 시장의 대마 기업으로 구조적 해자는 제한적이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19023,8 +19023,8 @@
   },
   "SMG": {
     "category": "COST",
-    "label": "Ag Input Scale",
-    "detail": "Agricultural input company with manufacturing scale and seasonal distribution network advantages.",
+    "label": "농자재 규모",
+    "detail": "농자재 기업으로 제조 규모와 계절별 유통망 우위가 해자를 형성한다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19036,8 +19036,8 @@
   },
   "CRTO": {
     "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
+    "label": "광고 데이터 네트워크",
+    "detail": "사용자 데이터의 네트워크 효과와 광고주 수요 측 플라이휠을 가진 소셜미디어·광고 기술 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19049,8 +19049,8 @@
   },
   "DJT": {
     "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
+    "label": "광고 데이터 네트워크",
+    "detail": "사용자 데이터의 네트워크 효과와 광고주 수요 측 플라이휠을 가진 소셜미디어·광고 기술 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19062,8 +19062,8 @@
   },
   "DV": {
     "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
+    "label": "광고 데이터 네트워크",
+    "detail": "사용자 데이터의 네트워크 효과와 광고주 수요 측 플라이휠을 가진 소셜미디어·광고 기술 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19075,8 +19075,8 @@
   },
   "IAC": {
     "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
+    "label": "광고 데이터 네트워크",
+    "detail": "사용자 데이터의 네트워크 효과와 광고주 수요 측 플라이휠을 가진 소셜미디어·광고 기술 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19088,8 +19088,8 @@
   },
   "PUBM": {
     "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
+    "label": "광고 데이터 네트워크",
+    "detail": "사용자 데이터의 네트워크 효과와 광고주 수요 측 플라이휠을 가진 소셜미디어·광고 기술 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19101,8 +19101,8 @@
   },
   "RUM": {
     "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
+    "label": "광고 데이터 네트워크",
+    "detail": "사용자 데이터의 네트워크 효과와 광고주 수요 측 플라이휠을 가진 소셜미디어·광고 기술 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19114,8 +19114,8 @@
   },
   "ZD": {
     "category": "NETWORK",
-    "label": "AdTech Data Network",
-    "detail": "Social media or ad-tech platform with user data network effects and advertiser demand-side flywheel.",
+    "label": "광고 데이터 네트워크",
+    "detail": "사용자 데이터의 네트워크 효과와 광고주 수요 측 플라이휠을 가진 소셜미디어·광고 기술 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19127,8 +19127,8 @@
   },
   "PLTK": {
     "category": "INTANGIBLE",
-    "label": "Gaming IP & Community",
-    "detail": "Game developer with owned IP franchises and player community/in-game asset network effects.",
+    "label": "게임 IP·커뮤니티",
+    "detail": "자체 IP 프랜차이즈와 플레이어 커뮤니티·인게임 자산의 네트워크 효과를 가진 게임 개발사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19140,8 +19140,8 @@
   },
   "AMC": {
     "category": "INTANGIBLE",
-    "label": "Content IP Library",
-    "detail": "Streaming or content company with proprietary content library and subscriber base creating scale advantages.",
+    "label": "콘텐츠 IP 라이브러리",
+    "detail": "독자 콘텐츠 라이브러리와 가입자 기반이 규모 우위를 만드는 스트리밍·콘텐츠 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19153,8 +19153,8 @@
   },
   "CNK": {
     "category": "INTANGIBLE",
-    "label": "Content IP Library",
-    "detail": "Streaming or content company with proprietary content library and subscriber base creating scale advantages.",
+    "label": "콘텐츠 IP 라이브러리",
+    "detail": "독자 콘텐츠 라이브러리와 가입자 기반이 규모 우위를 만드는 스트리밍·콘텐츠 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19166,8 +19166,8 @@
   },
   "FUBO": {
     "category": "INTANGIBLE",
-    "label": "Content IP Library",
-    "detail": "Streaming or content company with proprietary content library and subscriber base creating scale advantages.",
+    "label": "콘텐츠 IP 라이브러리",
+    "detail": "독자 콘텐츠 라이브러리와 가입자 기반이 규모 우위를 만드는 스트리밍·콘텐츠 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19179,8 +19179,8 @@
   },
   "IMAX": {
     "category": "INTANGIBLE",
-    "label": "Content IP Library",
-    "detail": "Streaming or content company with proprietary content library and subscriber base creating scale advantages.",
+    "label": "콘텐츠 IP 라이브러리",
+    "detail": "독자 콘텐츠 라이브러리와 가입자 기반이 규모 우위를 만드는 스트리밍·콘텐츠 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19192,8 +19192,8 @@
   },
   "SIRI": {
     "category": "INTANGIBLE",
-    "label": "Content IP Library",
-    "detail": "Streaming or content company with proprietary content library and subscriber base creating scale advantages.",
+    "label": "콘텐츠 IP 라이브러리",
+    "detail": "독자 콘텐츠 라이브러리와 가입자 기반이 규모 우위를 만드는 스트리밍·콘텐츠 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19205,8 +19205,8 @@
   },
   "SONY": {
     "category": "INTANGIBLE",
-    "label": "Content IP Library",
-    "detail": "Streaming or content company with proprietary content library and subscriber base creating scale advantages.",
+    "label": "콘텐츠 IP 라이브러리",
+    "detail": "독자 콘텐츠 라이브러리와 가입자 기반이 규모 우위를 만드는 스트리밍·콘텐츠 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19218,8 +19218,8 @@
   },
   "SBAC": {
     "category": "EFFICIENT_SCALE",
-    "label": "DC REIT Scale",
-    "detail": "Data center REIT with critical infrastructure positioning, power access, and long-term enterprise leases.",
+    "label": "데이터센터 리츠 규모",
+    "detail": "데이터센터 리츠로 핵심 인프라 입지, 전력 확보, 장기 기업 임대가 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -19231,8 +19231,8 @@
   },
   "KRC": {
     "category": "COST",
-    "label": "CRE Location Moat",
-    "detail": "Commercial real estate operator with prime location assets and long-term lease structures.",
+    "label": "상업부동산 입지",
+    "detail": "프라임 입지 자산과 장기 임대 구조를 가진 상업부동산 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19244,8 +19244,8 @@
   },
   "VNO": {
     "category": "COST",
-    "label": "CRE Location Moat",
-    "detail": "Commercial real estate operator with prime location assets and long-term lease structures.",
+    "label": "상업부동산 입지",
+    "detail": "프라임 입지 자산과 장기 임대 구조를 가진 상업부동산 운영사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19257,8 +19257,8 @@
   },
   "CVCO": {
     "category": "COST",
-    "label": "Homebuilder Scale",
-    "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
+    "label": "주택건설 규모",
+    "detail": "토지 매입, 건설 규모, 기술 기반 원가 우위를 가진 주택건설·프롭테크 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19270,8 +19270,8 @@
   },
   "MHO": {
     "category": "COST",
-    "label": "Homebuilder Scale",
-    "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
+    "label": "주택건설 규모",
+    "detail": "토지 매입, 건설 규모, 기술 기반 원가 우위를 가진 주택건설·프롭테크 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19283,8 +19283,8 @@
   },
   "OPEN": {
     "category": "COST",
-    "label": "Homebuilder Scale",
-    "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
+    "label": "주택건설 규모",
+    "detail": "토지 매입, 건설 규모, 기술 기반 원가 우위를 가진 주택건설·프롭테크 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19296,8 +19296,8 @@
   },
   "RKT": {
     "category": "COST",
-    "label": "Homebuilder Scale",
-    "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
+    "label": "주택건설 규모",
+    "detail": "토지 매입, 건설 규모, 기술 기반 원가 우위를 가진 주택건설·프롭테크 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19309,8 +19309,8 @@
   },
   "SKY": {
     "category": "COST",
-    "label": "Homebuilder Scale",
-    "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
+    "label": "주택건설 규모",
+    "detail": "토지 매입, 건설 규모, 기술 기반 원가 우위를 가진 주택건설·프롭테크 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19322,8 +19322,8 @@
   },
   "UWM": {
     "category": "COST",
-    "label": "Homebuilder Scale",
-    "detail": "Homebuilder or proptech company with land bank, construction scale, or technology-driven cost advantages.",
+    "label": "주택건설 규모",
+    "detail": "토지 매입, 건설 규모, 기술 기반 원가 우위를 가진 주택건설·프롭테크 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19335,8 +19335,8 @@
   },
   "ASH": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19348,8 +19348,8 @@
   },
   "AVNT": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19361,8 +19361,8 @@
   },
   "CC": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19374,8 +19374,8 @@
   },
   "CE": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19387,8 +19387,8 @@
   },
   "CRH": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19400,8 +19400,8 @@
   },
   "EMN": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19413,8 +19413,8 @@
   },
   "FUL": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19426,8 +19426,8 @@
   },
   "HUN": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19439,8 +19439,8 @@
   },
   "OLN": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19452,8 +19452,8 @@
   },
   "TROX": {
     "category": "COST",
-    "label": "Chemical Scale Moat",
-    "detail": "Specialty or commodity chemical producer with process scale and feedstock cost advantages.",
+    "label": "화학 규모 해자",
+    "detail": "공정 규모와 원료비 우위를 가진 스페셜티·범용 화학 생산사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19465,8 +19465,8 @@
   },
   "EXP": {
     "category": "COST",
-    "label": "Building Materials Moat",
-    "detail": "Building materials producer with quarry/plant proximity creating regional transport cost advantages.",
+    "label": "건축자재 해자",
+    "detail": "채석장·공장 근접성으로 지역 운송비 우위를 가진 건축자재 제조사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19478,8 +19478,8 @@
   },
   "ATR": {
     "category": "COST",
-    "label": "Packaging Scale",
-    "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
+    "label": "포장재 규모",
+    "detail": "제조 규모와 생활필수품 영역의 장기 고객 계약을 가진 포장재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19491,8 +19491,8 @@
   },
   "BALL": {
     "category": "COST",
-    "label": "Packaging Scale",
-    "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
+    "label": "포장재 규모",
+    "detail": "제조 규모와 생활필수품 영역의 장기 고객 계약을 가진 포장재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19504,8 +19504,8 @@
   },
   "CCK": {
     "category": "COST",
-    "label": "Packaging Scale",
-    "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
+    "label": "포장재 규모",
+    "detail": "제조 규모와 생활필수품 영역의 장기 고객 계약을 가진 포장재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19517,8 +19517,8 @@
   },
   "IP": {
     "category": "COST",
-    "label": "Packaging Scale",
-    "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
+    "label": "포장재 규모",
+    "detail": "제조 규모와 생활필수품 영역의 장기 고객 계약을 가진 포장재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19530,8 +19530,8 @@
   },
   "PKG": {
     "category": "COST",
-    "label": "Packaging Scale",
-    "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
+    "label": "포장재 규모",
+    "detail": "제조 규모와 생활필수품 영역의 장기 고객 계약을 가진 포장재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19543,8 +19543,8 @@
   },
   "SON": {
     "category": "COST",
-    "label": "Packaging Scale",
-    "detail": "Packaging company with manufacturing scale and long-term customer contracts in consumer staples.",
+    "label": "포장재 규모",
+    "detail": "제조 규모와 생활필수품 영역의 장기 고객 계약을 가진 포장재 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19556,8 +19556,8 @@
   },
   "AA": {
     "category": "COST",
-    "label": "Mining Cost Curve",
-    "detail": "Metals and mining company with low-cost ore deposits and established extraction infrastructure.",
+    "label": "광물 원가곡선",
+    "detail": "저비용 광체와 검증된 채광 인프라를 가진 금속·광물 채굴 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19569,8 +19569,8 @@
   },
   "CLF": {
     "category": "COST",
-    "label": "Mining Cost Curve",
-    "detail": "Metals and mining company with low-cost ore deposits and established extraction infrastructure.",
+    "label": "광물 원가곡선",
+    "detail": "저비용 광체와 검증된 채광 인프라를 가진 금속·광물 채굴 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19582,8 +19582,8 @@
   },
   "CMC": {
     "category": "COST",
-    "label": "Mining Cost Curve",
-    "detail": "Metals and mining company with low-cost ore deposits and established extraction infrastructure.",
+    "label": "광물 원가곡선",
+    "detail": "저비용 광체와 검증된 채광 인프라를 가진 금속·광물 채굴 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19595,8 +19595,8 @@
   },
   "MP": {
     "category": "COST",
-    "label": "Mining Cost Curve",
-    "detail": "Metals and mining company with low-cost ore deposits and established extraction infrastructure.",
+    "label": "광물 원가곡선",
+    "detail": "저비용 광체와 검증된 채광 인프라를 가진 금속·광물 채굴 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19608,8 +19608,8 @@
   },
   "RS": {
     "category": "COST",
-    "label": "Mining Cost Curve",
-    "detail": "Metals and mining company with low-cost ore deposits and established extraction infrastructure.",
+    "label": "광물 원가곡선",
+    "detail": "저비용 광체와 검증된 채광 인프라를 가진 금속·광물 채굴 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19621,8 +19621,8 @@
   },
   "SCCO": {
     "category": "COST",
-    "label": "Mining Cost Curve",
-    "detail": "Metals and mining company with low-cost ore deposits and established extraction infrastructure.",
+    "label": "광물 원가곡선",
+    "detail": "저비용 광체와 검증된 채광 인프라를 가진 금속·광물 채굴 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19634,8 +19634,8 @@
   },
   "TECK": {
     "category": "COST",
-    "label": "Mining Cost Curve",
-    "detail": "Metals and mining company with low-cost ore deposits and established extraction infrastructure.",
+    "label": "광물 원가곡선",
+    "detail": "저비용 광체와 검증된 채광 인프라를 가진 금속·광물 채굴 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19647,8 +19647,8 @@
   },
   "AEM": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19660,8 +19660,8 @@
   },
   "AG": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19673,8 +19673,8 @@
   },
   "AU": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19686,8 +19686,8 @@
   },
   "FNV": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19699,8 +19699,8 @@
   },
   "GFI": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19712,8 +19712,8 @@
   },
   "HL": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19725,8 +19725,8 @@
   },
   "KGC": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19738,8 +19738,8 @@
   },
   "OR": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19751,8 +19751,8 @@
   },
   "PAAS": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19764,8 +19764,8 @@
   },
   "RGLD": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19777,8 +19777,8 @@
   },
   "WPM": {
     "category": "COST",
-    "label": "Precious Metals Scale",
-    "detail": "Gold or precious metals miner/streamer with low-cost production or royalty/streaming contract portfolio.",
+    "label": "귀금속 채굴 규모",
+    "detail": "저비용 생산 또는 로열티·스트리밍 계약 포트폴리오를 가진 금·귀금속 채굴·스트리머 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 0,
@@ -19790,8 +19790,8 @@
   },
   "ENVX": {
     "category": "INTANGIBLE",
-    "label": "Battery Tech IP",
-    "detail": "Lithium or battery technology company with proprietary cell chemistry, solid-state technology, or resource access.",
+    "label": "배터리 기술 IP",
+    "detail": "독자 셀 화학, 전고체 기술, 광물 자원 확보를 가진 리튬·배터리 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19803,8 +19803,8 @@
   },
   "LAC": {
     "category": "INTANGIBLE",
-    "label": "Battery Tech IP",
-    "detail": "Lithium or battery technology company with proprietary cell chemistry, solid-state technology, or resource access.",
+    "label": "배터리 기술 IP",
+    "detail": "독자 셀 화학, 전고체 기술, 광물 자원 확보를 가진 리튬·배터리 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19816,8 +19816,8 @@
   },
   "QS": {
     "category": "INTANGIBLE",
-    "label": "Battery Tech IP",
-    "detail": "Lithium or battery technology company with proprietary cell chemistry, solid-state technology, or resource access.",
+    "label": "배터리 기술 IP",
+    "detail": "독자 셀 화학, 전고체 기술, 광물 자원 확보를 가진 리튬·배터리 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19829,8 +19829,8 @@
   },
   "SES": {
     "category": "INTANGIBLE",
-    "label": "Battery Tech IP",
-    "detail": "Lithium or battery technology company with proprietary cell chemistry, solid-state technology, or resource access.",
+    "label": "배터리 기술 IP",
+    "detail": "독자 셀 화학, 전고체 기술, 광물 자원 확보를 가진 리튬·배터리 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19842,8 +19842,8 @@
   },
   "SLDP": {
     "category": "INTANGIBLE",
-    "label": "Battery Tech IP",
-    "detail": "Lithium or battery technology company with proprietary cell chemistry, solid-state technology, or resource access.",
+    "label": "배터리 기술 IP",
+    "detail": "독자 셀 화학, 전고체 기술, 광물 자원 확보를 가진 리튬·배터리 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19855,8 +19855,8 @@
   },
   "SQM": {
     "category": "INTANGIBLE",
-    "label": "Battery Tech IP",
-    "detail": "Lithium or battery technology company with proprietary cell chemistry, solid-state technology, or resource access.",
+    "label": "배터리 기술 IP",
+    "detail": "독자 셀 화학, 전고체 기술, 광물 자원 확보를 가진 리튬·배터리 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -19868,8 +19868,8 @@
   },
   "BCE": {
     "category": "EFFICIENT_SCALE",
-    "label": "Telecom Scale Moat",
-    "detail": "Large telecom operator with spectrum assets, network infrastructure, and subscriber scale creating natural monopoly characteristics.",
+    "label": "통신 규모 해자",
+    "detail": "주파수 자산, 네트워크 인프라, 가입자 규모가 자연독점 성격을 만드는 대형 통신사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19881,8 +19881,8 @@
   },
   "LBRDK": {
     "category": "EFFICIENT_SCALE",
-    "label": "Telecom Scale Moat",
-    "detail": "Large telecom operator with spectrum assets, network infrastructure, and subscriber scale creating natural monopoly characteristics.",
+    "label": "통신 규모 해자",
+    "detail": "주파수 자산, 네트워크 인프라, 가입자 규모가 자연독점 성격을 만드는 대형 통신사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19894,8 +19894,8 @@
   },
   "SHEN": {
     "category": "EFFICIENT_SCALE",
-    "label": "Telecom Scale Moat",
-    "detail": "Large telecom operator with spectrum assets, network infrastructure, and subscriber scale creating natural monopoly characteristics.",
+    "label": "통신 규모 해자",
+    "detail": "주파수 자산, 네트워크 인프라, 가입자 규모가 자연독점 성격을 만드는 대형 통신사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19907,8 +19907,8 @@
   },
   "TU": {
     "category": "EFFICIENT_SCALE",
-    "label": "Telecom Scale Moat",
-    "detail": "Large telecom operator with spectrum assets, network infrastructure, and subscriber scale creating natural monopoly characteristics.",
+    "label": "통신 규모 해자",
+    "detail": "주파수 자산, 네트워크 인프라, 가입자 규모가 자연독점 성격을 만드는 대형 통신사다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19920,8 +19920,8 @@
   },
   "CALX": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19933,8 +19933,8 @@
   },
   "CIEN": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19946,8 +19946,8 @@
   },
   "EXTR": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19959,8 +19959,8 @@
   },
   "GSAT": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19972,8 +19972,8 @@
   },
   "MSI": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19985,8 +19985,8 @@
   },
   "NOK": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -19998,8 +19998,8 @@
   },
   "SATS": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -20011,8 +20011,8 @@
   },
   "SPOK": {
     "category": "INTANGIBLE",
-    "label": "5G/Satellite Tech",
-    "detail": "5G networking or satellite communications provider with proprietary technology and spectrum/orbit assets.",
+    "label": "5G·위성 기술",
+    "detail": "5G 네트워크·위성통신 사업자로 독자 기술과 주파수·궤도 자산이 진입장벽을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -20024,8 +20024,8 @@
   },
   "MAN": {
     "category": "SWITCHING",
-    "label": "HR Platform Lock-in",
-    "detail": "HR or payroll platform embedded in enterprise workflows with employee data creating high switching costs.",
+    "label": "HR 플랫폼 락인",
+    "detail": "기업 업무에 내장된 HR·급여 플랫폼으로 직원 데이터가 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -20037,8 +20037,8 @@
   },
   "WK": {
     "category": "SWITCHING",
-    "label": "HR Platform Lock-in",
-    "detail": "HR or payroll platform embedded in enterprise workflows with employee data creating high switching costs.",
+    "label": "HR 플랫폼 락인",
+    "detail": "기업 업무에 내장된 HR·급여 플랫폼으로 직원 데이터가 큰 전환비용을 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -20050,8 +20050,8 @@
   },
   "CDW": {
     "category": "SWITCHING",
-    "label": "IT Services Lock-in",
-    "detail": "IT consulting or services firm with deep enterprise integration and project-level switching costs.",
+    "label": "IT 서비스 락인",
+    "detail": "기업 시스템 통합이 깊고 프로젝트 단위 전환비용이 큰 IT 컨설팅·서비스 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -20063,8 +20063,8 @@
   },
   "CBRE": {
     "category": "SWITCHING",
-    "label": "Biz Process Lock-in",
-    "detail": "Business process outsourcing or platform with deep workflow integration and contractual switching costs.",
+    "label": "업무 프로세스 락인",
+    "detail": "업무 프로세스 아웃소싱·플랫폼 기업으로 워크플로 통합과 계약 기반 전환비용이 해자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -20076,8 +20076,8 @@
   },
   "CSGP": {
     "category": "SWITCHING",
-    "label": "Biz Process Lock-in",
-    "detail": "Business process outsourcing or platform with deep workflow integration and contractual switching costs.",
+    "label": "업무 프로세스 락인",
+    "detail": "업무 프로세스 아웃소싱·플랫폼 기업으로 워크플로 통합과 계약 기반 전환비용이 해자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -20089,8 +20089,8 @@
   },
   "WEX": {
     "category": "SWITCHING",
-    "label": "Biz Process Lock-in",
-    "detail": "Business process outsourcing or platform with deep workflow integration and contractual switching costs.",
+    "label": "업무 프로세스 락인",
+    "detail": "업무 프로세스 아웃소싱·플랫폼 기업으로 워크플로 통합과 계약 기반 전환비용이 해자다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 3,
@@ -20362,8 +20362,8 @@
   },
   "QUBT": {
     "category": "INTANGIBLE",
-    "label": "AI Infra Tech",
-    "detail": "Critical AI infrastructure with technical differentiation.",
+    "label": "AI 인프라 기술",
+    "detail": "AI 핵심 인프라 사업자로 기술 차별화가 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -20518,8 +20518,8 @@
   },
   "ARQQ": {
     "category": "INTANGIBLE",
-    "label": "Quantum Tech IP",
-    "detail": "Quantum computing IP with extreme technical barriers to entry.",
+    "label": "양자 기술 IP",
+    "detail": "극도로 높은 기술 진입장벽을 가진 양자컴퓨팅 IP가 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -21701,8 +21701,8 @@
   },
   "AVAV": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Long-term government contracts with security clearances and program switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -21714,8 +21714,8 @@
   },
   "BKSY": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Long-term government contracts with security clearances and program switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -21727,7 +21727,7 @@
   },
   "CRS": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
+    "label": "방산 계약 락인",
     "detail": "Carpenter Technology Corporation(CRS) — Metal Fabrication — 고객 전환비용이 높아 기존 사용자 이탈이 어려운 구조. (시총 $22B, ROE 25%, 매출총이익률 30%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -21818,8 +21818,8 @@
   },
   "MRCY": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Long-term government contracts with security clearances and program switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -21831,8 +21831,8 @@
   },
   "RDW": {
     "category": "SWITCHING",
-    "label": "Defense Contract Lock-in",
-    "detail": "Long-term government contracts with security clearances and program switching costs.",
+    "label": "방산 계약 락인",
+    "detail": "장기 정부계약, 보안 인가, 프로그램 단위 전환비용이 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 4,
@@ -22065,7 +22065,7 @@
   },
   "BMI": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "Badger Meter, Inc.(BMI) — Scientific & Technical Instruments — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $4B, ROE 20%, 매출총이익률 41%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22169,7 +22169,7 @@
   },
   "ESAB": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "ESAB Corporation(ESAB) — Metal Fabrication — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $6B, ROE 11%, 매출총이익률 37%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22208,7 +22208,7 @@
   },
   "FSS": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "Federal Signal Corporation(FSS) — Pollution & Treatment Controls — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $7B, ROE 21%, 매출총이익률 29%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22221,7 +22221,7 @@
   },
   "GATX": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "GATX Corporation(GATX) — Rental & Leasing Services — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $6B, ROE 11%, 매출총이익률 74%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22234,7 +22234,7 @@
   },
   "GXO": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "GXO Logistics, Inc.(GXO) — Integrated Freight & Logistics — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $5B, ROE 5%, 매출총이익률 15%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22299,7 +22299,7 @@
   },
   "LECO": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "Lincoln Electric Holdings, Inc.(LECO) — Tools & Accessories — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $14B, ROE 38%, 매출총이익률 36%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22351,7 +22351,7 @@
   },
   "NSIT": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "Insight Enterprises, Inc.(NSIT) — Electronics & Computer Distribution — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, ROE 11%, 매출총이익률 22%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22377,7 +22377,7 @@
   },
   "RBC": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "RBC Bearings Incorporated(RBC) — Tools & Accessories — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $18B, ROE 9%, 매출총이익률 45%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22429,7 +22429,7 @@
   },
   "TKR": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "The Timken Company(TKR) — Tools & Accessories — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $8B, ROE 10%, 매출총이익률 31%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22481,7 +22481,7 @@
   },
   "VMI": {
     "category": "COST",
-    "label": "Industrial Scale",
+    "label": "산업재 규모",
     "detail": "Valmont Industries, Inc.(VMI) — Conglomerates — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $10B, ROE 22%, 매출총이익률 30%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22520,7 +22520,7 @@
   },
   "HUBG": {
     "category": "COST",
-    "label": "Transport Network Scale",
+    "label": "물류망 규모",
     "detail": "Hub Group, Inc.(HUBG) — Integrated Freight & Logistics — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, ROE 6%, 매출총이익률 11%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -22611,8 +22611,8 @@
   },
   "RCAT": {
     "category": "INTANGIBLE",
-    "label": "Robotics IP",
-    "detail": "Proprietary robotics/drone technology with defense or industrial applications.",
+    "label": "로봇 기술 IP",
+    "detail": "방산·산업용으로 활용되는 독자 로봇·드론 기술이 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -22624,8 +22624,8 @@
   },
   "SERV": {
     "category": "INTANGIBLE",
-    "label": "Robotics IP",
-    "detail": "Proprietary robotics/drone technology with defense or industrial applications.",
+    "label": "로봇 기술 IP",
+    "detail": "방산·산업용으로 활용되는 독자 로봇·드론 기술이 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -22637,8 +22637,8 @@
   },
   "UMAC": {
     "category": "INTANGIBLE",
-    "label": "Robotics IP",
-    "detail": "Proprietary robotics/drone technology with defense or industrial applications.",
+    "label": "로봇 기술 IP",
+    "detail": "방산·산업용으로 활용되는 독자 로봇·드론 기술이 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 2,
@@ -23014,7 +23014,7 @@
   },
   "OTTR": {
     "category": "EFFICIENT_SCALE",
-    "label": "Regulated Utility",
+    "label": "규제 유틸리티",
     "detail": "Otter Tail Corporation(OTTR) — Conglomerates — 규제 또는 자연독점으로 신규 진입이 제한된 시장에서 안정적 수익 창출. (시총 $4B, ROE 15%, 매출총이익률 43%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23092,7 +23092,7 @@
   },
   "BOOM": {
     "category": "SWITCHING",
-    "label": "Oilfield Svc Lock-in",
+    "label": "유전 서비스 락인",
     "detail": "DMC Global Inc.(BOOM) — Conglomerates — 고객 전환비용이 높아 기존 사용자 이탈이 어려운 구조. (시총 $141M, 매출총이익률 20%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23469,8 +23469,8 @@
   },
   "DNA": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "Proprietary platform technology with clinical pipeline and patent protection.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "임상 파이프라인과 특허 보호를 가진 독자 플랫폼 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -23521,8 +23521,8 @@
   },
   "LEGN": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "Proprietary platform technology with clinical pipeline and patent protection.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "임상 파이프라인과 특허 보호를 가진 독자 플랫폼 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -23573,8 +23573,8 @@
   },
   "PCVX": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "Proprietary platform technology with clinical pipeline and patent protection.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "임상 파이프라인과 특허 보호를 가진 독자 플랫폼 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -23638,8 +23638,8 @@
   },
   "RXRX": {
     "category": "INTANGIBLE",
-    "label": "ADC/Gene Therapy IP",
-    "detail": "Proprietary platform technology with clinical pipeline and patent protection.",
+    "label": "ADC·유전자치료 IP",
+    "detail": "임상 파이프라인과 특허 보호를 가진 독자 플랫폼 기술 기업이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -23859,7 +23859,7 @@
   },
   "NOVT": {
     "category": "SWITCHING",
-    "label": "MedTech Certification",
+    "label": "의료기기 인증 해자",
     "detail": "Novanta Inc.(NOVT) — Scientific & Technical Instruments — 고객 전환비용이 높아 기존 사용자 이탈이 어려운 구조. (시총 $6B, ROE 5%, 매출총이익률 44%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23924,7 +23924,7 @@
   },
   "AMN": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "AMN Healthcare Services, Inc.(AMN) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $1B, 매출총이익률 28%, 영업이익률 9%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23937,7 +23937,7 @@
   },
   "AMWL": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "American Well Corporation(AMWL) — Health Information Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $133M, 매출총이익률 54%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23950,7 +23950,7 @@
   },
   "CCRN": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Cross Country Healthcare, Inc.(CCRN) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $405M, 매출총이익률 20%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23963,7 +23963,7 @@
   },
   "CHE": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Chemed Corporation(CHE) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $6B, ROE 26%, 매출총이익률 32%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23976,7 +23976,7 @@
   },
   "EVH": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Evolent Health, Inc.(EVH) — Health Information Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $444M, 매출총이익률 20%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -23989,7 +23989,7 @@
   },
   "GDRX": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "GoodRx Holdings, Inc.(GDRX) — Health Information Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $897M, ROE 3%, 매출총이익률 92%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24015,7 +24015,7 @@
   },
   "MD": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Pediatrix Medical Group, Inc.(MD) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $2B, ROE 21%, 매출총이익률 26%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24028,7 +24028,7 @@
   },
   "MDRX": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Veradigm Inc.(MDRX) — Health Information Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $516M, 매출총이익률 52%, 영업이익률 17%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24041,7 +24041,7 @@
   },
   "OPCH": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Option Care Health, Inc.(OPCH) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $3B, ROE 15%, 매출총이익률 19%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24054,7 +24054,7 @@
   },
   "PNTG": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "The Pennant Group, Inc.(PNTG) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $1B, ROE 10%, 매출총이익률 20%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24067,7 +24067,7 @@
   },
   "SDGR": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Schrödinger, Inc.(SDGR) — Health Information Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $994M, 매출총이익률 55%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24080,7 +24080,7 @@
   },
   "SGRY": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Surgery Partners, Inc.(SGRY) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $2B, ROE 3%, 매출총이익률 23%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24106,7 +24106,7 @@
   },
   "TDOC": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "Teladoc Health, Inc.(TDOC) — Health Information Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $1B, 매출총이익률 69%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24119,7 +24119,7 @@
   },
   "USPH": {
     "category": "NETWORK",
-    "label": "Healthcare Platform",
+    "label": "헬스케어 플랫폼",
     "detail": "U.S. Physical Therapy, Inc.(USPH) — Medical Care Facilities — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $943M, ROE 7%, 매출총이익률 22%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24132,8 +24132,8 @@
   },
   "CART": {
     "category": "NETWORK",
-    "label": "E-commerce Network",
-    "detail": "Marketplace network effects between buyers and sellers.",
+    "label": "이커머스 네트워크",
+    "detail": "구매자·판매자 간 마켓플레이스 네트워크 효과가 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -24145,7 +24145,7 @@
   },
   "CPRT": {
     "category": "NETWORK",
-    "label": "E-commerce Network",
+    "label": "이커머스 네트워크",
     "detail": "Copart, Inc.(CPRT) — Specialty Business Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $33B, ROE 18%, 매출총이익률 48%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24158,7 +24158,7 @@
   },
   "FWRD": {
     "category": "NETWORK",
-    "label": "E-commerce Network",
+    "label": "이커머스 네트워크",
     "detail": "Forward Air Corporation(FWRD) — Integrated Freight & Logistics — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $278M, 매출총이익률 21%, 영업이익률 4%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24171,7 +24171,7 @@
   },
   "MMYT": {
     "category": "NETWORK",
-    "label": "E-commerce Network",
+    "label": "이커머스 네트워크",
     "detail": "MakeMyTrip Limited(MMYT) — Travel Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $4B, ROE 9%, 매출총이익률 59%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24184,8 +24184,8 @@
   },
   "MNSO": {
     "category": "NETWORK",
-    "label": "E-commerce Network",
-    "detail": "Marketplace network effects between buyers and sellers.",
+    "label": "이커머스 네트워크",
+    "detail": "구매자·판매자 간 마켓플레이스 네트워크 효과가 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -24210,7 +24210,7 @@
   },
   "TCOM": {
     "category": "NETWORK",
-    "label": "E-commerce Network",
+    "label": "이커머스 네트워크",
     "detail": "Trip.com Group Limited(TCOM) — Travel Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $29B, ROE 21%, 매출총이익률 81%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24249,7 +24249,7 @@
   },
   "ACI": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
+    "label": "유통 규모 우위",
     "detail": "Albertsons Companies, Inc.(ACI) — Grocery Stores — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $8B, ROE 8%, 매출총이익률 27%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24288,7 +24288,7 @@
   },
   "DBI": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
+    "label": "유통 규모 우위",
     "detail": "Designer Brands Inc.(DBI) — Footwear & Accessories — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $360M, 매출총이익률 44%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24301,7 +24301,7 @@
   },
   "GO": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
+    "label": "유통 규모 우위",
     "detail": "Grocery Outlet Holding Corp.(GO) — Grocery Stores — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $793M, 매출총이익률 30%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24353,7 +24353,7 @@
   },
   "PRPL": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
+    "label": "유통 규모 우위",
     "detail": "Purple Innovation, Inc.(PRPL) — Furnishings, Fixtures & Appliances — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $44M, 매출총이익률 40%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24366,7 +24366,7 @@
   },
   "SFM": {
     "category": "COST",
-    "label": "Retail Scale Advantage",
+    "label": "유통 규모 우위",
     "detail": "Sprouts Farmers Market, Inc.(SFM) — Grocery Stores — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $8B, ROE 37%, 매출총이익률 39%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24561,7 +24561,7 @@
   },
   "TACO": {
     "category": "INTANGIBLE",
-    "label": "Restaurant Brand IP",
+    "label": "외식 브랜드 IP",
     "detail": "Berto Acquisition Corp.(TACO) — Shell Companies — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유. (시총 $392M)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24626,8 +24626,8 @@
   },
   "BLNK": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
-    "detail": "Proprietary platform, sensor, or manufacturing IP in automotive.",
+    "label": "전기차·자동차 기술",
+    "detail": "자동차 영역의 독자 플랫폼·센서·제조 IP가 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -24652,8 +24652,8 @@
   },
   "EVGO": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
-    "detail": "Proprietary platform, sensor, or manufacturing IP in automotive.",
+    "label": "전기차·자동차 기술",
+    "detail": "자동차 영역의 독자 플랫폼·센서·제조 IP가 해자를 만든다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -24691,7 +24691,7 @@
   },
   "LCII": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
+    "label": "전기차·자동차 기술",
     "detail": "LCI Industries(LCII) — Recreational Vehicles — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유. (시총 $3B, ROE 15%, 매출총이익률 24%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24704,7 +24704,7 @@
   },
   "PATK": {
     "category": "INTANGIBLE",
-    "label": "EV/Auto Tech",
+    "label": "전기차·자동차 기술",
     "detail": "Patrick Industries, Inc.(PATK) — Recreational Vehicles — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유. (시총 $3B, ROE 12%, 매출총이익률 23%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24743,7 +24743,7 @@
   },
   "SNBR": {
     "category": "INTANGIBLE",
-    "label": "Luxury Brand IP",
+    "label": "럭셔리 브랜드 IP",
     "detail": "Sleep Number Corporation(SNBR) — Furnishings, Fixtures & Appliances — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유. (시총 $39M, 매출총이익률 58%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24756,7 +24756,7 @@
   },
   "WFCF": {
     "category": "INTANGIBLE",
-    "label": "Luxury Brand IP",
+    "label": "럭셔리 브랜드 IP",
     "detail": "Where Food Comes From, Inc.(WFCF) — Specialty Business Services — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유. (시총 $65M, ROE 17%, 매출총이익률 37%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24808,7 +24808,7 @@
   },
   "TNL": {
     "category": "EFFICIENT_SCALE",
-    "label": "Gaming License Moat",
+    "label": "카지노 라이선스 해자",
     "detail": "Travel + Leisure Co.(TNL) — Travel Services — 규제 또는 자연독점으로 신규 진입이 제한된 시장에서 안정적 수익 창출. (시총 $4B, 매출총이익률 51%, 영업이익률 19%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24847,7 +24847,7 @@
   },
   "EDU": {
     "category": "NETWORK",
-    "label": "EM Platform Scale",
+    "label": "신흥국 플랫폼 규모",
     "detail": "New Oriental Education & Technology Group Inc.(EDU) — Education & Training Services — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $8B, ROE 11%, 매출총이익률 55%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -24860,8 +24860,8 @@
   },
   "FUTU": {
     "category": "NETWORK",
-    "label": "EM Platform Scale",
-    "detail": "Emerging market platform with local network effects and regulatory barriers to foreign competition.",
+    "label": "신흥국 플랫폼 규모",
+    "detail": "현지 네트워크 효과와 외국 경쟁 진입을 막는 규제 장벽을 가진 신흥국 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -24886,7 +24886,7 @@
   },
   "HTHT": {
     "category": "NETWORK",
-    "label": "EM Platform Scale",
+    "label": "신흥국 플랫폼 규모",
     "detail": "H World Group Limited(HTHT) — Lodging — 사용자/거래 참여자가 늘수록 플랫폼 가치가 증가하는 네트워크 효과 보유. (시총 $14B, ROE 46%, 매출총이익률 40%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25003,8 +25003,8 @@
   },
   "TAL": {
     "category": "NETWORK",
-    "label": "EM Platform Scale",
-    "detail": "Emerging market platform with local network effects and regulatory barriers to foreign competition.",
+    "label": "신흥국 플랫폼 규모",
+    "detail": "현지 네트워크 효과와 외국 경쟁 진입을 막는 규제 장벽을 가진 신흥국 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -25055,8 +25055,8 @@
   },
   "WB": {
     "category": "NETWORK",
-    "label": "EM Platform Scale",
-    "detail": "Emerging market platform with local network effects and regulatory barriers to foreign competition.",
+    "label": "신흥국 플랫폼 규모",
+    "detail": "현지 네트워크 효과와 외국 경쟁 진입을 막는 규제 장벽을 가진 신흥국 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -25120,8 +25120,8 @@
   },
   "ZTO": {
     "category": "NETWORK",
-    "label": "EM Platform Scale",
-    "detail": "Emerging market platform with local network effects and regulatory barriers to foreign competition.",
+    "label": "신흥국 플랫폼 규모",
+    "detail": "현지 네트워크 효과와 외국 경쟁 진입을 막는 규제 장벽을 가진 신흥국 플랫폼이다.",
     "confidence": "sector_heuristic",
     "scores": {
       "switching_costs": 1,
@@ -25198,7 +25198,7 @@
   },
   "CALM": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
+    "label": "생활용품 유통 규모",
     "detail": "Cal-Maine Foods, Inc.(CALM) — Farm Products — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $4B, ROE 27%, 매출총이익률 34%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25224,7 +25224,7 @@
   },
   "CHEF": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
+    "label": "생활용품 유통 규모",
     "detail": "The Chefs' Warehouse, Inc.(CHEF) — Food Distribution — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, ROE 14%, 매출총이익률 24%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25276,7 +25276,7 @@
   },
   "UNFI": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
+    "label": "생활용품 유통 규모",
     "detail": "United Natural Foods, Inc.(UNFI) — Food Distribution — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, 매출총이익률 13%, 영업이익률 1%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25289,7 +25289,7 @@
   },
   "USFD": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
+    "label": "생활용품 유통 규모",
     "detail": "US Foods Holding Corp.(USFD) — Food Distribution — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $18B, ROE 15%, 매출총이익률 17%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25302,7 +25302,7 @@
   },
   "VITL": {
     "category": "COST",
-    "label": "CPG Distribution Scale",
+    "label": "생활용품 유통 규모",
     "detail": "Vital Farms, Inc.(VITL) — Farm Products — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $434M, ROE 15%, 매출총이익률 35%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25315,7 +25315,7 @@
   },
   "AGRO": {
     "category": "COST",
-    "label": "Ag Input Scale",
+    "label": "농자재 규모",
     "detail": "Adecoagro S.A.(AGRO) — Farm Products — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $2B, ROE 1%, 매출총이익률 21%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25328,7 +25328,7 @@
   },
   "ANDE": {
     "category": "COST",
-    "label": "Ag Input Scale",
+    "label": "농자재 규모",
     "detail": "The Andersons, Inc.(ANDE) — Food Distribution — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $2B, ROE 10%, 매출총이익률 7%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25341,7 +25341,7 @@
   },
   "AVD": {
     "category": "COST",
-    "label": "Ag Input Scale",
+    "label": "농자재 규모",
     "detail": "American Vanguard Corporation(AVD) — Agricultural Inputs — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $80M, 매출총이익률 30%, 영업이익률 4%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25367,7 +25367,7 @@
   },
   "DOLE": {
     "category": "COST",
-    "label": "Ag Input Scale",
+    "label": "농자재 규모",
     "detail": "Dole plc(DOLE) — Farm Products — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $1B, ROE 8%, 매출총이익률 8%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25380,7 +25380,7 @@
   },
   "FDP": {
     "category": "COST",
-    "label": "Ag Input Scale",
+    "label": "농자재 규모",
     "detail": "Fresh Del Monte Produce Inc.(FDP) — Farm Products — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $2B, ROE 4%, 매출총이익률 9%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25393,7 +25393,7 @@
   },
   "LMNR": {
     "category": "COST",
-    "label": "Ag Input Scale",
+    "label": "농자재 규모",
     "detail": "Limoneira Company(LMNR) — Farm Products — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $232M)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25497,7 +25497,7 @@
   },
   "BETZ": {
     "category": "INTANGIBLE",
-    "label": "Gaming IP & Community",
+    "label": "게임 IP·커뮤니티",
     "detail": "Roundhill Sports Betting & iGaming ETF(BETZ) — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유.",
     "confidence": "yfinance_refined",
     "scores": {
@@ -25562,7 +25562,7 @@
   },
   "COUR": {
     "category": "INTANGIBLE",
-    "label": "Content IP Library",
+    "label": "콘텐츠 IP 라이브러리",
     "detail": "Coursera, Inc.(COUR) — Education & Training Services — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유. (시총 $2B, 매출총이익률 55%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26251,7 +26251,7 @@
   },
   "ITE": {
     "category": "COST",
-    "label": "Building Materials Moat",
+    "label": "건축자재 해자",
     "detail": "SPDR Bloomberg Barclays Intermediate Term Treasury ETF(ITE) — 규모의 경제와 운영 효율성을 통한 원가 우위 확보.",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26368,7 +26368,7 @@
   },
   "AMR": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "Alpha Metallurgical Resources, Inc.(AMR) — Coking Coal — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $2B, 매출총이익률 11%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26381,7 +26381,7 @@
   },
   "ATI": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "ATI Inc.(ATI) — Metal Fabrication — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $22B, ROE 23%, 매출총이익률 23%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26394,7 +26394,7 @@
   },
   "BTU": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "Peabody Energy Corporation(BTU) — Thermal Coal — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, 매출총이익률 12%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26420,7 +26420,7 @@
   },
   "CENX": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "Century Aluminum Company(CENX) — Aluminum — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $6B, ROE 32%, 매출총이익률 12%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26446,7 +26446,7 @@
   },
   "CSTM": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "Constellium SE(CSTM) — Aluminum — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $5B, ROE 46%, 매출총이익률 15%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26472,7 +26472,7 @@
   },
   "HCC": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "Warrior Met Coal, Inc.(HCC) — Coking Coal — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $4B, ROE 6%, 매출총이익률 28%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26485,7 +26485,7 @@
   },
   "KALU": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "Kaiser Aluminum Corporation(KALU) — Aluminum — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, ROE 19%, 매출총이익률 14%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26498,7 +26498,7 @@
   },
   "MGRC": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "McGrath RentCorp(MGRC) — Rental & Leasing Services — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, ROE 13%, 매출총이익률 48%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26563,7 +26563,7 @@
   },
   "WOR": {
     "category": "COST",
-    "label": "Mining Cost Curve",
+    "label": "광물 원가곡선",
     "detail": "Worthington Enterprises, Inc.(WOR) — Metal Fabrication — 규모의 경제와 운영 효율성을 통한 원가 우위 확보. (시총 $3B, ROE 11%, 매출총이익률 28%)",
     "confidence": "yfinance_refined",
     "scores": {
@@ -26654,7 +26654,7 @@
   },
   "BATT": {
     "category": "INTANGIBLE",
-    "label": "Battery Tech IP",
+    "label": "배터리 기술 IP",
     "detail": "Amplify Lithium & Battery Technology ETF(BATT) — 브랜드 인지도와 고객 충성도에 기반한 가격결정력 보유.",
     "confidence": "yfinance_refined",
     "scores": {

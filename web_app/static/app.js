@@ -4,7 +4,7 @@
  */
 
 // ── 상태 ─────────────────────────────────────────────────────────────────
-let currentMarket   = 'KR';
+let currentMarket   = 'US';
 let currentStrategy = 'BALANCED';
 let currentSector   = '';   // '' = 전체
 let allStocks       = [];   // 마지막 스캔 결과 캐시
@@ -22,6 +22,7 @@ let _selectedStocks = new Set(); // 공유 카드용 선택 종목
 let _currentResults = [];   // search/view basis
 let _oneLinerFilter = null; // OneLinerTag filter
 let _compareSet = new Set();
+let _renderToken = 0;
 
 // ── 클라이언트 API 캐시 (sessionStorage) ──────────────────────────────
 const _clientCache = {
@@ -40,6 +41,34 @@ const _clientCache = {
     try { sessionStorage.setItem(this._key(endpoint), JSON.stringify({ data, ts: Date.now() })); } catch {}
   }
 };
+
+function _scheduleDeferredRender(callback) {
+  if (window.requestIdleCallback) {
+    window.requestIdleCallback(callback, { timeout: 16 });
+    return;
+  }
+  window.setTimeout(callback, 16);
+}
+
+function _renderHtmlInBatches(container, items, renderItem, initialBatch, batchSize, renderToken) {
+  if (!container) return;
+  const initialHtml = items.slice(0, initialBatch).map((item, i) => renderItem(item, i + 1)).join('');
+  container.innerHTML = initialHtml;
+  if (items.length <= initialBatch) return;
+
+  let offset = initialBatch;
+  const appendBatch = () => {
+    if (renderToken !== _renderToken) return;
+    if (offset >= items.length) return;
+    const end = Math.min(offset + batchSize, items.length);
+    const html = items.slice(offset, end).map((item, i) => renderItem(item, offset + i + 1)).join('');
+    container.insertAdjacentHTML('beforeend', html);
+    offset = end;
+    if (offset < items.length) _scheduleDeferredRender(appendBatch);
+  };
+
+  _scheduleDeferredRender(appendBatch);
+}
 
 function _wlKey(market) { return `scanner_watchlist_${market || currentMarket}`; }
 
@@ -258,205 +287,6 @@ function _renderQuadrant(d) {
   `;
 }
 
-function _renderEntryCard(d) {
-  const card = document.getElementById('dp-entry-card');
-  if (!card) return;
-  card.classList.remove('green', 'yellow', 'red');
-  const st = d.EntryStatus || '';
-  const cls = _ENTRY_COLOR[st] || '';
-  const ico = _ENTRY_ICON[st] || '⚪';
-  const score = d.EntryScore != null ? Math.round(d.EntryScore) : null;
-  const phrase = d.EntryPhrase || '—';
-  const plan = d.EntryPlan || {};
-  setText('dp-entry-icon', ico);
-  // 액션(헤드라인) ↔ 근거(보조) 분리.
-  // 우선 백엔드 파생필드(headline_action/one_reason)를 그대로 표시.
-  // 구버전 캐시 스캔(파생필드 없음)만 "관망 · BB 과확장 · …" 문자열을 분해.
-  const _pp = phrase.split(' · ');
-  // 진입 타이밍 라벨은 리스트 배지와 같은 어휘(진입적기/눌림대기/부적합)로 통일.
-  const _headline = _entryLabel(st, plan.entry_discount, plan.atr_pct, plan.as_of_ts) || plan.headline_action || _pp[0] || phrase;
-  let _reason = plan.one_reason || _pp.slice(1).filter(Boolean).slice(0, 2).join(' · ');
-  // EG-004: 자동 강등 시 부제에 경고 prepend
-  if (plan.degradation_reason === 'gap_too_deep') {
-    _reason = '⚠ 갭이 깊어 NEUTRAL로 강등' + (_reason ? ' · ' + _reason : '');
-  }
-  setText('dp-entry-phrase', _headline);
-  const _subEl = document.getElementById('dp-entry-subreason');
-  if (_subEl) _subEl.textContent = _reason;
-  const _phEl = document.getElementById('dp-entry-phrase');
-  if (_phEl) {
-    _phEl.style.color = cls === 'green' ? 'var(--success)' : cls === 'red' ? 'var(--destructive)' : cls === 'yellow' ? 'var(--brand)' : 'var(--text-primary)';
-    // EG-005: stale 시 회색 처리
-    const _isStale = _headline && /\(stale\)/.test(_headline);
-    _phEl.classList.toggle('entry-stale', _isStale);
-    if (_isStale) _phEl.style.color = 'var(--text-tertiary)';
-  }
-  setText('dp-entry-score', score != null ? String(score) : '—');
-  const fill = document.getElementById('dp-entry-bar-fill');
-  if (fill) fill.style.width = (score != null ? Math.max(0, Math.min(100, score)) : 0) + '%';
-  if (cls) card.classList.add(cls);
-  setText('dp-entry-px-entry', plan.entry != null ? fmtPrice(plan.entry) : '—');
-  setText('dp-entry-px-stop',  plan.stop  != null ? fmtPrice(plan.stop)  : '—');
-  setText('dp-entry-px-t1',    plan.t1    != null ? fmtPrice(plan.t1)    : '—');
-  setText('dp-entry-px-t2',    plan.t2    != null ? fmtPrice(plan.t2)    : '—');
-  setText('dp-entry-type', plan.entry_type || '—');
-  setText('dp-entry-current', plan.current != null ? fmtPrice(plan.current) : '—');
-  // 할인율 표시
-  const discEl = document.getElementById('dp-entry-discount');
-  if (discEl) {
-    const dv = plan.entry_discount;
-    if (dv != null) {
-      const sign = dv > 0 ? '-' : (dv < 0 ? '+' : '');
-      discEl.textContent = `${sign}${Math.abs(dv).toFixed(2)}%`;
-      discEl.style.color = dv > 0 ? 'var(--success)' : dv < 0 ? 'var(--destructive)' : 'var(--muted)';
-    } else {
-      discEl.textContent = '';
-    }
-  }
-  // R:R 비율 (NaN/Infinity 방어)
-  const rrEl = document.getElementById('dp-entry-rr');
-  if (rrEl) {
-    const rr = plan.rr;
-    if (rr != null && Number.isFinite(rr) && rr > 0) {
-      const rrNow = plan.rr_now;
-      const nowTxt = (rrNow != null && Number.isFinite(rrNow) && Math.abs(rrNow - rr) > 0.05) ? ` (현재 ${rrNow.toFixed(1)})` : '';
-      rrEl.textContent = `R:R ${rr.toFixed(1)}:1${nowTxt}`;
-      rrEl.style.color = rr >= 3 ? 'var(--success)' : rr >= 2 ? 'var(--brand)' : 'var(--destructive)';
-    } else {
-      rrEl.textContent = '산출 불가';
-      rrEl.style.color = 'var(--text-tertiary)';
-    }
-  }
-  // 손절 방법 + 승률
-  const smEl = document.getElementById('dp-entry-stop-method');
-  if (smEl) {
-    if (plan.stop_method) {
-      const methodKo = {'지지선': '지지선', 'SWING_LOW': '스윙 저점', 'ATR': 'ATR'}[plan.stop_method] || plan.stop_method;
-      const wr = plan.win_rate;
-      const wrText = wr != null && wr > 0 ? ` · 승률 ${Math.min(100, Math.max(0, wr)).toFixed(0)}%` : '';
-      smEl.innerHTML = methodKo + (wrText ? `<span style="color:${wr >= 60 ? 'var(--success)' : wr >= 40 ? 'var(--brand)' : 'var(--destructive)'};font-weight:700;">${wrText}</span>` : '');
-    } else {
-      smEl.textContent = '—';
-    }
-  }
-  // 신뢰도 밴드 — 승률 + R:R 괴리를 1개 배지로 추상화 (탭하면 원수치)
-  const confEl  = document.getElementById('dp-entry-confidence');
-  const confRaw = document.getElementById('dp-entry-conf-raw');
-  if (confEl) {
-    const wr    = (plan.win_rate != null && plan.win_rate > 0) ? plan.win_rate : null;
-    const rr    = (plan.rr     != null && Number.isFinite(plan.rr)     && plan.rr > 0)     ? plan.rr     : null;
-    const rrNow = (plan.rr_now != null && Number.isFinite(plan.rr_now) && plan.rr_now > 0) ? plan.rr_now : null;
-    let band = null;  // 'hi' | 'mid' | 'lo'
-    // 우선 백엔드 파생필드 confidence_band ("낮음"/"보통"/"높음")를 신뢰.
-    const _cb = { '낮음': 'lo', '보통': 'mid', '높음': 'hi' }[plan.confidence_band];
-    if (_cb) {
-      band = _cb;
-    } else if (plan.confidence_band == null && (wr != null || rr != null)) {
-      // 구버전 캐시 스캔(파생필드 없음)만 클라이언트에서 재계산
-      const lowWr = wr != null && wr < 40;
-      const lowRr = (rrNow != null && rrNow < 1.5) || (rr != null && rr < 1.5);
-      const hiWr  = wr != null && wr >= 55;
-      const hiRr  = rr != null && rr >= 2.5 && (rrNow == null || rrNow >= 2.0);
-      if (lowWr || lowRr)      band = 'lo';
-      else if (hiWr && hiRr)   band = 'hi';
-      else                     band = 'mid';
-    }
-    if (band) {
-      confEl.textContent = { hi: '신뢰도 높음', mid: '신뢰도 보통', lo: '신뢰도 낮음' }[band];
-      confEl.className = 'ev-conf ' + band;
-      confEl.style.display = '';
-      const parts = [];
-      if (wr != null) parts.push(`승률 ${Math.min(100, Math.max(0, wr)).toFixed(0)}%`);
-      if (rr != null) parts.push(`손익비 ${rr.toFixed(1)}:1${(rrNow != null && Math.abs(rrNow - rr) > 0.05) ? ` (현재 ${rrNow.toFixed(1)})` : ''}`);
-      if (confRaw) {
-        confRaw.textContent = parts.length ? parts.join('   ·   ') : '원수치 없음';
-        confRaw.style.display = 'none';
-      }
-      confEl.onclick = () => { if (confRaw) confRaw.style.display = (confRaw.style.display === 'none' ? '' : 'none'); };
-    } else {
-      confEl.style.display = 'none';
-      if (confRaw) confRaw.style.display = 'none';
-    }
-  }
-  // 점수 분해 바 차트
-  // (칩 dp-entry-tags 제거: score_breakdown 파생값이라 아래 breakdown 차트와 100% 중복)
-  const bdEl = document.getElementById('dp-entry-breakdown');
-  if (bdEl) {
-    const bd = plan.score_breakdown || {};
-    const keys = Object.keys(bd);
-    if (keys.length > 0) {
-      const maxAbs = Math.max(16, ...keys.map(k => Math.abs(bd[k].pts)));
-      bdEl.innerHTML = keys.map(k => {
-        const p = bd[k].pts;
-        const pct = Math.abs(p) / maxAbs * 100;
-        const cls = p >= 0 ? 'pos' : 'neg';
-        const col = p >= 0 ? '#16A34A' : '#DC2626';
-        return `<div class="bd-row">
-          <span class="bd-label">${esc(bd[k].tag || k)}</span>
-          <div class="bd-bar-wrap"><div class="bd-bar ${cls}" style="width:${pct}%;"></div></div>
-          <span class="bd-pts" style="color:${col};">${p >= 0 ? '+' : ''}${p}</span>
-        </div>`;
-      }).join('');
-    } else {
-      bdEl.innerHTML = '<div style="font-size:11px;color:var(--text-tertiary);">분해 데이터 없음</div>';
-    }
-  }
-  // AgentQuant 융합 신호 (있을 때만)
-  const aqRow = document.getElementById('dp-aq-row');
-  if (aqRow) {
-    if (d.AQ_Verdict || d.AQ_Regime || d.EntryScore_aq != null) {
-      aqRow.style.display = '';
-      const vEl = document.getElementById('dp-aq-verdict');
-      if (vEl) {
-        vEl.textContent = d.AQ_Verdict || '—';
-        const vc = d.AQ_VerdictCode;
-        const col = vc === 'BUY' ? '#16A34A' : vc === 'ACCUMULATE' ? '#F59E0B' : vc === 'AVOID' ? '#DC2626' : 'var(--text-secondary)';
-        vEl.style.color = col; vEl.style.background = col + '22';
-      }
-      setText('dp-aq-regime', d.AQ_Regime ? `시장 ${d.AQ_Regime}` : '');
-      const detail = [];
-      if (d.EntryScore_engine != null) detail.push(`기존 ${Math.round(d.EntryScore_engine)}`);
-      if (d.EntryScore_aq != null)     detail.push(`AQ ${Math.round(d.EntryScore_aq)}`);
-      setText('dp-aq-detail', detail.length ? `(융합 ${detail.join(' · ')})` : '');
-      const rEl = document.getElementById('dp-aq-reasons');
-      if (rEl) {
-        rEl.innerHTML = (Array.isArray(d.AQ_Reasons) ? d.AQ_Reasons : []).map(r =>
-          `<span style="padding:2px 8px;border:1px solid var(--border);border-radius:100px;background:var(--bg-tertiary);font-size:10px;">${esc(r)}</span>`
-        ).join('');
-      }
-    } else {
-      aqRow.style.display = 'none';
-    }
-  }
-  // 밀도 모드 적용 (기본 full: 상세 분석을 처음부터 펼침, 사용자 선택 localStorage 유지)
-  _applyEntryDensity();
-}
-
-// 진입 카드 밀도 모드 — compact(요약 3존) | full(전체).
-// 기본 full: 처음 보는 사용자가 계산 근거를 바로 확인할 수 있게 한다.
-// 고급 사용자가 펼치면 그 선택을 기억(= 향후 A/B 기준값).
-function _entryDensityMode() {
-  try { return localStorage.getItem('entryCardDensity') === 'compact' ? 'compact' : 'full'; }
-  catch (e) { return 'full'; }
-}
-function _applyEntryDensity() {
-  const det = document.getElementById('dp-entry-detail');
-  if (!det) return;
-  const full = _entryDensityMode() === 'full';
-  det.classList.toggle('open', full);
-  const tog = document.getElementById('dp-entry-density-toggle');
-  if (tog) {
-    const ar = tog.querySelector('.arrow');
-    const lb = tog.querySelector('.dt-label');
-    if (ar) ar.textContent = full ? '▲' : '▼';
-    if (lb) lb.textContent = full ? '간단히 보기' : '상세 분석';
-  }
-}
-function _toggleEntryDensity() {
-  const next = _entryDensityMode() === 'full' ? 'compact' : 'full';
-  try { localStorage.setItem('entryCardDensity', next); } catch (e) {}
-  _applyEntryDensity();
-}
 
 function _entryLight(stock) {
   if (!stock || !stock.EntryStatus) return '';
@@ -924,13 +754,26 @@ function _renderMoatDetail(d) {
 }
 
 // === 경쟁사 비교 카드 ===
-function _peersMcap(v) {
+// US 종목은 USD 원시값이라 한국식 억/조 단위를 붙이면 단위가 어긋난다.
+// 티커에 .KS/.KQ가 있으면 KRW(원), 그 외에는 USD로 처리.
+function _peersIsKR(ticker) {
+  const t = String(ticker || '');
+  return /\.(KS|KQ)$/i.test(t) || /^\d{6}$/.test(t);
+}
+function _peersMcap(v, ticker) {
   if (v == null || isNaN(v) || v <= 0) return '—';
   const n = Number(v);
-  if (n >= 1e12) return (n / 1e12).toFixed(1) + '조';
-  if (n >= 1e8)  return (n / 1e8).toFixed(0) + '억';
-  if (n >= 1e4)  return (n / 1e4).toFixed(0) + '만';
-  return String(Math.round(n));
+  if (_peersIsKR(ticker)) {
+    if (n >= 1e12) return (n / 1e12).toFixed(1) + '조원';
+    if (n >= 1e8)  return (n / 1e8).toFixed(0) + '억원';
+    if (n >= 1e4)  return (n / 1e4).toFixed(0) + '만원';
+    return String(Math.round(n)) + '원';
+  }
+  // US: USD 단위로 $T/$B/$M 표기
+  if (n >= 1e12) return '$' + (n / 1e12).toFixed(2) + 'T';
+  if (n >= 1e9)  return '$' + (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6)  return '$' + (n / 1e6).toFixed(0) + 'M';
+  return '$' + Math.round(n).toLocaleString();
 }
 function _peersNum(v, digits) {
   if (v == null || isNaN(v)) return '—';
@@ -982,7 +825,7 @@ function _renderPeersCard(payload) {
         <span class="dp-peers-tk">${esc(r.Ticker || '')}</span>
       </td>
       <td>${score}</td>
-      <td>${esc(_peersMcap(r.MarketCap))}</td>
+      <td>${esc(_peersMcap(r.MarketCap, r.Ticker))}</td>
       <td>${esc(_peersNum(r.PER, 1))}</td>
       <td>${esc(_peersNum(r.PBR, 2))}</td>
       <td>${esc(_peersPct(r.ROE, 1))}</td>
@@ -1008,6 +851,7 @@ async function _loadPeersCard(ticker, market) {
     console.error('peers card load failed:', e);
   }
 }
+
 
 // ───────── 매출 세그먼트 파이 ─────────
 const _SEG_COLORS = [
@@ -1381,6 +1225,7 @@ function _renderMoatBadge(stock) {
 }
 
 function renderStockTable(stocks) {
+  const renderToken = ++_renderToken;
   const tbody = document.getElementById('stock-list');
   if (!tbody) return;
   _currentResults = Array.isArray(stocks) ? stocks : [];
@@ -1405,7 +1250,7 @@ function renderStockTable(stocks) {
       ? '워치리스트가 비어있습니다. 표의 ☆ 버튼으로 추가하세요.'
       : '필터 조건에 맞는 종목이 없습니다.';
     tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(_currentFilter === 'all' ? '결과 없음' : emptyMsg)}</td></tr>`;
-    _updateMobileList([], _currentFilter === 'all' ? '결과 없음' : emptyMsg);
+    _updateMobileList([], _currentFilter === 'all' ? '결과 없음' : emptyMsg, renderToken);
     return;
   }
 
@@ -1417,16 +1262,27 @@ function renderStockTable(stocks) {
   // 현재 정렬 적용
   let view = stocks;
   if (_sortKey && _sortDir !== 0) {
-    view = [...stocks].sort((a, b) => {
-      const va = _getByPath(a, _sortKey);
-      const vb = _getByPath(b, _sortKey);
-      const aa = va == null ? -Infinity : va;
-      const bb = vb == null ? -Infinity : vb;
-      return _sortDir * (aa > bb ? 1 : aa < bb ? -1 : 0);
-    });
+    view = stocks
+      .map((s, idx) => ({ s, k: _getByPath(s, _sortKey), idx }))
+      .sort((a, b) => {
+        if (typeof a.k === 'string' || typeof b.k === 'string') {
+          const sa = a.k == null ? '' : String(a.k);
+          const sb = b.k == null ? '' : String(b.k);
+          if (!sa && sb) return 1;
+          if (sa && !sb) return -1;
+          const cmp = sa.localeCompare(sb, 'ko');
+          return cmp === 0 ? a.idx - b.idx : _sortDir * cmp;
+        }
+
+        const aa = a.k == null ? -Infinity : a.k;
+        const bb = b.k == null ? -Infinity : b.k;
+        const cmp = aa > bb ? 1 : aa < bb ? -1 : 0;
+        return cmp === 0 ? a.idx - b.idx : _sortDir * cmp;
+      })
+      .map(x => x.s);
   }
-  tbody.innerHTML = view.map((s, i) => renderStockRow(s, i + 1)).join('');
-  _updateMobileList(view);
+  _renderHtmlInBatches(tbody, view, renderStockRow, 100, 200, renderToken);
+  _updateMobileList(view, null, renderToken);
 }
 
 function _deltaBadge(stock) {
@@ -1510,14 +1366,15 @@ function renderStockRow(stock, rank) {
 </tr>`;
 }
 
-function _updateMobileList(view, emptyMsg) {
+function _updateMobileList(view, emptyMsg, renderToken) {
   const el = document.getElementById('mobile-stock-list');
   if (!el) return;
+  const token = renderToken == null ? ++_renderToken : renderToken;
   if (!view || view.length === 0) {
     el.innerHTML = `<div class="mobile-stock-list-msg">${emptyMsg || '결과 없음'}</div>`;
     return;
   }
-  el.innerHTML = view.map((s, i) => renderMobileCard(s, i + 1)).join('');
+  _renderHtmlInBatches(el, view, renderMobileCard, 50, 100, token);
 }
 
 // Mobile override: clearer hierarchy and lighter information density on small screens.
@@ -1591,9 +1448,10 @@ function _colCount() {
 }
 
 function setStockListMsg(msg) {
+  ++_renderToken;
   const tbody = document.getElementById('stock-list');
   if (tbody) tbody.innerHTML = `<tr><td colspan="${_colCount()}" class="state-msg">${esc(msg)}</td></tr>`;
-  _updateMobileList([], msg);
+  _updateMobileList([], msg, _renderToken);
 }
 
 // ── Game-style Loading Screen (쓸데없는 주식 잡학) ─────────────────────
@@ -1707,6 +1565,7 @@ function _scanLoadingHtml(triviaId) {
 }
 
 function showScanLoading() {
+  ++_renderToken;
   stopScanLoading();
   _shuffled = _shuffledTrivia();
   _triviaIdx = 0;
@@ -2384,9 +2243,6 @@ async function openDetail(ticker) {
   if (!overlay || !panel) { location.href = `/detail/${encodeURIComponent(ticker)}?market=${currentMarket}&strategy=${currentStrategy}`; return; }
 
   const seq = ++_detailSeq;
-  const isNewTicker = _detailOpenTicker !== ticker;
-  _detailOpenTicker = ticker;
-  if (isNewTicker) switchDpTab('canslim');
   _clearPanelDetail();
   overlay.classList.add('visible');
   panel.classList.add('open');
@@ -2398,11 +2254,11 @@ async function openDetail(ticker) {
   const cached = _stockMap[ticker];
   if (cached) _populatePanelDetail(cached, /* skipFourAxis */ true);
 
-  // 4축 차트 + 종목 상세 + AQ 시그널 + 증권사 컨센서스를 모두 병렬로 요청
+  // 4축 차트 + 종목 상세 + AQ 시그널 + 증권사 컨센서스 + 센티먼트를 모두 병렬로 요청
   loadDpFourAxis(ticker);
-  _loadAqSignal(ticker, seq);
+  _loadSentiment(ticker, currentMarket, seq);
+  _loadInvestorFlow(ticker, currentMarket, seq);
   loadConsensus(ticker, 'dp-consensus-card', 'dpcons');
-  loadSignalHistory(ticker, currentMarket);
 
   try {
     const p   = new URLSearchParams({ market: currentMarket, strategy: currentStrategy });
@@ -2428,40 +2284,37 @@ async function openDetail(ticker) {
   }
 }
 
-async function _loadAqSignal(ticker, seq) {
-  const aqRow = document.getElementById('dp-aq-row');
-  if (!aqRow) return;
-  // 로딩 표시
-  aqRow.style.display = '';
-  const vEl = document.getElementById('dp-aq-verdict');
-  if (vEl) { vEl.textContent = '분석 중…'; vEl.style.color = 'var(--text-tertiary)'; vEl.style.background = 'none'; }
-  setText('dp-aq-regime', '');
-  setText('dp-aq-detail', '');
-  const rEl = document.getElementById('dp-aq-reasons');
-  if (rEl) rEl.innerHTML = '';
+
+async function _loadInvestorFlow(ticker, market, seq) {
+  if (market !== 'KR') return;
   try {
-    const res = await fetch(`/api/aq_signal/${encodeURIComponent(ticker)}?market=${currentMarket}`);
-    if (seq != null && seq !== _detailSeq) return; // 종목 전환됨
-    const aq = await res.json();
-    if (!aq.ok) { aqRow.style.display = 'none'; return; }
-    if (vEl) {
-      vEl.textContent = aq.AQ_Verdict || '—';
-      const vc = aq.AQ_VerdictCode;
-      const col = vc === 'BUY' ? '#16A34A' : vc === 'ACCUMULATE' ? '#F59E0B' : vc === 'AVOID' ? '#DC2626' : 'var(--text-secondary)';
-      vEl.style.color = col; vEl.style.background = col + '22';
-    }
-    setText('dp-aq-regime', aq.AQ_Regime ? `시장 ${aq.AQ_Regime}` : '');
-    const detail = [];
-    if (aq.EntryScore_aq != null) detail.push(`AQ ${Math.round(aq.EntryScore_aq)}`);
-    setText('dp-aq-detail', detail.length ? `(${detail.join(' · ')})` : '');
-    if (rEl) {
-      rEl.innerHTML = (Array.isArray(aq.AQ_Reasons) ? aq.AQ_Reasons : []).map(r =>
-        `<span style="padding:1px 7px;border:1px solid var(--border);border-radius:100px;background:var(--bg-tertiary);">${esc(r)}</span>`
-      ).join('');
-    }
+    const res = await fetch(`/api/investor_flow/${encodeURIComponent(ticker)}?market=KR`);
+    if (seq !== _detailSeq) return;
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok || seq !== _detailSeq) return;
+    if (!_lastDetailData || _lastDetailData.Ticker !== ticker) return;
+    Object.assign(_lastDetailData, data);
+    _renderInvestorCard(_lastDetailData);
   } catch (e) {
-    console.error('AQ signal 로드 실패:', e);
-    aqRow.style.display = 'none';
+    console.debug('investor_flow 로드 실패:', e);
+  }
+}
+
+async function _loadSentiment(ticker, market, seq) {
+  if (market !== 'US') return;
+  try {
+    const res = await fetch(`/api/sentiment/${encodeURIComponent(ticker)}?market=${market}`);
+    if (seq !== _detailSeq) return;
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.ok || seq !== _detailSeq) return;
+    if (!_lastDetailData || _lastDetailData.Ticker !== ticker) return;
+    // 키 머지 후 수급/센티먼트 카드만 재렌더
+    Object.assign(_lastDetailData, data);
+    _renderInvestorCard(_lastDetailData);
+  } catch (e) {
+    console.debug('sentiment 로드 실패:', e);
   }
 }
 
@@ -2494,7 +2347,7 @@ function _clearPanelDetail() {
   const _nb = document.getElementById('dp-news-bar');
   if (_nb) _nb.style.display = 'none';
   ['dp-name','dp-ticker','dp-sector','dp-about','dp-score','dp-signal',
-   'dp-price','dp-day-chg','dp-target','dp-broker-target','dp-rsi','dp-conviction',
+   'dp-price','dp-day-chg','dp-target','dp-broker-target','dp-rsi',
    'dp-axis-eps-val','dp-axis-roe-val','dp-axis-mom-val','dp-axis-rs-val'].forEach(id => setText(id, '…'));
   ['dp-dcf-upside','dp-broker-upside'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
   const loading = '<div style="padding:32px 16px;text-align:center;color:var(--text-tertiary);font-size:13px;">로딩 중...</div>';
@@ -2511,6 +2364,7 @@ function _clearPanelDetail() {
 }
 
 function _populatePanelDetail(d, skipFourAxis) {
+  _lastDetailData = d;
   setText('dp-name',    d.Name   || d.Ticker || '—');
   setText('dp-ticker',  d.Ticker || '—');
   setText('dp-sector',  d.Sector || '—');
@@ -2521,6 +2375,7 @@ function _populatePanelDetail(d, skipFourAxis) {
   if (aboutBox) aboutBox.style.display = aboutText ? '' : 'none';
   try { _renderMoatDetail(d); } catch (e) { console.error('moat render failed:', e); }
   try { _loadPeersCard(d.Ticker, (typeof currentMarket !== 'undefined' && currentMarket) || 'US'); } catch (e) { console.error('peers load failed:', e); }
+
   try { _loadSegmentsCard(d.Ticker); } catch (e) { console.error('segments load failed:', e); }
   try { _loadOwnershipCard(d.Ticker); } catch (e) { console.error('ownership load failed:', e); }
   try { _loadEventsCard(d.Ticker); } catch (e) { console.error('events load failed:', e); }
@@ -2581,7 +2436,6 @@ function _populatePanelDetail(d, skipFourAxis) {
     }
   }
   setText('dp-rsi',     d.RSI    != null ? fmt(d.RSI, 1) : '—');
-  setText('dp-conviction', _trKo(d.Conviction || '—'));
 
   const dayChg = d.DayChg || 0;
   const chgEl  = document.getElementById('dp-day-chg');
@@ -2621,7 +2475,6 @@ function _populatePanelDetail(d, skipFourAxis) {
   _renderEarningsSummary(d, 'dp-earnings-card', 'dp-earnings-chips');
 
   // 진입 타이밍 카드
-  _renderEntryCard(d);
 
   // 종합×진입 2축 사분면 배지
   _renderQuadrant(d);
@@ -2646,6 +2499,9 @@ function _populatePanelDetail(d, skipFourAxis) {
 
   // 투자자 동향 카드
   _renderInvestorCard(d);
+
+  // CAN SLIM 탭으로 초기화
+  switchDpTab('canslim');
 
   // 1008-풀 한줄평 포스터 (4축 차트 위 상단)
   const haikuEl = document.getElementById('dp-fa-haiku');
@@ -2718,6 +2574,26 @@ function _renderInvestorCard(d) {
         value: `${surp >= 0 ? '+' : ''}${surp.toFixed(1)}%`,
         sub: d._FH_EarnStreak >= 2 ? `${d._FH_EarnStreak}Q 연속 비트` : '',
         color: surp > 0 ? 'var(--success)' : 'var(--destructive)'
+      });
+    }
+    // 신규: 다음 실적 D-day (60일 이내만 노출)
+    const dte = d._FH_DaysToEarnings;
+    if (dte != null && dte >= 0 && dte <= 60) {
+      items.push({
+        label: '다음 실적',
+        value: dte === 0 ? '오늘' : `D-${dte}`,
+        sub: d._FH_NextEarnings || '',
+        color: dte <= 7 ? 'var(--warning)' : 'var(--text-secondary)'
+      });
+    }
+    // 신규: 뉴스 buzz (7일 50건 이상)
+    const news7 = d._FH_News7d || 0;
+    if (news7 >= 50) {
+      items.push({
+        label: '뉴스 화제성',
+        value: `${news7}건`,
+        sub: '최근 7일',
+        color: news7 >= 200 ? 'var(--warning)' : 'var(--text-secondary)'
       });
     }
   }
@@ -2952,8 +2828,149 @@ function _fmtCap(v) {
   return String(v);
 }
 
+// ── RS Rating 카드 ───────────────────────────────────────────────────────
+function _renderRsRating(rs) {
+  const wrap = document.getElementById('rs-rating-wrap');
+  if (!wrap || !rs) return;
+  const r = rs.rating || 50;
+  // 등급별 색상
+  const color = r >= 80 ? '#22c55e' : r >= 70 ? '#84cc16' : r >= 50 ? '#94a3b8' : r >= 30 ? '#f97316' : '#ef4444';
+  const bg    = r >= 80 ? 'rgba(34,197,94,.08)' : r >= 70 ? 'rgba(132,204,22,.08)' : r >= 50 ? 'rgba(148,163,184,.08)' : r >= 30 ? 'rgba(249,115,22,.08)' : 'rgba(239,68,68,.08)';
+  const leaderBadge = rs.is_leader ? `<span style="font-size:10px;background:rgba(34,197,94,.15);color:#22c55e;padding:2px 7px;border-radius:10px;font-weight:700;margin-left:6px;">LEADER</span>` : '';
+  // 기간별 수익률 행
+  const retRow = (label, val) => `<div style="display:flex;justify-content:space-between;align-items:center;">
+    <span style="color:var(--text-tertiary);font-size:11px;">${label}</span>
+    <span style="font-size:12px;font-weight:600;color:${val >= 0 ? '#22c55e' : '#ef4444'};">${val >= 0 ? '+' : ''}${val}%</span>
+  </div>`;
+  wrap.innerHTML = `
+    <div style="background:${bg};border:1px solid ${color}33;border-radius:var(--radius);padding:12px 14px;margin-top:4px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-secondary);letter-spacing:.05em;">RS RATING${leaderBadge}</div>
+        <div style="font-size:26px;font-weight:800;color:${color};line-height:1;">${r}<span style="font-size:13px;font-weight:500;color:var(--text-tertiary);margin-left:2px;">/99</span></div>
+      </div>
+      <!-- 게이지 바 -->
+      <div style="height:6px;border-radius:3px;background:var(--border);margin-bottom:10px;overflow:hidden;">
+        <div style="height:100%;width:${r}%;background:${color};border-radius:3px;transition:width .4s;"></div>
+      </div>
+      <div style="font-size:12px;font-weight:600;color:${color};margin-bottom:8px;">${rs.label || ''}</div>
+      <div style="display:flex;flex-direction:column;gap:3px;">
+        ${retRow('1개월 수익률', rs.r1_pct ?? 0)}
+        ${retRow('3개월 수익률', rs.r3_pct ?? 0)}
+        ${retRow('6개월 수익률', rs.r6_pct ?? 0)}
+        ${retRow('12개월 수익률', rs.r12_pct ?? 0)}
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:var(--text-tertiary);">가중 수익률(1M×25%+3M×40%+6M×20%+12M×15%) 기준 상대강도 지수. 80 이상이면 시장 주도주.</div>
+    </div>`;
+  wrap.style.display = '';
+}
+
+// ── 과열·바닥 신호 카드 ───────────────────────────────────────────────────
+function _renderHeatSignal(hs) {
+  const wrap = document.getElementById('heat-signal-wrap');
+  if (!wrap || !hs) return;
+  const colorMap = { hot: '#ef4444', warm: '#f97316', neutral: '#94a3b8', cool: '#60a5fa', cold: '#3b82f6' };
+  const bgMap    = { hot: 'rgba(239,68,68,.08)', warm: 'rgba(249,115,22,.08)', neutral: 'rgba(148,163,184,.08)', cool: 'rgba(96,165,250,.08)', cold: 'rgba(59,130,246,.08)' };
+  const c = colorMap[hs.color] || '#94a3b8';
+  const bg = bgMap[hs.color] || 'rgba(148,163,184,.08)';
+  const abs = Math.abs(hs.score);
+  const barW = Math.min(100, abs) + '%';
+  const barDir = hs.score >= 0 ? 'left' : 'right';
+  const fmtComp = (v, lo, hi) => {
+    const col = v >= hi ? '#ef4444' : v <= lo ? '#3b82f6' : '#94a3b8';
+    return `<span style="color:${col};font-weight:600;">${v}</span>`;
+  };
+  wrap.innerHTML = `
+<div class="card" style="padding:14px 16px; border-left:3px solid ${c}; background:${bg};">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+    <span style="font-size:13px; font-weight:700; color:var(--text-primary);">온도계 신호</span>
+    <span style="font-size:12px; font-weight:700; color:${c}; padding:2px 10px; border-radius:100px; background:${bg}; border:1px solid ${c};">${esc(hs.label)}</span>
+  </div>
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+    <span style="font-size:11px; color:var(--text-tertiary); width:32px;">냉각</span>
+    <div style="flex:1; height:6px; border-radius:3px; background:var(--surface-subtle); position:relative; overflow:hidden;">
+      <div style="position:absolute; top:0; ${barDir}:50%; width:${barW/2}; height:100%; background:${c}; border-radius:3px;"></div>
+      <div style="position:absolute; top:0; left:50%; width:1px; height:100%; background:var(--border);"></div>
+    </div>
+    <span style="font-size:11px; color:var(--text-tertiary); width:32px; text-align:right;">과열</span>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px 16px; font-size:11px; color:var(--text-secondary);">
+    <span>RSI ${fmtComp(hs.rsi, 30, 70)}</span>
+    <span>BB%B ${fmtComp(hs.bb_b, 20, 80)}</span>
+    <span>Stoch ${fmtComp(hs.stoch_k, 20, 80)}</span>
+    <span>MFI ${fmtComp(hs.mfi, 20, 80)}</span>
+  </div>
+  <div style="margin-top:8px; font-size:10px; color:var(--text-tertiary);">종합 점수 ${hs.score > 0 ? '+' : ''}${hs.score} / 100 · 참고용 보조지표</div>
+</div>`;
+  wrap.style.display = 'block';
+}
+
+// ── 분할매수 가이드 카드 ──────────────────────────────────────────────────
+function _renderDcaPlan(plan) {
+  const wrap = document.getElementById('dca-plan-wrap');
+  if (!wrap || !plan || !plan.levels || plan.levels.length === 0) return;
+  const fmtP = v => v >= 1000 ? v.toLocaleString('ko-KR') : v.toFixed(2);
+  const rows = plan.levels.map(lv => {
+    const fromTxt = lv.from_pct === 0 ? '현재가' : `현재 대비 ${lv.from_pct}%`;
+    return `
+<div style="display:flex; align-items:center; gap:8px; padding:7px 0; border-bottom:1px solid var(--border);">
+  <div style="width:24px; height:24px; border-radius:50%; background:var(--brand); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${lv.step}</div>
+  <div style="flex:1;">
+    <div style="font-size:12px; font-weight:600; color:var(--text-primary);">${esc(lv.label)} — ${fmtP(lv.price)}</div>
+    <div style="font-size:10px; color:var(--text-tertiary);">${fromTxt}</div>
+  </div>
+  <div style="text-align:right;">
+    <div style="font-size:13px; font-weight:700; color:var(--brand);">${lv.ratio}%</div>
+    <div style="font-size:10px; color:var(--text-tertiary);">비중</div>
+  </div>
+</div>`;
+  }).join('');
+  wrap.innerHTML = `
+<div class="card" style="padding:14px 16px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+    <span style="font-size:13px; font-weight:700; color:var(--text-primary);">분할매수 가이드</span>
+    <span style="font-size:11px; color:var(--text-tertiary);">ATR ${plan.atr_pct}% 기준</span>
+  </div>
+  ${rows}
+  <div style="margin-top:8px; font-size:10px; color:var(--text-tertiary); line-height:1.6;">ATR 1배당 하락 시마다 비중을 분할 매수하는 참고 가이드입니다. 투자 판단은 본인 책임입니다.</div>
+</div>`;
+  wrap.style.display = 'block';
+}
+
+// ── 포지션 리스크 테이블 ──────────────────────────────────────────────────
+function _renderPositionSizer(pd) {
+  const wrap = document.getElementById('position-sizer-wrap');
+  if (!wrap || !pd || !pd.stop_pct) return;
+  const sp = pd.stop_pct;  // 손절 폭 %
+  const weights = [5, 10, 15, 20, 25, 30];
+  const rows = weights.map(w => {
+    const loss = -(w * sp / 100);
+    const col = loss <= -5 ? '#ef4444' : loss <= -2 ? '#f97316' : '#94a3b8';
+    return `<tr>
+  <td style="padding:5px 8px; font-size:12px; font-weight:600; color:var(--text-primary);">${w}%</td>
+  <td style="padding:5px 8px; font-size:12px; color:${col}; font-weight:700; text-align:right;">${loss.toFixed(1)}%</td>
+</tr>`;
+  }).join('');
+  const fmtP = v => v >= 1000 ? v.toLocaleString('ko-KR') : v.toFixed(2);
+  wrap.innerHTML = `
+<div class="card" style="padding:14px 16px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+    <span style="font-size:13px; font-weight:700; color:var(--text-primary);">손절 시 포폴 영향</span>
+    <span style="font-size:11px; color:var(--text-tertiary);">현재가 ${fmtP(pd.current_price)} → 손절 ${fmtP(pd.stop_loss)} (-${sp}%)</span>
+  </div>
+  <table style="width:100%; border-collapse:collapse;">
+    <thead><tr style="border-bottom:1px solid var(--border);">
+      <th style="padding:4px 8px; font-size:11px; font-weight:600; color:var(--text-tertiary); text-align:left;">보유 비중</th>
+      <th style="padding:4px 8px; font-size:11px; font-weight:600; color:var(--text-tertiary); text-align:right;">손절 시 포폴 손실</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div style="margin-top:8px; font-size:10px; color:var(--text-tertiary);">ATR 기반 동적 손절가 기준. 투자 조언이 아닙니다.</div>
+</div>`;
+  wrap.style.display = 'block';
+}
+
 let _detailSeq = 0;           // openDetail / _loadAqSignal stale-guard
-let _detailOpenTicker = null; // 상세 데이터 재렌더 시 현재 탭을 유지하기 위한 종목 추적
+let _lastDetailData = null;   // /api/sentiment lazy-merge용 현재 패널 데이터
 let _dpFourAxisLoadedFor = null;
 let _dpFourAxisLoadingFor = null;
 let _dpFourAxisReqSeq = 0;
@@ -3194,178 +3211,8 @@ function switchTab(tabId) {
   if (tabId === 'usinsight' && typeof TICKER !== 'undefined' && TICKER) {
     loadUSInsight(TICKER);
   }
-  // 심층 분석 탭: 캐시된 결과가 있으면 자동 표시
-  if (tabId === 'deep' && typeof TICKER !== 'undefined' && TICKER) {
-    _deepTryAutoLoad();
-  }
 }
 
-let _deepAutoTried = false;
-async function _deepTryAutoLoad() {
-  if (_deepAutoTried) return;
-  _deepAutoTried = true;
-  const mode = (document.getElementById('deep-mode')?.value) || 'standard';
-  try {
-    const p = new URLSearchParams({ market: currentMarket, mode, cache_only: '1' });
-    const r = await fetch(`/api/deep-analysis/${encodeURIComponent(TICKER)}?${p}`);
-    if (!r.ok) return;
-    const d = await r.json();
-    if (d && d.ok && d._cached) _renderDeep(d);
-  } catch (_) { /* ignore */ }
-}
-
-function _escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function _renderMarkdown(md) {
-  // 매우 간단한 Markdown → HTML 변환 (헤딩/볼드/이탤릭/표/리스트/인용/구분선)
-  const lines = String(md || '').split(/\r?\n/);
-  const out = [];
-  let inTable = false, inUL = false, inOL = false, tableHeaderDone = false;
-  const closeBlocks = () => {
-    if (inTable) { out.push('</tbody></table>'); inTable = false; tableHeaderDone = false; }
-    if (inUL) { out.push('</ul>'); inUL = false; }
-    if (inOL) { out.push('</ol>'); inOL = false; }
-  };
-  const inline = (s) => {
-    s = _escapeHtml(s);
-    s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-    s = s.replace(/`([^`]+)`/g, '<code style="background:var(--surface);padding:1px 5px;border-radius:3px;font-size:.92em;">$1</code>');
-    return s;
-  };
-  for (let raw of lines) {
-    const line = raw.replace(/\s+$/, '');
-    if (!line.trim()) { closeBlocks(); continue; }
-    // 표
-    if (/^\s*\|/.test(line)) {
-      const cells = line.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
-      if (/^[\s:\-|]+$/.test(line.replace(/\|/g,''))) {
-        // 구분 행: skip, but mark header done
-        if (inTable && !tableHeaderDone) { out.push('</thead><tbody>'); tableHeaderDone = true; }
-        continue;
-      }
-      if (!inTable) { closeBlocks(); out.push('<table class="deep-tbl"><thead>'); inTable = true; tableHeaderDone = false; out.push('<tr>' + cells.map(c => `<th>${inline(c)}</th>`).join('') + '</tr>'); }
-      else { out.push('<tr>' + cells.map(c => `<td>${inline(c)}</td>`).join('') + '</tr>'); }
-      continue;
-    }
-    closeBlocks.call ? null : null;
-    if (/^#{1,6}\s+/.test(line)) {
-      closeBlocks();
-      const m = line.match(/^(#{1,6})\s+(.*)$/);
-      const lv = Math.min(m[1].length + 1, 6);
-      out.push(`<h${lv} style="margin:18px 0 8px;font-weight:700;">${inline(m[2])}</h${lv}>`);
-      continue;
-    }
-    if (/^\s*>/.test(line)) {
-      closeBlocks();
-      out.push(`<blockquote style="border-left:3px solid var(--accent);padding:6px 12px;margin:8px 0;color:var(--text-secondary);background:var(--surface);">${inline(line.replace(/^\s*>\s?/, ''))}</blockquote>`);
-      continue;
-    }
-    if (/^\s*[-*]\s+/.test(line)) {
-      if (!inUL) { closeBlocks(); out.push('<ul style="margin:6px 0 6px 20px;">'); inUL = true; }
-      out.push(`<li>${inline(line.replace(/^\s*[-*]\s+/, ''))}</li>`);
-      continue;
-    }
-    if (/^\s*\d+\.\s+/.test(line)) {
-      if (!inOL) { closeBlocks(); out.push('<ol style="margin:6px 0 6px 20px;">'); inOL = true; }
-      out.push(`<li>${inline(line.replace(/^\s*\d+\.\s+/, ''))}</li>`);
-      continue;
-    }
-    if (/^\s*---+\s*$/.test(line)) {
-      closeBlocks();
-      out.push('<hr style="border:none;border-top:1px solid var(--border);margin:14px 0;" />');
-      continue;
-    }
-    closeBlocks();
-    out.push(`<p style="margin:6px 0;">${inline(line)}</p>`);
-  }
-  closeBlocks();
-  return out.join('\n');
-}
-
-function _renderDeep(d) {
-  const content = document.getElementById('deep-content');
-  const meta = document.getElementById('deep-meta');
-  const sourcesDiv = document.getElementById('deep-sources');
-  if (!content) return;
-  const html = _renderMarkdown(d.text || '');
-  content.innerHTML = `<div class="deep-md">${html}</div>`;
-  // 표 스타일 보강
-  if (!document.getElementById('deep-md-style')) {
-    const s = document.createElement('style');
-    s.id = 'deep-md-style';
-    s.textContent = `
-      .deep-md .deep-tbl { border-collapse:collapse; width:100%; margin:10px 0; font-size:12px; }
-      .deep-md .deep-tbl th, .deep-md .deep-tbl td { border:1px solid var(--border); padding:6px 8px; text-align:left; vertical-align:top; }
-      .deep-md .deep-tbl th { background:var(--surface); font-weight:600; }
-    `;
-    document.head.appendChild(s);
-  }
-  // 메타
-  const cacheTxt = d._cached ? ` · 캐시(${Math.round((d._cache_age_sec||0)/60)}분 전)` : '';
-  const elapsed = d.elapsed_sec ? ` · ${d.elapsed_sec}s` : '';
-  if (meta) meta.textContent = `${d.model || 'gemini'}${elapsed}${cacheTxt}`;
-  // 출처
-  if (sourcesDiv) {
-    const srcs = d.sources || [];
-    if (srcs.length) {
-      const items = srcs.map((s, i) => `<li><a href="${_escapeHtml(s.uri)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:11px;">[${i+1}] ${_escapeHtml(s.title || s.uri)}</a></li>`).join('');
-      sourcesDiv.innerHTML = `<div style="font-size:11px;font-weight:700;color:var(--text-tertiary);margin-bottom:6px;letter-spacing:0.03em;">📚 출처 (Google Search Grounding)</div><ol style="margin:0 0 0 18px;padding:0;">${items}</ol>`;
-    } else {
-      sourcesDiv.innerHTML = '';
-    }
-  }
-}
-
-async function runDeepAnalysis(force) {
-  if (typeof TICKER === 'undefined' || !TICKER) return;
-  const mode = (document.getElementById('deep-mode')?.value) || 'standard';
-  const btn = document.getElementById('deep-run-btn');
-  const refreshBtn = document.getElementById('deep-refresh-btn');
-  const content = document.getElementById('deep-content');
-  const meta = document.getElementById('deep-meta');
-  if (btn) { btn.disabled = true; btn.textContent = '분석 중…'; }
-  if (refreshBtn) refreshBtn.disabled = true;
-  if (meta) meta.textContent = '웹 검색 + 분석 진행 중 (10~30초)…';
-  if (content) {
-    content.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-tertiary);font-size:13px;">
-      <div style="display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;"></div>
-      <div style="margin-top:10px;">Gemini가 ${_escapeHtml(TICKER)}의 최신 시장 데이터를 수집하고 있습니다…</div>
-    </div>`;
-  }
-  if (!document.getElementById('deep-spin-style')) {
-    const s = document.createElement('style');
-    s.id = 'deep-spin-style';
-    s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
-    document.head.appendChild(s);
-  }
-  try {
-    const p = new URLSearchParams({ market: currentMarket, mode });
-    if (force) p.set('force', '1');
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 120000);
-    let r;
-    try { r = await fetch(`/api/deep-analysis/${encodeURIComponent(TICKER)}?${p}`, { signal: ctrl.signal }); }
-    finally { clearTimeout(tid); }
-    const d = await r.json();
-    if (!d.ok) {
-      if (content) content.innerHTML = `<div style="padding:20px;color:var(--destructive);font-size:13px;">⚠️ ${_escapeHtml(d.error || '분석 실패')}</div>`;
-      if (meta) meta.textContent = '';
-    } else {
-      _renderDeep(d);
-    }
-  } catch (e) {
-    if (content) content.innerHTML = `<div style="padding:20px;color:var(--destructive);font-size:13px;">⚠️ 네트워크 오류: ${_escapeHtml(e.message || e)}</div>`;
-    if (meta) meta.textContent = '';
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '분석 시작'; }
-    if (refreshBtn) refreshBtn.disabled = false;
-  }
-}
 
 async function loadFourAxis(ticker) {
   const loading = document.getElementById('fouraxis-loading');
@@ -3398,6 +3245,10 @@ async function loadFourAxis(ticker) {
     _clientCache.set(cacheKey, d);
     document.getElementById('fouraxis-chart').src = 'data:image/png;base64,' + d.chart;
     chartW.style.display = 'block';
+    _renderRsRating(d.rs_rating_data);
+    _renderHeatSignal(d.heat_signal);
+    _renderDcaPlan(d.dca_plan);
+    _renderPositionSizer(d.position_data);
   } catch (e) {
     if (reqSeq !== _detailFourAxisReqSeq) return;
     errDiv.textContent = '4축 차트 실패: ' + e.message;
@@ -3808,63 +3659,6 @@ async function loadAgentQuant(ticker) {
   }
 }
 
-// ── 시그널 이력 타임라인 ─────────────────────────────────────────────
-
-// 진입 상태 → 색 클래스 매핑
-function _entryColorClass(entry) {
-  if (entry === 'STRONG' || entry === 'GREEN') return 'entry-green';
-  if (entry === 'NEUTRAL' || entry === 'YELLOW') return 'entry-yellow';
-  if (entry === 'AVOID' || entry === 'RED') return 'entry-red';
-  return 'history-cell-empty';
-}
-
-function toggleHistoryLegend() {
-  var legend = document.getElementById('dp-history-legend');
-  var btn = document.getElementById('dp-history-legend-toggle');
-  if (!legend) return;
-  var isHidden = legend.classList.toggle('is-hidden');
-  if (btn) btn.textContent = isHidden ? '범례 보기 ▼' : '범례 닫기 ▲';
-}
-
-function loadSignalHistory(ticker, market) {
-  var card = document.getElementById('dp-history-card');
-  fetch('/api/signal-history/' + encodeURIComponent(ticker) + '?market=' + encodeURIComponent(market))
-    .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
-    .then(function (d) { _renderSignalHistory(d.timeline || []); })
-    .catch(function () { if (card) card.style.display = 'none'; });
-}
-
-function _renderSignalHistory(items) {
-  var card = document.getElementById('dp-history-card');
-  var strip = document.getElementById('dp-history-strip');
-  var startEl = document.getElementById('dp-history-start');
-  var endEl = document.getElementById('dp-history-end');
-  if (!card || !strip) return;
-  card.style.display = '';
-  var hasData = items.some(function (it) { return it.grade || it.entry; });
-  if (!items.length || !hasData) {
-    strip.className = '';
-    strip.innerHTML = '<div class="history-empty-msg">이력 데이터가 아직 없어요</div>';
-    if (startEl) startEl.textContent = '';
-    if (endEl) endEl.textContent = '';
-    return;
-  }
-  var gradeRow = '', entryRow = '';
-  items.forEach(function (it) {
-    var gCls = it.grade ? 'grade-' + it.grade : 'history-cell-empty';
-    var eCls = _entryColorClass(it.entry);
-    var entryLabel = _ENTRY_LABEL[it.entry] || '-';
-    var tip = esc(it.date + ' · ' + (it.grade || '-') + '등급 · ' + entryLabel);
-    gradeRow += '<div class="history-cell ' + gCls + '" title="' + tip + '"></div>';
-    entryRow += '<div class="history-cell ' + eCls + '" title="' + tip + '"></div>';
-  });
-  strip.className = 'history-strip';
-  strip.innerHTML = '<div class="history-row">' + gradeRow + '</div>' +
-                    '<div class="history-row">' + entryRow + '</div>';
-  function md(iso) { var p = iso.split('-'); return Number(p[1]) + '/' + Number(p[2]); }
-  if (startEl) startEl.textContent = esc(md(items[0].date));
-  if (endEl) endEl.textContent = esc(md(items[items.length - 1].date));
-}
 
 // ── 증권사 컨센서스 상세 로딩 ─────────────────────────────────────────
 
@@ -4129,9 +3923,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-scan')?.addEventListener('click', runScan);
     loadSectors();
     runScan();
-    loadMacro();
+    // H4: macro 호출은 첫 paint 이후로 지연 — DOMContentLoaded 동시 fetch 6개 한도 경합 회피
+    setTimeout(() => { loadMacro(); }, 800);
+    setTimeout(() => { if (typeof _loadMacroStrip === 'function') _loadMacroStrip(currentMarket); }, 1200);
     setInterval(loadMacro, 15 * 60 * 1000);
-    if (typeof _loadMacroStrip === 'function') _loadMacroStrip(currentMarket);
   }
 });
 
@@ -4143,13 +3938,13 @@ const _MACRO_DEFS = [
   { key: 'nasdaq',  label: '나스닥',      fixed: 2, invert: false },
   { key: 'kospi',   label: 'KOSPI',       fixed: 2, invert: false },
   { key: 'usdkrw',  label: '원/달러',     fixed: 1, invert: true  },
-  { key: 'kr_rate', label: '韓기준금리',  fixed: 2, invert: false, suffix: '%' },
-  { key: 'us_rate', label: '美기준금리',  fixed: 2, invert: false, suffix: '%' },
   { key: 'dxy',     label: 'DXY',         fixed: 2, invert: true  },
   { key: 'us10y',   label: '美10Y',       fixed: 2, invert: false, suffix: '%' },
   { key: 'gold',    label: '금',          fixed: 1, invert: false },
   { key: 'wti',     label: 'WTI',         fixed: 2, invert: false },
   { key: 'btc',     label: 'BTC',         fixed: 0, invert: false },
+  { key: 'us_rate', label: '美기준금리',  fixed: 2, invert: false, suffix: '%' },
+  { key: 'kr_rate', label: '韓기준금리',  fixed: 2, invert: false, suffix: '%' },
 ];
 
 async function loadMacro() {
@@ -4458,7 +4253,7 @@ function generateShareCard() {
   });
 
   const cardHtml = `
-  <div style="width:580px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:'Paperlogy',-apple-system,'Pretendard','Noto Sans KR',system-ui,sans-serif;">
+  <div style="width:580px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:-apple-system,'Pretendard','Noto Sans KR',system-ui,sans-serif;">
     <div style="background:linear-gradient(135deg,#3182F6,#1B64DA);padding:20px 20px 16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -4544,7 +4339,8 @@ async function captureStockList() {
     const clone = target.cloneNode(true);
     clone.style.maxHeight = 'none';
     clone.style.overflow = 'visible';
-    clone.style.width = isMobile ? '420px' : Math.max(target.scrollWidth, 1100) + 'px';
+    // 원본 사이즈 보장 — 좁은 화면에서도 데스크탑급 1600px 보장 (붙여넣기 시 흐릿하지 않게)
+    clone.style.width = isMobile ? '480px' : Math.max(target.scrollWidth, 1600) + 'px';
 
     // 헤더 박스(브랜드 + 메타데이터) 추가
     const now = new Date();
@@ -4554,7 +4350,7 @@ async function captureStockList() {
     const sectorLbl = (typeof _currentSector !== 'undefined' && _currentSector) ? _currentSector : '전체';
 
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'background:#ffffff;padding:0;font-family:Paperlogy,-apple-system,Pretendard,Noto Sans KR,system-ui,sans-serif;';
+    wrap.style.cssText = 'background:#ffffff;padding:0;font-family:-apple-system,Pretendard,Noto Sans KR,system-ui,sans-serif;';
     wrap.innerHTML = `
       <div style="background:linear-gradient(135deg,#7C3AED,#3182F6);padding:16px 20px;color:#fff;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
@@ -4575,8 +4371,11 @@ async function captureStockList() {
 
     stage.appendChild(wrap);
 
+    // 고해상도 캡쳐 — DPR 반영, 최소 scale 3 보장 (4K/레티나 모니터에서도 선명)
+    const dpr = window.devicePixelRatio || 1;
+    const captureScale = Math.max(3, Math.ceil(dpr * 1.5));
     const canvas = await html2canvas(wrap, {
-      scale: 2,
+      scale: captureScale,
       backgroundColor: '#ffffff',
       useCORS: true,
       logging: false,
@@ -4585,7 +4384,7 @@ async function captureStockList() {
     stage.innerHTML = '';
 
     const dataUrl = canvas.toDataURL('image/png');
-    const fileName = `종목목록_${currentMarket}_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.png`;
+    const fileName = `종목목록_${currentMarket}_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${canvas.width}x${canvas.height}.png`;
 
     // 공유 모달 재사용
     const preview = document.getElementById('share-card-preview');
@@ -4744,8 +4543,11 @@ async function captureDetail() {
   }
 
   try {
+    // 고해상도 — DPR 반영, 최소 scale 3 (붙여넣기 시 원본 사이즈 가독성 확보)
+    const _dpr = window.devicePixelRatio || 1;
+    const _capScale = Math.max(3, Math.ceil(_dpr * 1.5));
     const canvas = await html2canvas(clone, {
-      scale: 2,
+      scale: _capScale,
       backgroundColor: '#ffffff',
       useCORS: true,
       logging: false,
@@ -4758,7 +4560,7 @@ async function captureDetail() {
     const preview = document.getElementById('share-card-preview');
     preview.innerHTML = `<img src="${img}" style="max-width:100%;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">`;
     preview.dataset.dataUrl = img;
-    preview.dataset.fileName = `${ticker.replace(/[^A-Za-z0-9가-힣]/g, '_')}_${dateStr}.png`;
+    preview.dataset.fileName = `${ticker.replace(/[^A-Za-z0-9가-힣]/g, '_')}_${dateStr}_${canvas.width}x${canvas.height}.png`;
     document.getElementById('share-modal').style.display = 'flex';
   } catch (err) {
     alert('캡쳐 실패: ' + err.message);

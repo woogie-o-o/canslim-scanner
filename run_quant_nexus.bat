@@ -58,42 +58,42 @@ if "%NEED_INSTALL%"=="1" (
     )
 )
 
-rem -- Critical-deps sanity check (PYEXE may differ from marker interpreter).
-rem Even if marker exists, flask_compress may be missing in active PYEXE.
-rem 14MB uncompressed response causes browser fetch failure. Force reinstall.
-%PYEXE% -c "import flask_compress, brotli" >nul 2>&1
+rem -- Critical-deps check: flask_compress + brotli + finnhub in ONE Python call --
+%PYEXE% -c "import flask_compress, brotli, finnhub" >nul 2>&1
 if errorlevel 1 (
-    echo [run_quant_nexus] flask_compress/brotli missing in active Python — force-installing ...
-    %PYEXE% -m pip install --quiet --disable-pip-version-check flask-compress brotli zstandard
-    %PYEXE% -c "import flask_compress, brotli" >nul 2>&1
+    echo [run_quant_nexus] Critical deps missing — installing ...
+    %PYEXE% -m pip install --quiet --disable-pip-version-check flask-compress brotli zstandard "finnhub-python>=2.4"
     if errorlevel 1 (
-        echo [run_quant_nexus] ERROR: flask_compress install failed. Scan responses will time out.
+        echo [run_quant_nexus] WARNING: Critical dep install failed. Some features may not work.
     ) else (
-        echo [run_quant_nexus] flask_compress installed.
+        echo [run_quant_nexus] Critical deps installed.
     )
 )
 
-rem -- Pre-flight: if port 5000 is already occupied, skip launch.
-rem Open browser for existing instance and exit cleanly.
-rem (Prevents WinError 10048 traceback + wrong page display)
-set "PORT_CHECK=5000"
-if defined PORT set "PORT_CHECK=%PORT%"
-rem Do not use '!=' -- EnableDelayedExpansion interprets '!' as variable expansion. Use '=='.
-%PYEXE% -c "import socket,sys; s=socket.socket(); s.settimeout(0.5); sys.exit(1 if s.connect_ex(('127.0.0.1',%PORT_CHECK%))==0 else 0)" >nul 2>&1
-if errorlevel 1 (
-    rem Verify gzip status of existing instance -- uncompressed mode causes 'connection failed'.
-    %PYEXE% -c "import urllib.request,json,sys; r=json.loads(urllib.request.urlopen('http://127.0.0.1:%PORT_CHECK%/healthz',timeout=3).read()); sys.exit(0 if r.get('gzip') else 2)" >nul 2>&1
-    if errorlevel 2 (
-        echo [run_quant_nexus] 기존 서버가 압축 비활성 상태입니다 - 비정상 인스턴스를 종료하고 새로 띄워야 합니다.
-        echo [run_quant_nexus] 작업 관리자에서 python.exe 를 종료한 뒤 본 런처를 재실행하세요.
-        echo.
-        pause
-        popd
-        endlocal
-        exit /b 2
-    )
+rem -- Pre-flight: port check (bind test + healthz) --
+if not defined PORT set "PORT=5001"
+set "PORT_CHECK=%PORT%"
+
+rem 바인딩 테스트: 포트가 비어있으면 성공(exit 0) → 즉시 서버 실행
+%PYEXE% -c "import socket,sys;s=socket.socket();s.bind(('127.0.0.1',%PORT_CHECK%));s.close()" >nul 2>&1
+if not errorlevel 1 goto :do_launch
+
+rem 포트 사용 중 — healthz 확인
+%PYEXE% -c "import urllib.request,json,sys;r=json.loads(urllib.request.urlopen('http://127.0.0.1:%PORT_CHECK%/healthz',timeout=3).read());sys.exit(1 if r.get('gzip') else 2)" >nul 2>&1
+set "PORT_RC=%ERRORLEVEL%"
+
+if "%PORT_RC%"=="2" (
+    echo [run_quant_nexus] 기존 서버가 압축 비활성 상태입니다 - 비정상 인스턴스를 종료하고 새로 띄워야 합니다.
+    echo [run_quant_nexus] 작업 관리자에서 python.exe 를 종료한 뒤 본 런처를 재실행하세요.
+    echo.
+    pause
+    popd
+    endlocal
+    exit /b 2
+)
+if "%PORT_RC%"=="1" (
     echo [run_quant_nexus] 포트 %PORT_CHECK%이 이미 사용 중입니다 - 기존 인스턴스에 연결합니다.
-    echo [run_quant_nexus] 다른 포트로 띄우려면 ^"set PORT=5001^" 후 재실행하세요.
+    echo [run_quant_nexus] 다른 포트로 띄우려면 ^"set PORT=XXXX^" 후 재실행하세요.
     start http://localhost:%PORT_CHECK%
     echo.
     echo Press any key to close this window...
@@ -102,7 +102,9 @@ if errorlevel 1 (
     endlocal
     exit /b 0
 )
+rem healthz 실패 → 포트가 사용 중이지만 우리 서버가 아님, 그냥 실행 시도
 
+:do_launch
 echo [run_quant_nexus] Launching Flask web app (http://localhost:%PORT_CHECK%) ...
 start /b cmd /c "timeout /t 2 >nul && start http://localhost:%PORT_CHECK%"
 %PYEXE% "%PROJ_DIR%web_app\app.py" %*

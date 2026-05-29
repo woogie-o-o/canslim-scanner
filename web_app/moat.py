@@ -181,6 +181,32 @@ def _cache_write(ticker: str, data: dict) -> None:
         _log.debug("moat cache write failed %s: %s", ticker, e)
 
 
+def preload_cache() -> int:
+    """서버 시작시 디스크 캐시를 _mem_cache로 일괄 로드 (per-request 파일 I/O 제거)."""
+    if not os.path.isdir(_CACHE_DIR):
+        return 0
+    count = 0
+    now = time.time()
+    try:
+        for fname in os.listdir(_CACHE_DIR):
+            if not fname.endswith(".json"):
+                continue
+            path = os.path.join(_CACHE_DIR, fname)
+            try:
+                st = os.stat(path)
+                if (now - st.st_mtime) > _CACHE_TTL:
+                    continue
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                _mem_cache[fname[:-5]] = data  # stem = ticker (대부분 일치)
+                count += 1
+            except Exception:
+                pass
+    except OSError:
+        pass
+    return count
+
+
 # ── 규칙 기반 생성 ───────────────────────────────────────────────────
 def _rule_based(sector: str, theme: str | None, mcap: float | None) -> dict:
     s = (sector or "").strip().lower()

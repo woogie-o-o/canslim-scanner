@@ -38,29 +38,7 @@ from four_axis_analyzer import Annotation, FourAxisResult
 
 # ───────── 한글 폰트 자동 탐색 ────────────────────────────────────
 def _korean_font() -> Optional[str]:
-    # 1순위: 프로젝트 동봉 Paperlogy 폰트 우선 등록 및 탐색
-    import os as _os
-    font_dir = _os.path.join(_os.path.dirname(__file__), "web_app", "static", "fonts")
-    paperlogy_fonts = [
-        "Paperlogy-1Thin.ttf",
-        "Paperlogy-2ExtraLight.ttf",
-        "Paperlogy-3Light.ttf",
-        "Paperlogy-4Regular.ttf",
-        "Paperlogy-5Medium.ttf",
-        "Paperlogy-6SemiBold.ttf",
-        "Paperlogy-7Bold.ttf",
-        "Paperlogy-8ExtraBold.ttf",
-        "Paperlogy-9Black.ttf"
-    ]
-    for fn in paperlogy_fonts:
-        p = _os.path.join(font_dir, fn)
-        if _os.path.exists(p):
-            try:
-                fm.fontManager.addfont(p)
-            except Exception:
-                pass
-
-    candidates = ["Paperlogy", "Malgun Gothic", "맑은 고딕", "NanumGothic", "Nanum Gothic",
+    candidates = ["Malgun Gothic", "맑은 고딕", "NanumGothic", "Nanum Gothic",
                   "Apple SD Gothic Neo", "Noto Sans CJK KR", "Gulim", "Dotum"]
     available = {f.name for f in fm.fontManager.ttflist}
     for c in candidates:
@@ -68,6 +46,7 @@ def _korean_font() -> Optional[str]:
             return c
 
     # 폰트 매니저 캐시에 없으면 시스템 폰트 디렉토리에서 직접 등록 시도
+    import os as _os
     import sys as _sys
     font_paths = []
     if _sys.platform.startswith("win"):
@@ -191,10 +170,6 @@ class HandDrawnChartRenderer:
         lw_scale  = s
 
         with plt.xkcd(scale=1.0, length=80, randomness=2):
-            if KFONT:
-                import matplotlib as _mpl
-                _mpl.rcParams["font.family"] = [KFONT, "DejaVu Sans", "xkcd", "Humor Sans"]
-                _mpl.rcParams["axes.unicode_minus"] = False
             fig = plt.figure(figsize=self.size, dpi=self.dpi, facecolor="#FFFFFF")
             # 2패널 구성 — 가격 + 거래량 (RSI/MACD는 4축 분석 점수 카드와 중복이라 제거)
             gs  = gridspec.GridSpec(

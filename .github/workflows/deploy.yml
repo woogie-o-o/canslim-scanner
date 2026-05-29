@@ -38,7 +38,7 @@ jobs:
                       if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR" ]; then
                         echo "Found repo at: $REPO_DIR"
                         cd "$REPO_DIR"
-                        
+
                         echo "=== DEPLOYING CODE ==="
                         git remote set-url origin https://github.com/woogie-o-o/canslim-scanner.git
                         git fetch origin main
@@ -76,7 +76,7 @@ jobs:
                         else:
                             print('No runtime API key defaults changed.')
                         '''))"
-                        
+
                         if [ -f "requirements.txt" ]; then
                           echo "Installing dependencies..."
                           if [ -d "venv" ]; then

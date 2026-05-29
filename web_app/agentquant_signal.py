@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import logging
 import os
+import queue as _queue
 import sys
+import threading as _threading
 import time
 from dataclasses import asdict
 from typing import Optional
@@ -75,11 +77,28 @@ def _resolve_yf_ticker(ticker: str, market: str) -> str:
     return base
 
 
-def _fetch_ohlcv(yf_ticker: str, period: str = "3y"):
+def _fetch_ohlcv(yf_ticker: str, period: str = "3y", _timeout: int = 12):
     import yfinance as yf
     import pandas as pd
     try:
-        df = yf.Ticker(yf_ticker).history(period=period, auto_adjust=False)
+        _q: _queue.Queue = _queue.Queue(maxsize=1)
+
+        def _worker():
+            try:
+                _q.put((True, yf.Ticker(yf_ticker).history(period=period, auto_adjust=False)))
+            except Exception as _e:
+                _q.put((False, _e))
+
+        _t = _threading.Thread(target=_worker, daemon=True)
+        _t.start()
+        _t.join(timeout=_timeout)
+        if _t.is_alive():
+            logger.warning("_fetch_ohlcv timeout %ss for %s", _timeout, yf_ticker)
+            return None
+        _ok, _payload = _q.get()
+        if not _ok:
+            raise _payload
+        df = _payload
         if df is None or df.empty:
             return None
         # tz 제거 + 날짜 단위 정규화 (인덱스 정합)

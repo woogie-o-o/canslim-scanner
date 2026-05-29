@@ -18,7 +18,7 @@
 
 html, body {
   background: var(--surface-page);
-  font-family: 'Paperlogy', -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
 }
@@ -26,7 +26,7 @@ html, body {
 .shell {
   max-width: 900px;
   margin: 0 auto;
-  min-height: 100dvh;
+  min-height: 100vh;
   background: var(--surface-page);
 }
 
@@ -553,7 +553,7 @@ html, body {
 }
 .cp-overlay.visible { display: flex; align-items: flex-end; justify-content: center; }
 .cp-sheet {
-  width: 100%; max-width: 520px; max-height: 85dvh;
+  width: 100%; max-width: 520px; max-height: 85vh;
   background: var(--card); border-radius: 20px 20px 0 0;
   padding: 0 20px 24px; overflow-y: auto;
   animation: cpSlideUp 0.25s var(--ease-out);
@@ -794,7 +794,7 @@ html, body {
   margin: 0 0 14px 0;
   padding: 28px 24px;
   min-height: 110px;
-  font-family: 'Paperlogy', 'Noto Sans KR', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family: 'Noto Sans KR', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   font-size: clamp(32px, 6.5vw, 52px);
   font-weight: 800;
   line-height: 1.16;
@@ -1198,133 +1198,6 @@ html, body {
       </div>
     </div>
 
-    <!-- 진입 타이밍 카드 (V6 - 3단 구조) -->
-    <div style="padding:12px 24px 0;">
-      <div id="dp-entry-card" class="card entry-card" style="padding:0; overflow:hidden;">
-        <style>
-          .entry-card { border-left:4px solid var(--text-tertiary); transition:border-color .2s; }
-          .entry-card.green  { border-left-color:#16A34A; }
-          .entry-card.yellow { border-left-color:#F59E0B; }
-          .entry-card.red    { border-left-color:#DC2626; }
-          /* ① 결론존 */
-          .entry-verdict { padding:14px 16px 12px; }
-          .ev-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
-          .ev-left { display:flex; align-items:flex-start; gap:10px; min-width:0; }
-          .ev-left > .ev-ico { font-size:24px; line-height:1.1; flex-shrink:0; }
-          .ev-eyebrow { font-size:11px; color:var(--text-tertiary); font-weight:600; }
-          /* word-break:keep-all → 한국어 단어 중간 줄바꿈 방지 */
-          .ev-headline { font-size:20px; font-weight:800; color:var(--text-primary); line-height:1.2; margin-top:2px; word-break:keep-all; }
-          .ev-sub-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:3px; }
-          .ev-subreason { font-size:11px; color:var(--text-tertiary); font-weight:500; }
-          .ev-conf { font-size:10px; font-weight:700; padding:1px 7px; border-radius:100px; cursor:pointer; white-space:nowrap; }
-          .ev-conf.lo  { color:#DC2626; background:#DC262618; }
-          .ev-conf.mid { color:#F59E0B; background:#F59E0B18; }
-          .ev-conf.hi  { color:#16A34A; background:#16A34A18; }
-          .ev-conf-raw { font-size:11px; color:var(--text-secondary); margin-top:8px; padding:6px 10px; background:var(--bg-tertiary); border-radius:6px; }
-          .ev-score { text-align:right; flex-shrink:0; }
-          .ev-score .ev-score-num { font-size:28px; font-weight:800; color:var(--text-primary); line-height:1; }
-          .ev-score-max { font-size:12px; color:var(--text-tertiary); font-weight:500; }
-          .entry-bar { position:relative; height:8px; background:var(--bg-tertiary); border-radius:6px; overflow:hidden; margin-top:8px; }
-          .entry-bar-fill { position:absolute; left:0; top:0; height:100%; background:linear-gradient(90deg,#DC2626 0%,#F59E0B 50%,#16A34A 100%); border-radius:6px; transition:width .3s; }
-          /* ② 행동존 — 진입가 강조 / 손절·목표가1 보조 */
-          .entry-prices { padding:12px 16px; border-top:1px solid var(--border); background:var(--bg-tertiary); }
-          .act-grid { display:grid; grid-template-columns:1.3fr 1fr 1.1fr; gap:10px; align-items:end; }
-          .act-grid > * { min-width:0; }
-          .act-grid .lbl { display:block; color:var(--text-tertiary); font-size:11px; margin-bottom:3px; }
-          .act-primary .val-big { display:block; font-size:21px; font-weight:800; color:var(--text-primary); line-height:1.15; word-break:keep-all; overflow-wrap:anywhere; }
-          .act-primary .disc { font-size:12px; color:var(--brand); font-weight:700; margin-left:3px; white-space:nowrap; }
-          .act-sec .val { display:block; font-size:15px; font-weight:700; line-height:1.2; word-break:keep-all; overflow-wrap:anywhere; }
-          @media (max-width: 480px) {
-            .act-grid { grid-template-columns:1.2fr 1fr 1.1fr; gap:8px; }
-            .act-primary .val-big { font-size:18px; }
-            .act-sec .val { font-size:14px; }
-          }
-          /* ③ 더보기존 (토글) */
-          .entry-detail { padding:0 16px; max-height:0; overflow:hidden; transition:max-height .3s ease, padding .3s ease; }
-          .entry-detail.open { max-height:800px; padding:12px 16px; border-top:1px solid var(--border); }
-          .entry-meta-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px 16px; font-size:12px; margin-bottom:12px; }
-          .entry-meta-grid .meta-lbl { color:var(--text-tertiary); font-size:11px; }
-          .entry-meta-grid .meta-val { font-weight:600; color:var(--text-secondary); }
-          .ed-sec-title { font-size:11px; color:var(--text-tertiary); font-weight:600; margin-bottom:6px; }
-          .entry-detail-toggle { display:flex; align-items:center; justify-content:center; padding:7px; font-size:11px; color:var(--text-tertiary); cursor:pointer; border-top:1px solid var(--border); user-select:none; gap:4px; }
-          .entry-detail-toggle:hover { background:var(--bg-tertiary); }
-          /* 점수 분해 바 */
-          .bd-row { display:flex; align-items:center; gap:8px; margin-bottom:5px; font-size:11px; }
-          .bd-label { width:60px; text-align:right; color:var(--text-tertiary); flex-shrink:0; }
-          .bd-bar-wrap { flex:1; height:14px; background:var(--bg-tertiary); border-radius:3px; overflow:hidden; position:relative; }
-          .bd-bar { height:100%; border-radius:3px; transition:width .3s; min-width:2px; }
-          .bd-bar.pos { background:#16A34A; }
-          .bd-bar.neg { background:#DC2626; position:absolute; right:0; top:0; }
-          .bd-pts { width:36px; font-weight:700; font-size:11px; }
-        </style>
-
-        <!-- ① 결론존 — 액션 + 점수 + 신뢰도 -->
-        <div class="entry-verdict">
-          <div class="ev-top">
-            <div class="ev-left">
-              <span id="dp-entry-icon" class="ev-ico">⚪</span>
-              <div style="min-width:0;">
-                <div class="ev-eyebrow">📈 진입 타이밍</div>
-                <div id="dp-entry-phrase" class="ev-headline">—</div>
-                <div class="ev-sub-row">
-                  <span id="dp-entry-subreason" class="ev-subreason"></span>
-                  <span id="dp-entry-confidence" class="ev-conf" style="display:none;"></span>
-                </div>
-              </div>
-            </div>
-            <div class="ev-score">
-              <span id="dp-entry-score" class="ev-score-num">—</span><span class="ev-score-max">/ 100</span>
-            </div>
-          </div>
-          <div class="entry-bar"><div id="dp-entry-bar-fill" class="entry-bar-fill" style="width:0%;"></div></div>
-          <div id="dp-entry-conf-raw" class="ev-conf-raw" style="display:none;"></div>
-        </div>
-
-        <!-- ② 행동존 — 진입가 / 손절 / 목표가1 -->
-        <div class="entry-prices">
-          <div class="act-grid">
-            <div class="act-primary">
-              <span class="lbl">진입가 (풀백)</span>
-              <span class="val-big" id="dp-entry-px-entry">—</span><span id="dp-entry-discount" class="disc"></span>
-            </div>
-            <div class="act-sec">
-              <span class="lbl">손절</span>
-              <span class="val" id="dp-entry-px-stop" style="color:var(--destructive);">—</span>
-            </div>
-            <div class="act-sec">
-              <span class="lbl">목표가1 <span style="font-size:10px;color:var(--text-tertiary);">(T1)</span></span>
-              <span class="val" id="dp-entry-px-t1" style="color:var(--success);">—</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- ③ 더보기존 (토글) -->
-        <div id="dp-entry-detail" class="entry-detail">
-          <div class="entry-meta-grid">
-            <div><span class="meta-lbl">목표가2 (T2)</span> <span class="meta-val" id="dp-entry-px-t2" style="color:var(--success);">—</span></div>
-            <div><span class="meta-lbl">유형</span> <span class="meta-val" id="dp-entry-type">—</span></div>
-            <div><span class="meta-lbl">손익비</span> <span class="meta-val" id="dp-entry-rr" style="font-weight:700;">—</span></div>
-            <div><span class="meta-lbl">손절기준</span> <span class="meta-val" id="dp-entry-stop-method">—</span></div>
-            <div><span class="meta-lbl">현재가</span> <span class="meta-val" id="dp-entry-current" style="color:var(--text-tertiary);">—</span></div>
-          </div>
-          <div class="ed-sec-title">점수 구성 (base 40)</div>
-          <div id="dp-entry-breakdown"></div>
-          <!-- AgentQuant -->
-          <div id="dp-aq-row" style="display:none; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); font-size:11px; color:var(--text-secondary);">
-            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="font-size:11px; color:var(--text-tertiary); font-weight:600;">AI 종합판단</span>
-              <span id="dp-aq-verdict" style="font-weight:700; padding:2px 10px; border-radius:100px; font-size:11px;"></span>
-              <span id="dp-aq-regime" style="color:var(--text-tertiary);"></span>
-              <span id="dp-aq-detail" style="color:var(--text-tertiary); margin-left:auto;"></span>
-            </div>
-            <div id="dp-aq-reasons" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; font-size:10px;"></div>
-          </div>
-        </div>
-        <div class="entry-detail-toggle" id="dp-entry-density-toggle" onclick="_toggleEntryDensity()">
-          <span class="arrow">▼</span> <span class="dt-label">상세 분석</span>
-        </div>
-      </div>
-    </div>
 
     <!-- 투자자 동향 카드 -->
     <div id="dp-investor-card" style="display:none; padding:0 24px 4px;">
@@ -1341,7 +1214,6 @@ html, body {
       <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-finance" id="btn-finance" onclick="switchTab('finance')">재무 지표</button>
       <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-dartnews" id="btn-dartnews" onclick="switchTab('dartnews')" style="display:none;">공시·뉴스</button>
       <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-usinsight" id="btn-usinsight" onclick="switchTab('usinsight')" style="display:none;">US 인사이트</button>
-      <button class="tab-btn" role="tab" aria-selected="false" aria-controls="tab-deep" id="btn-deep" onclick="switchTab('deep')">🔍 심층 분석</button>
     </nav>
 
     <!-- CAN SLIM Tab -->
@@ -1358,6 +1230,18 @@ html, body {
                style="width:100%; max-width:520px; display:block; margin:0 auto; border-radius:var(--radius); border:1px solid var(--border); opacity:.92;" />
         </div>
       </div>
+
+      <!-- RS Rating 카드 -->
+      <div id="rs-rating-wrap" style="display:none; padding:0 24px 4px;"></div>
+
+      <!-- 과열·바닥 신호 카드 -->
+      <div id="heat-signal-wrap" style="display:none; padding:0 24px 4px;"></div>
+
+      <!-- 분할매수 가이드 카드 -->
+      <div id="dca-plan-wrap" style="display:none; padding:0 24px 4px;"></div>
+
+      <!-- 포지션 리스크 테이블 -->
+      <div id="position-sizer-wrap" style="display:none; padding:0 24px 8px;"></div>
 
       <div class="cs-summary" id="detail-cs-summary" style="display:none;">
         <div class="cs-summary-text" id="detail-cs-summary-text">—</div>
@@ -1397,59 +1281,6 @@ html, body {
       <div style="height:24px;"></div>
     </div>
 
-    <!-- 심층 분석 Tab (Gemini 기반, 모든 시장) -->
-    <div class="tab-panel" id="tab-deep" role="tabpanel" aria-labelledby="btn-deep">
-      <div style="padding:16px 24px 8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <label style="font-size:12px;color:var(--text-tertiary);font-weight:600;">분석 깊이</label>
-        <select id="deep-mode" style="padding:6px 10px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--text);">
-          <option value="brief">간략 (1,000~1,500자)</option>
-          <option value="standard" selected>표준 (3,000~4,000자)</option>
-          <option value="detail">상세 (5,000~7,000자, 투자위원회 포함)</option>
-        </select>
-        <button id="deep-run-btn" onclick="runDeepAnalysis()" style="padding:7px 14px;font-size:12px;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;">분석 시작</button>
-        <button id="deep-refresh-btn" onclick="runDeepAnalysis(true)" title="캐시 무시하고 새로 분석" style="padding:7px 10px;font-size:12px;background:transparent;color:var(--text-tertiary);border:1px solid var(--border);border-radius:6px;cursor:pointer;">↻</button>
-        <span id="deep-meta" style="font-size:11px;color:var(--text-tertiary);margin-left:auto;"></span>
-      </div>
-      <div id="deep-content" style="padding:8px 24px 20px;font-size:13px;line-height:1.6;">
-        <div style="padding:24px;text-align:center;color:var(--text-tertiary);font-size:13px;">
-          위의 <b>분석 시작</b> 버튼을 누르면 Google Gemini 가 웹에서 최신 데이터를 검색해<br/>
-          8-Phase 시니어 리서치 프레임워크로 진입가/목표가/시나리오를 도출합니다.<br/>
-          <span style="font-size:11px;">(10~30초 소요, 결과는 24시간 캐시됨)</span>
-        </div>
-      </div>
-      <div id="deep-sources" style="padding:0 24px 24px;"></div>
-    </div>
-
-    <!-- 멀티배거 평가 위젯 -->
-    <div style="padding:12px 24px 0;">
-      <style>
-        #multibagger-widget { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-card); padding:14px 16px; }
-        #multibagger-widget h3 { font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:10px; }
-        #multibagger-widget .mb-badge { display:inline-block; font-size:11px; font-weight:700; padding:3px 8px; border-radius:100px; background:rgba(52,199,89,0.12); color:var(--success,#34c759); margin:2px; }
-        #multibagger-widget .mb-badge.fail { background:rgba(255,59,48,0.10); color:var(--destructive,#ff3b30); }
-      </style>
-      <section id="multibagger-widget" data-ticker="{{ ticker }}">
-        <h3>멀티배거 평가</h3>
-        <div id="mb-widget-body">로딩 중…</div>
-      </section>
-    </div>
-    <div style="height:24px;"></div>
-    <script>
-    (function () {
-      const sym = document.getElementById("multibagger-widget").dataset.ticker;
-      fetch("/api/multibagger/ticker/" + encodeURIComponent(sym))
-        .then(r => r.ok ? r.json() : null)
-        .then(d => {
-          const body = document.getElementById("mb-widget-body");
-          if (!d) { body.innerHTML = "<small>이 종목은 멀티배거 후보 풀에 없음 (시총·수익성 사전필터 탈락)</small>"; return; }
-          const gates = ["F1","F2","F3","F4","F5","F6","F7","F8"].map(g => {
-            const ok = d.gates_passed.includes(g);
-            return `<span class="mb-badge${ok ? '' : ' fail'}">${g} ${ok ? '✓' : '✗'}</span>`;
-          }).join(" ");
-          body.innerHTML = `<div>레이어: <b>${d.layer}</b> · 점수: <b>${d.score.toFixed(1)}</b></div><div style="margin-top:8px">${gates}</div>`;
-        });
-    })();
-    </script>
 
   </div><!-- end scroll-content -->
 </div><!-- end shell -->

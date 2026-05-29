@@ -37,7 +37,7 @@ def _to_float(s: str) -> float | None:
 
 def _fetch(url: str) -> str:
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=10) as r:
+    with urllib.request.urlopen(req, timeout=5) as r:
         raw = r.read()
     for enc in ("euc-kr", "cp949", "utf-8"):
         try:

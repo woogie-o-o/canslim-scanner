@@ -125,9 +125,8 @@ def _fetch_yf() -> dict:
 # 태그 제거 후 '기준금리 표' 이후 첫 실수 퍼센트를 최신 기준금리로 본다.
 # 미국 Fed funds rate는 범위(예: 4.00~4.25%)로 표기되며, 상단(upper bound)을 선호.
 _TAG_RE = re.compile(r"<[^>]+>")
-_RATE_NUM = r"(\d{1,2}(?:\.\d{1,2})?)"
-_RATE_PCT_RE = re.compile(_RATE_NUM + r"\s*%")
-_RATE_RANGE_RE = re.compile(_RATE_NUM + r"\s*[~∼\-–]\s*" + _RATE_NUM + r"\s*%?")
+_RATE_PCT_RE = re.compile(r"(\d{1,2}\.\d{1,2})\s*%")
+_RATE_RANGE_RE = re.compile(r"(\d{1,2}\.\d{1,2})\s*[~∼\-–]\s*(\d{1,2}\.\d{1,2})\s*%")
 
 
 def _fetch_naver_rate(key: str, query: str) -> float | None:
@@ -140,15 +139,14 @@ def _fetch_naver_rate(key: str, query: str) -> float | None:
             headers={"User-Agent":
                      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) scanner-macro"},
         )
-        with urllib.request.urlopen(req, timeout=7) as resp:
+        with urllib.request.urlopen(req, timeout=5) as resp:
             htm = resp.read().decode("utf-8", "ignore")
         anchor = htm.find("기준금리 표")
         if anchor == -1:
             anchor = htm.find("기준금리")
         if anchor == -1:
             return None
-        seg = _TAG_RE.sub(" ", htm[anchor:anchor + 1800])
-        seg = re.sub(r"\s+", " ", seg)
+        seg = _TAG_RE.sub(" ", htm[anchor:anchor + 1200])
         # 범위(예: 4.00~4.25%) 우선 — 상단 사용
         rng = _RATE_RANGE_RE.search(seg)
         if rng:
@@ -161,49 +159,12 @@ def _fetch_naver_rate(key: str, query: str) -> float | None:
     return None
 
 
-def _fetch_first_rate(key: str, queries: tuple[str, ...]) -> float | None:
-    for query in queries:
-        val = _fetch_naver_rate(key, query)
-        if val is not None:
-            return val
-    return None
-
-
-def _fetch_fred_rate(key: str, series_id: str) -> float | None:
-    """FRED CSV에서 최신 기준금리 계열값을 가져온다. API 키 없이 공개 CSV 사용."""
-    try:
-        url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=" + urllib.parse.quote(series_id)
-        req = urllib.request.Request(
-            url,
-            headers={"User-Agent": "Mozilla/5.0 scanner-macro"},
-        )
-        with urllib.request.urlopen(req, timeout=7) as resp:
-            txt = resp.read().decode("utf-8", "ignore")
-        for line in reversed(txt.splitlines()):
-            if "," not in line or line.startswith("observation_date"):
-                continue
-            _, raw = line.rsplit(",", 1)
-            raw = raw.strip()
-            if not raw or raw == ".":
-                continue
-            val = _valid(key, raw)
-            if val is not None:
-                return val
-    except Exception as e:
-        _LOG.warning("macro: %s FRED %s failed: %s", key, series_id, e)
-    return None
-
-
 def _fetch_kr_rate() -> float | None:
-    return _fetch_first_rate("kr_rate", ("한국은행 기준금리", "한국 기준금리", "한은 기준금리"))
+    return _fetch_naver_rate("kr_rate", "한국은행 기준금리")
 
 
 def _fetch_us_rate() -> float | None:
-    val = _fetch_first_rate("us_rate", ("미국 기준금리", "미 연준 기준금리", "미국 연방준비제도 기준금리"))
-    if val is not None:
-        return val
-    # 네이버 검색 카드가 바뀌거나 차단될 때는 Fed target range upper bound로 백업한다.
-    return _fetch_fred_rate("us_rate", "DFEDTARU") or _fetch_fred_rate("us_rate", "FEDFUNDS")
+    return _fetch_naver_rate("us_rate", "미국 기준금리")
 
 
 # ── 신호등 계산 ───────────────────────────────────────────────────────

@@ -16,7 +16,7 @@ html, body {
   height: 100%;
   max-width: 100vw;
   overflow-x: hidden;
-  font-family: 'Paperlogy', -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
   background: var(--surface-page);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -25,12 +25,29 @@ html, body {
 /* ── App Shell ─────────────────────────────────────────────── */
 .app-shell {
   display: grid;
-  /* topbar / macro-events-strip / macro-strip / stats-bar / ix-discovery-card / content
+  /* topbar / macro-events-strip / disclaimer / macro-strip / stats-bar / ix-discovery-card / content
      1fr 는 마지막(content) 만 — stats-bar 가 1fr 를 먹어 그 아래 빈 공간이 생기는 버그 방지. */
-  grid-template-rows: 60px auto auto auto auto 1fr;
-  height: 100dvh;
+  grid-template-rows: 60px auto auto auto auto auto 1fr;
+  height: 100vh;
   overflow: hidden;
   max-width: 100vw;
+}
+
+/* ── Disclaimer Band (공개 사이트 면책 고지) ──────────────── */
+.disclaimer-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 24px;
+  background: rgba(245, 158, 11, 0.08);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+.disclaimer-band b { color: var(--text-primary); font-weight: 700; }
+@media (max-width: 768px) {
+  .disclaimer-band { padding: 6px 16px; font-size: 10.5px; }
 }
 
 /* ── Macro Strip (신호등 띠) ───────────────────────────────── */
@@ -45,18 +62,10 @@ html, body {
   font-size: 12.5px;
   white-space: nowrap;
   overflow-x: auto;
-  overflow-y: hidden;
   scrollbar-width: none;
-  -ms-overflow-style: none;
   z-index: 90;
 }
-.macro-strip::-webkit-scrollbar { display: none; width: 0; height: 0; }
-.macro-items {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex: none;
-}
+.macro-strip::-webkit-scrollbar { display: none; }
 .macro-signal {
   display: inline-flex;
   align-items: center;
@@ -65,7 +74,6 @@ html, body {
   padding: 3px 12px;
   border-radius: 999px;
   letter-spacing: -0.3px;
-  flex: none;
 }
 .macro-signal.stable  { background: rgba(0,192,115,0.12);  color: #00A862; }
 .macro-signal.caution { background: rgba(255,176,32,0.15);  color: #C77700; }
@@ -76,7 +84,6 @@ html, body {
   align-items: baseline;
   gap: 5px;
   color: var(--text-secondary);
-  flex: none;
 }
 .macro-item .mi-label { font-weight: 600; color: var(--text-tertiary); }
 .macro-item .mi-val   { font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; }
@@ -92,7 +99,6 @@ html, body {
   gap: 8px;
   color: var(--text-tertiary);
   font-size: 11px;
-  flex: none;
 }
 .macro-stale-badge {
   background: rgba(255,176,32,0.18);
@@ -268,7 +274,7 @@ html, body {
   margin-right: 20px;
   border-right: 1px solid var(--border);
 }
-.stat-item:last-child { border-right: none; min-width: 0; }
+.stat-item:last-child { border-right: none; }
 
 .stat-label {
   font-size: 12px;
@@ -285,20 +291,13 @@ html, body {
 .filter-chips {
   display: flex;
   gap: 6px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
 }
-.filter-chips::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  flex: none;
   height: 28px;
   padding: 0 12px;
   border: 1.5px solid var(--border);
@@ -350,7 +349,6 @@ html, body {
   display: grid;
   grid-template-columns: 200px 1fr;
   overflow: hidden;
-  min-height: 0;
 }
 .mobile-stock-list { display: none; }
 
@@ -467,12 +465,8 @@ html, body {
 
 /* ── Main (Stock Table) ────────────────────────────────────── */
 .main {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow-y: auto;
   padding: 16px 24px;
-  min-width: 0;
-  min-height: 0;
 }
 
 /* Stock Table */
@@ -481,22 +475,17 @@ html, body {
   border-radius: var(--radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
-  overflow: auto;
-  min-height: 0;
+  overflow: hidden;
 }
 
 table.stock-table {
   width: 100%;
-  min-width: 1120px;
   border-collapse: collapse;
 }
 
 .stock-table thead tr {
   background: var(--surface-subtle);
   border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 5;
 }
 .stock-table th {
   padding: 10px 14px;
@@ -790,6 +779,7 @@ td.score-col {
   color: var(--text-tertiary);
   line-height: 1.5;
 }
+
 
 /* === 경쟁사 비교 카드 === */
 .dp-peers-card {
@@ -1353,7 +1343,7 @@ td.score-col {
   display: inline-block;
   margin-top: 4px;
   padding: 4px 10px;
-  font-family: 'Paperlogy', 'Black Han Sans', 'Jua', 'Do Hyeon', 'Noto Sans KR', sans-serif;
+  font-family: 'Black Han Sans', 'Jua', 'Do Hyeon', 'Noto Sans KR', sans-serif;
   font-size: 14px;
   font-weight: 400;
   line-height: 1.25;
@@ -1374,7 +1364,7 @@ td.score-col {
 }
 .oneliner-data {
   display: block;
-  font-family: 'Paperlogy', -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
+  font-family: -apple-system, 'Pretendard', 'Noto Sans KR', system-ui, sans-serif;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1539,17 +1529,17 @@ td.score-col {
 .main::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb,
 .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-.stock-table-wrap::-webkit-scrollbar { height: 14px; width: 0; }
+.stock-table-wrap::-webkit-scrollbar { height: 26px; width: 0; }
 .stock-table-wrap::-webkit-scrollbar:vertical { display: none; width: 0; }
-.stock-table-wrap::-webkit-scrollbar:horizontal { height: 10px; }
+.stock-table-wrap::-webkit-scrollbar:horizontal { height: 26px; }
 .stock-table-wrap::-webkit-scrollbar-track:horizontal {
-  background: color-mix(in srgb, var(--surface-page) 70%, transparent);
+  background: transparent;
   border-radius: 999px;
   margin-inline: 10px;
 }
 .stock-table-wrap::-webkit-scrollbar-thumb:horizontal {
   background: color-mix(in srgb, var(--brand) 52%, var(--border));
-  border: 4px solid transparent;
+  border: 10px solid transparent;
   border-radius: 999px;
   background-clip: content-box;
 }
@@ -1574,7 +1564,7 @@ td.score-col {
 
 .detail-panel {
   width: min(980px, 100%);
-  height: min(1040px, calc(100dvh - 32px));
+  height: min(1040px, calc(100vh - 32px));
   background: var(--surface-page);
   border-radius: 16px;
   border: 1px solid var(--border);
@@ -1650,7 +1640,7 @@ td.score-col {
   margin: 14px 20px;
   padding: 24px 20px;
   min-height: 90px;
-  font-family: 'Paperlogy', 'Noto Sans KR', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  font-family: 'Noto Sans KR', 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   font-size: clamp(28px, 5.5vw, 46px);
   font-weight: 800;
   line-height: 1.16;
@@ -1892,61 +1882,6 @@ td.score-col {
 .grade-badge.grade-C { color: #fff; background: #9CA3AF; }
 
 .history-strip { display: flex; flex-direction: column; gap: 4px; }
-.history-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.history-title { font-size: 11px; color: var(--text-tertiary); font-weight: 700; }
-.history-legend-toggle {
-  border: none;
-  background: transparent;
-  color: var(--brand);
-  font-size: 10.5px;
-  font-weight: 700;
-  cursor: pointer;
-  padding: 2px 0;
-  white-space: nowrap;
-}
-.history-legend {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 12px;
-  padding: 9px 10px;
-  margin-bottom: 9px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--card) 82%, var(--surface-page));
-}
-.history-legend.is-hidden { display: none; }
-.history-legend-col { min-width: 0; }
-.history-legend-title {
-  margin-bottom: 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--text-tertiary);
-}
-.history-legend-items { display: flex; flex-direction: column; gap: 4px; }
-.history-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 10.5px;
-  color: var(--text-secondary);
-  line-height: 1.25;
-}
-.history-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  flex: none;
-  border: 1px solid transparent;
-}
-.history-dot.grade-S { background: #7C3AED; }
-.history-dot.grade-A { background: #2563EB; }
-.history-dot.grade-B { background: #16A34A; }
-.history-dot.grade-C { background: #9CA3AF; }
-.history-dot.entry-green { background: #16A34A; }
-.history-dot.entry-yellow { background: #EAB308; }
-.history-dot.entry-red { background: #DC2626; }
-.history-dot.entry-empty { background: var(--surface-page); border-color: rgba(0,0,0,0.12); }
 .history-row { display: flex; gap: 3px; }
 .history-cell { flex: 1; height: 16px; border-radius: 3px; min-width: 6px; }
 .history-cell-empty { background: var(--surface-page); border: 1px solid rgba(0,0,0,0.08); }
@@ -1959,10 +1894,7 @@ td.score-col {
 .history-cell.entry-red { background: #DC2626; }
 .history-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
 .history-empty-msg { font-size: 12px; color: var(--text-tertiary); }
-@media (max-width: 640px) {
-  .history-cell { height: 12px; min-width: 4px; }
-  .history-legend { grid-template-columns: 1fr; gap: 8px; }
-}
+@media (max-width: 640px) { .history-cell { height: 12px; min-width: 4px; } }
 
 /* Story stock chip — quality grade scale not applicable */
 .story-chip {
@@ -2168,7 +2100,7 @@ td.score-col {
 }
 .cp-overlay.visible { display: flex; align-items: flex-end; justify-content: center; }
 .cp-sheet {
-  width: 100%; max-width: 520px; max-height: 85dvh;
+  width: 100%; max-width: 520px; max-height: 85vh;
   background: var(--card); border-radius: 20px 20px 0 0;
   padding: 0 20px 24px; overflow-y: auto;
   animation: cpSlideUp 0.25s var(--ease-out);
@@ -2497,6 +2429,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .app-shell {
     grid-template-rows: 52px auto auto auto 1fr;
     height: 100dvh;
+    height: 100vh; /* fallback */
     max-width: 100vw;
     overflow-x: hidden;
   }
@@ -2535,31 +2468,24 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     height: 32px;
     font-size: 11px;
   }
-  .macro-items { gap: 10px; }
   .macro-meta { display: none; }
 
   .stats-bar {
     padding: 6px 8px;
     height: auto;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 6px 0;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-    -webkit-overflow-scrolling: touch;
   }
-  .stats-bar::-webkit-scrollbar { display: none; width: 0; height: 0; }
-  .stat-item { flex: none; padding: 0 10px 0 0; margin-right: 10px; }
+  .stat-item { padding: 0 10px 0 0; margin-right: 10px; }
   .stat-label { font-size: 12px; }
   .stat-value { font-size: 14px; }
   .filter-chips {
-    width: auto;
-    overflow-x: visible;
+    width: 100%;
+    overflow-x: auto;
     flex-wrap: nowrap;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
-    padding: 0;
+    padding: 6px 0;
     gap: 8px;
   }
   .filter-chips::-webkit-scrollbar { display: none; }
@@ -2609,8 +2535,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     background: var(--card);
     border-radius: var(--radius);
     border: 1px solid var(--border);
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
   }
   .stock-card {
     display: flex;
@@ -2732,8 +2657,9 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .detail-panel {
     width: 100%;
     height: 100dvh;
+    height: 100vh;
     border-radius: 0;
-    max-height: 100dvh;
+    max-height: none;
   }
   .dp-body { flex-direction: column; }
   .dp-left {
@@ -2786,7 +2712,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 
   .macro-strip { height: 28px; font-size: 10.5px; gap: 8px; }
   .macro-signal { padding: 2px 8px; font-size: 10.5px; }
-  .macro-items { gap: 8px; }
 
   .stats-bar .stat-item:nth-child(n+3):not(:last-child) { display: none; }
   .chip { min-height: 44px; padding: 0 12px; font-size: 12px; }
@@ -2813,11 +2738,10 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   <header class="topbar">
     <button class="mobile-menu-btn" id="mobile-menu-btn" onclick="toggleMobileSidebar()" aria-label="메뉴">☰</button>
     <div class="topbar-logo">종목 <span>분석기</span></div>
-    <a href="/multibagger" class="topbar-nav-link" title="잠재적 10배 종목 후보 (PASS/WATCH/DIFF)">🎯 멀티배거</a>
     <div class="topbar-controls">
       <div class="btn-seg-group" id="market-btn-group">
-        <button class="btn-seg active" data-val="KR" onclick="onMarketChange('KR')">🇰🇷 한국</button>
-        <button class="btn-seg" data-val="US" onclick="onMarketChange('US')">🇺🇸 미국</button>
+        <button class="btn-seg active" data-val="US" onclick="onMarketChange('US')">🇺🇸 미국</button>
+        <button class="btn-seg" data-val="KR" onclick="onMarketChange('KR')">🇰🇷 한국</button>
       </div>
       <div class="search-box">
         <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2860,10 +2784,16 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     <span id="macro-events-strip-list" style="display:flex;gap:6px;"></span>
   </div>
 
+  <!-- Disclaimer Band -->
+  <div class="disclaimer-band" role="note">
+    <span aria-hidden="true">⚠️</span>
+    <span>본 사이트의 모든 점수·등급·진입 신호는 <b>투자 권유가 아닌 알고리즘 스크리닝 결과</b>입니다. 투자 판단과 손익 책임은 본인에게 있습니다.</span>
+  </div>
+
   <!-- Macro Strip (신호등 띠) -->
   <div class="macro-strip" id="macro-strip">
     <span class="macro-signal unknown" id="macro-signal">⚪ <span>로딩…</span></span>
-    <div id="macro-items" class="macro-items"></div>
+    <div id="macro-items" style="display:flex;align-items:center;gap:14px;"></div>
     <span class="macro-meta" id="macro-meta"></span>
   </div>
 
@@ -2983,9 +2913,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
           <span id="dp-fa-stars" style="font-size:16px;color:var(--warning);"></span>
           <span id="dp-fa-stars-meaning" style="font-size:12px;color:var(--text-secondary);font-weight:600;"></span>
         </div>
-        <div style="font-size:10px;color:var(--text-tertiary);margin-bottom:8px;line-height:1.5;background:var(--bg-tertiary);padding:6px 10px;border-radius:6px;">
-          💡 <b>별점 = 진입 타이밍</b>이에요. 아래 ‘📈 진입 타이밍’ 카드의 점수를 별 1~5개로 바꾼 것뿐이라 <b>같은 값</b>입니다. <b>이 회사가 좋은 회사인지</b>는 옆의 <b>종합점수</b>가 따로 봐요. 그래서 “★는 낮은데 종합점수는 높음” = 좋은 회사지만 지금은 들어갈 때가 아님, 일 수 있어요. 아래 추세·모멘텀·변동성·수급(/5)은 차트 상태를 보는 참고 신호예요.
-        </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
           <div class="dp-axis-item"><div class="dp-axis-label">추세<div style="font-size:9px;font-weight:500;color:var(--text-tertiary);margin-top:1px;">(이동평균 기울기·정렬)</div></div><div class="dp-axis-val"><span id="dp-fa-trend-score">-</span><span style="font-size:13px;color:var(--text-secondary);">/5</span></div><div class="dp-axis-meta" id="dp-fa-trend-verdict"></div></div>
           <div class="dp-axis-item"><div class="dp-axis-label">모멘텀<div style="font-size:9px;font-weight:500;color:var(--text-tertiary);margin-top:1px;">(최근 가격 가속도)</div></div><div class="dp-axis-val"><span id="dp-fa-mom-score">-</span><span style="font-size:13px;color:var(--text-secondary);">/5</span></div><div class="dp-axis-meta" id="dp-fa-mom-verdict"></div></div>
@@ -3059,6 +2986,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
           </div>
         </div>
       </div>
+
 
       <div id="dp-segments-card" class="dp-segments-card" style="display:none;">
         <div class="dp-segments-head">
@@ -3180,42 +3108,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
           <div id="dp-earnings-chips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
         </div>
 
-        <!-- 종합×진입 2축 사분면 배지 -->
-        <div id="dp-quadrant-card" class="dp-metrics-card" style="display:none; padding:14px 16px;">
-          <div style="font-size:11px;color:var(--text-tertiary);font-weight:600;margin-bottom:1px;">🧭 회사 가치 × 진입 타이밍</div>
-          <div style="font-size:10px;color:var(--text-tertiary);margin-bottom:8px;">이 종목이 어느 칸에 있는지 한눈에 — 위로 갈수록 좋은 회사, 오른쪽일수록 좋은 타이밍</div>
-          <div id="dp-quadrant"></div>
-        </div>
 
-        <!-- 시그널 이력 타임라인 -->
-        <div id="dp-history-card" class="dp-metrics-card" style="display:none; padding:14px 16px;">
-          <div class="history-head">
-            <div class="history-title">시그널 이력</div>
-            <button type="button" id="dp-history-legend-toggle" class="history-legend-toggle" onclick="toggleHistoryLegend()">범례 보기 ▼</button>
-          </div>
-          <div id="dp-history-legend" class="history-legend is-hidden">
-            <div class="history-legend-col">
-              <div class="history-legend-title">종합 등급</div>
-              <div class="history-legend-items">
-                <div class="history-legend-item"><span class="history-dot grade-S"></span><span>S등급 (75점+)</span></div>
-                <div class="history-legend-item"><span class="history-dot grade-A"></span><span>A등급 (60점+)</span></div>
-                <div class="history-legend-item"><span class="history-dot grade-B"></span><span>B등급 (45점+)</span></div>
-                <div class="history-legend-item"><span class="history-dot grade-C"></span><span>C등급 (~45점)</span></div>
-              </div>
-            </div>
-            <div class="history-legend-col">
-              <div class="history-legend-title">진입 타이밍</div>
-              <div class="history-legend-items">
-                <div class="history-legend-item"><span class="history-dot entry-green"></span><span>진입하기 좋은 구간</span></div>
-                <div class="history-legend-item"><span class="history-dot entry-yellow"></span><span>눌림대기 · 타이밍 조금 기다려야</span></div>
-                <div class="history-legend-item"><span class="history-dot entry-red"></span><span>복잡함 · 진입 비추천</span></div>
-                <div class="history-legend-item"><span class="history-dot entry-empty"></span><span>데이터 없음</span></div>
-              </div>
-            </div>
-          </div>
-          <div id="dp-history-strip"></div>
-          <div class="history-axis"><span id="dp-history-start"></span><span id="dp-history-end"></span></div>
-        </div>
 
         <div class="dp-metrics-card">
           <div class="dp-metric-row">
@@ -3229,10 +3122,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
           <div class="dp-metric-row">
             <span class="dp-metric-label">RSI</span>
             <span id="dp-rsi" class="dp-metric-val">—</span>
-          </div>
-          <div class="dp-metric-row">
-            <span class="dp-metric-label">Conviction</span>
-            <span id="dp-conviction" class="dp-metric-val">—</span>
           </div>
         </div>
 
@@ -3251,69 +3140,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
           <div id="dpcons-reports" style="display:flex; flex-direction:column; gap:0;"></div>
         </div>
 
-        <!-- 진입 타이밍 카드 -->
-        <div id="dp-entry-card" class="card entry-card" style="padding:0; overflow:hidden;">
-          <!-- ① 결론존: 액션 문구 + 점수 -->
-          <div class="entry-verdict">
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span id="dp-entry-icon" style="font-size:24px;">⚪</span>
-                <div>
-                  <div style="font-size:11px; color:var(--text-tertiary); font-weight:600;">📈 진입 타이밍</div>
-                  <div id="dp-entry-phrase" style="font-size:18px; font-weight:800; color:var(--text-primary); line-height:1.15; margin-top:1px;">—</div>
-                  <div id="dp-entry-subreason" style="font-size:11px; color:var(--text-tertiary); font-weight:500; margin-top:2px;"></div>
-                </div>
-              </div>
-              <div style="text-align:right;">
-                <span id="dp-entry-score" style="font-size:28px; font-weight:800; color:var(--text-primary); line-height:1;">—</span>
-                <span style="font-size:12px; color:var(--text-tertiary); font-weight:500;">/ 100</span>
-              </div>
-            </div>
-            <div class="entry-bar"><div id="dp-entry-bar-fill" class="entry-bar-fill" style="width:0%;"></div></div>
-          </div>
-          <!-- ② 행동존: 진입/손절/목표가1 3숫자만 -->
-          <div class="entry-prices">
-            <div class="entry-grid entry-grid-3">
-              <div class="eg-primary">
-                <span class="lbl">진입가</span>
-                <span class="val" id="dp-entry-px-entry">—</span>
-                <span id="dp-entry-discount" style="font-size:11px; color:var(--brand); font-weight:700; margin-left:2px;"></span>
-              </div>
-              <div>
-                <span class="lbl">손절</span>
-                <span class="val" id="dp-entry-px-stop" style="color:var(--destructive);">—</span>
-              </div>
-              <div>
-                <span class="lbl">목표가1</span>
-                <span class="val" id="dp-entry-px-t1" style="color:var(--success);">—</span>
-              </div>
-            </div>
-          </div>
-          <!-- ③ 더보기존 (토글): 나머지 전부 -->
-          <div id="dp-entry-detail" class="entry-detail open">
-            <div class="entry-meta-grid" style="margin-top:0;">
-              <div><span class="meta-lbl">목표가2</span> <span class="meta-val" id="dp-entry-px-t2" style="color:var(--success);">—</span></div>
-              <div><span class="meta-lbl">유형</span> <span class="meta-val" id="dp-entry-type">—</span></div>
-              <div><span class="meta-lbl">손익비</span> <span class="meta-val" id="dp-entry-rr" style="font-weight:700;">—</span></div>
-              <div><span class="meta-lbl">손절기준</span> <span class="meta-val" id="dp-entry-stop-method">—</span></div>
-              <div><span class="meta-lbl">현재가</span> <span class="meta-val" id="dp-entry-current" style="color:var(--text-tertiary);">—</span></div>
-            </div>
-            <div style="font-size:11px; color:var(--text-tertiary); font-weight:600; margin:10px 0 6px;">점수 구성 (base 40)</div>
-            <div id="dp-entry-breakdown"></div>
-            <div id="dp-aq-row" style="display:none; margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); font-size:11px; color:var(--text-secondary);">
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span style="font-size:11px; color:var(--text-tertiary); font-weight:600;">AI 종합판단</span>
-                <span id="dp-aq-verdict" style="font-weight:700; padding:2px 10px; border-radius:100px; font-size:11px;"></span>
-                <span id="dp-aq-regime" style="color:var(--text-tertiary);"></span>
-                <span id="dp-aq-detail" style="color:var(--text-tertiary); margin-left:auto;"></span>
-              </div>
-              <div id="dp-aq-reasons" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; font-size:10px;"></div>
-            </div>
-          </div>
-          <div id="dp-entry-density-toggle" class="entry-detail-toggle" onclick="_toggleEntryDensity()">
-            <span class="arrow">▲</span> <span class="dt-label">간단히 보기</span>
-          </div>
-        </div>
 
       </div>
 
@@ -3371,7 +3197,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 </div>
 <!-- ── 공유 카드 모달 ──────────────────────────────────────── -->
 <div id="share-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;" onclick="if(event.target===this)closeShareModal()">
-  <div style="background:var(--card);border-radius:16px;padding:24px;max-width:660px;width:95%;max-height:90dvh;overflow-y:auto;box-shadow:var(--shadow-modal);">
+  <div style="background:var(--card);border-radius:16px;padding:24px;max-width:660px;width:95%;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-modal);">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h3 style="font-size:16px;font-weight:700;">공유 카드 미리보기</h3>
       <div style="display:flex;gap:8px;">
@@ -3391,7 +3217,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 #chat-toggle {
   position: fixed; bottom: 24px; right: 24px; z-index: 9000;
   width: 56px; height: 56px; border-radius: 50%;
-  background: var(--brand, #3b82f6); color: #fff; border: none;
+  background: var(--accent, #3b82f6); color: #fff; border: none;
   font-size: 24px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.25);
   display: flex; align-items: center; justify-content: center;
   transition: transform .15s;
@@ -3405,63 +3231,45 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 }
 #chat-panel {
   position: fixed; bottom: 92px; right: 24px; z-index: 9001;
-  width: 380px; max-height: 520px; border-radius: 20px;
-  background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
-  box-shadow: 0 16px 48px rgba(0,0,0,.15);
+  width: 380px; max-height: 520px; border-radius: 16px;
+  background: var(--surface-card, #fff); border: 1px solid var(--border, #e5e7eb);
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
   display: none; flex-direction: column; overflow: hidden;
 }
 #chat-panel.open { display: flex; }
 #chat-header {
-  padding: 16px 20px; background: var(--card, #fff); color: var(--text-primary);
+  padding: 14px 16px; background: var(--accent, #3b82f6); color: #fff;
   display: flex; align-items: center; justify-content: space-between;
-  font-weight: 700; font-size: 16px; border-bottom: 1px solid var(--border, #e5e7eb);
+  font-weight: 700; font-size: 15px;
 }
-#chat-header .online { font-size: 13px; color: var(--brand); font-weight: 600; }
+#chat-header .online { font-size: 12px; opacity: .85; font-weight: 400; }
 #chat-messages {
-  flex: 1; overflow-y: auto; padding: 16px;
+  flex: 1; overflow-y: auto; padding: 12px 14px;
   max-height: 380px; min-height: 200px;
-  display: flex; flex-direction: column; gap: 8px;
-  font-size: 14px; background: var(--surface-page, #f5f6f8);
+  display: flex; flex-direction: column; gap: 6px;
+  font-size: 13px; line-height: 1.5;
 }
-#chat-messages .sys {
-  color: var(--text-tertiary, #9ca3af); font-size: 12px; text-align: center;
-  margin: 8px 0; background: var(--surface-muted); padding: 4px 12px;
-  border-radius: 12px; align-self: center;
-}
-#chat-messages .msg {
-  display: flex; flex-direction: column;
-  background: var(--card, #fff); color: var(--text-primary);
-  padding: 10px 14px; border-radius: 18px 18px 18px 4px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  width: fit-content; max-width: 85%;
-}
-#chat-messages .msg.me {
-  align-self: flex-end;
-  background: var(--brand, #3182f6); color: #fff;
-  border-radius: 18px 18px 4px 18px;
-}
-#chat-messages .msg .nick { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
-#chat-messages .msg.me .nick { display: none; }
-#chat-messages .msg .content-row { display: flex; align-items: flex-end; gap: 8px; }
-#chat-messages .msg .text { word-break: break-word; line-height: 1.4; }
-#chat-messages .msg .time { font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; margin-bottom: 2px; }
-#chat-messages .msg.me .time { color: rgba(255,255,255,0.75); }
+#chat-messages .sys { color: var(--text-tertiary, #9ca3af); font-size: 11px; text-align: center; }
+#chat-messages .msg { word-break: break-word; }
+#chat-messages .msg .nick { font-weight: 700; margin-right: 6px; }
+#chat-messages .msg .nick.me { color: var(--accent, #3b82f6); }
+#chat-messages .msg .time { font-size: 10px; color: var(--text-tertiary, #9ca3af); margin-left: 6px; }
 #chat-input-wrap {
-  display: flex; padding: 12px 16px; gap: 10px; background: var(--card, #fff); border-top: 1px solid var(--border, #e5e7eb);
+  display: flex; border-top: 1px solid var(--border, #e5e7eb); padding: 8px 10px; gap: 8px;
 }
 #chat-input {
-  flex: 1; border: none; border-radius: 20px;
-  padding: 10px 16px; font-size: 14px; outline: none;
-  background: var(--surface-subtle, #f2f3f6); color: var(--text-primary);
+  flex: 1; border: 1px solid var(--border, #ddd); border-radius: 8px;
+  padding: 8px 12px; font-size: 13px; outline: none;
+  background: var(--surface-page, #f9fafb); color: var(--text-primary);
 }
-#chat-input:focus { background: var(--surface-muted, #eaebee); }
+#chat-input:focus { border-color: var(--accent, #3b82f6); }
 #chat-send {
-  background: var(--brand, #3b82f6); color: #fff; border: none;
-  border-radius: 20px; padding: 0 16px; font-weight: 700; cursor: pointer; font-size: 14px;
+  background: var(--accent, #3b82f6); color: #fff; border: none;
+  border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; font-size: 13px;
 }
 #chat-admin-btn {
   background: none; border: none; cursor: pointer; font-size: 14px;
-  opacity: .5; transition: opacity .15s; padding: 0 0 0 8px; line-height: 1;
+  opacity: .7; transition: opacity .15s; padding: 0 0 0 8px; line-height: 1;
 }
 #chat-admin-btn:hover { opacity: 1; }
 #chat-admin-bar {
@@ -3477,16 +3285,16 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
 #chat-admin-bar button {
   background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 4px;
 }
-.msg .admin-actions { display: none; margin-top: 4px; }
-.admin-mode .msg .admin-actions { display: block; }
+.msg .admin-actions { display: none; margin-left: 4px; }
+.admin-mode .msg .admin-actions { display: inline; }
 .msg .admin-actions button {
-  background: none; border: none; cursor: pointer; font-size: 12px;
-  opacity: .7; padding: 0 4px; color: var(--text-primary);
+  background: none; border: none; cursor: pointer; font-size: 11px;
+  opacity: .5; padding: 0 2px; color: var(--text-tertiary);
 }
 .msg .admin-actions button:hover { opacity: 1; color: #ef4444; }
 #chat-messages .announce {
-  background: var(--brand-tint, #e8f3ff); color: var(--brand, #3182f6); padding: 8px 12px; border-radius: 12px;
-  font-size: 13px; font-weight: 600; text-align: center; margin: 8px 0; align-self: center;
+  background: #fef3c7; color: #92400e; padding: 6px 10px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; text-align: center;
 }
 @media (max-width: 480px) {
   #chat-panel { width: calc(100vw - 24px); right: 12px; bottom: 84px; }
@@ -3601,13 +3409,12 @@ document.addEventListener('click', function(e) {
   }
   function addMsg(nick, msg, ts, id) {
     const el = document.createElement('div');
-    const isMe = nick === myNick;
-    el.className = 'msg' + (isMe ? ' me' : '');
+    el.className = 'msg';
     if (id) el.dataset.id = id;
     el.dataset.nick = nick;
-    let html = `<div class="nick">${escHtml(nick)}</div>`;
-    html += `<div class="content-row"><span class="text">${escHtml(msg)}</span><span class="time">${fmtTime(ts)}</span></div>`;
-    html += `<div class="admin-actions"><button class="del-btn" title="삭제">&times; 삭제</button><button class="ban-btn" title="차단">🚫 차단</button></div>`;
+    const isMe = nick === myNick;
+    let html = `<span class="nick${isMe?' me':''}">${escHtml(nick)}</span>${escHtml(msg)}<span class="time">${fmtTime(ts)}</span>`;
+    html += `<span class="admin-actions"><button class="del-btn" title="삭제">&times;</button><button class="ban-btn" title="차단">🚫</button></span>`;
     el.innerHTML = html;
     el.querySelector('.del-btn').onclick = () => socket.emit('admin_delete', { id: Number(el.dataset.id) });
     el.querySelector('.ban-btn').onclick = () => socket.emit('admin_ban', { nick: el.dataset.nick });
@@ -3724,7 +3531,7 @@ document.addEventListener('click', function(e) {
     0 0 0 1px rgba(255, 255, 255, 0.02),
     0 0 24px rgba(49, 130, 246, 0.08);
   color: #E4E9F2;
-  font-family: 'Paperlogy', -apple-system, 'Pretendard', system-ui, sans-serif;
+  font-family: -apple-system, 'Pretendard', system-ui, sans-serif;
   opacity: 0;
   transform: translateY(4px) scale(0.98);
   transition: opacity 140ms var(--ease-out, ease-out), transform 140ms var(--ease-out, ease-out);

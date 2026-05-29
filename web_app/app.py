@@ -99,6 +99,9 @@ from flask.json.provider import DefaultJSONProvider as _DefaultJSONProvider
 
 
 def _sanitize_nan(obj):
+    # bool은 int 서브클래스라 먼저 체크 — str/int/bool/None은 대부분의 값이므로 즉시 반환
+    if isinstance(obj, (bool, int, str)) or obj is None:
+        return obj
     if isinstance(obj, float):
         return None if not _math.isfinite(obj) else obj
     if isinstance(obj, dict):
@@ -124,7 +127,8 @@ app.json = _SafeJSONProvider(app)
 _FLASK_COMPRESS_OK = False
 try:
     from flask_compress import Compress as _Compress
-    app.config.setdefault("COMPRESS_ALGORITHM", ["br", "gzip", "deflate"])
+    app.config.setdefault("COMPRESS_ALGORITHM", ["gzip"])  # br은 CPU 비용이 너무 높음
+    app.config.setdefault("COMPRESS_LEVEL", 1)             # 최속 압축 (속도 우선)
     _Compress(app)
     _FLASK_COMPRESS_OK = True
 except ImportError:
@@ -164,6 +168,75 @@ _scan_refresh_inflight: set[tuple[str, str, str]] = set()
 _SCAN_RESULTS_TTL_SEC = 300  # 5분
 _scan_results_cache: dict[tuple[str, str, str], dict] = {}
 _scan_results_cache_lock = threading.Lock()
+
+# 스캔 JSON 응답에서 제거할 무거운 필드 (상세 패널은 /api/ticker 에서 별도 제공)
+_SCAN_STRIP_FIELDS: frozenset = frozenset({"Breakdown"})
+
+def _strip_heavy(rows: list) -> list:
+    if not _SCAN_STRIP_FIELDS or not rows:
+        return rows
+    return [{k: v for k, v in r.items() if k not in _SCAN_STRIP_FIELDS} if isinstance(r, dict) else r for r in rows]
+
+# ── 스캔 응답 사전 압축 캐시 — cache hit 시 재직렬화/재압축 제거 ──
+# jsonify+flask_compress(brotli/gzip) 는 5.5MB 응답에 2~4s 소요 → 1회만 실행, 이후 bytes 직접 서빙
+_scan_gz_cache: dict[tuple, bytes] = {}
+_scan_gz_cache_lock = threading.Lock()
+
+def _store_scan_cache(key: tuple, ts: int, rows: list) -> bytes:
+    """rows를 _scan_results_cache + gzip 사전압축 캐시에 동시 저장. 압축 bytes 반환."""
+    import gzip as _gz
+    with _scan_results_cache_lock:
+        _scan_results_cache[key] = {"_ts": ts, "data": rows}
+    try:
+        raw = json.dumps(_sanitize_nan(rows), ensure_ascii=False, allow_nan=False).encode("utf-8")
+        compressed = _gz.compress(raw, compresslevel=1)
+    except Exception:
+        compressed = b""
+    with _scan_gz_cache_lock:
+        _scan_gz_cache[key] = compressed
+    return compressed
+
+# ── 검색 인덱스 (앱 시작 시 1회 빌드 — 매 요청 선형 스캔 제거) ──
+# 각 항목: (ticker, display_name, blob) — blob = ticker|name 소문자 결합 문자열
+_SEARCH_IDX: dict[str, list] = {}
+_SEARCH_IDX_LOCK = threading.Lock()
+
+
+def _get_search_idx(market: str) -> list:
+    if market in _SEARCH_IDX:
+        return _SEARCH_IDX[market]
+    with _SEARCH_IDX_LOCK:
+        if market in _SEARCH_IDX:
+            return _SEARCH_IDX[market]
+        try:
+            from quant_nexus_v20 import QuantNexusApp
+            if market == "KR":
+                idx: list = []
+                for tk, nm in QuantNexusApp.KR_NAMES.items():
+                    code = tk.split(".")[0]
+                    idx.append((tk, nm, f"{tk.lower()}|{nm.lower()}|{code}"))
+                _SEARCH_IDX["KR"] = idx
+            else:
+                us_names = getattr(QuantNexusApp, "US_NAMES", {}) or {}
+                us_desc  = getattr(QuantNexusApp, "US_DESC", {}) or {}
+                try:
+                    from us_company_info import US_COMPANY_INFO as _uci
+                except Exception:
+                    _uci = {}
+                seen: set[str] = set()
+                idx = []
+                for tk, nm in us_names.items():
+                    label = nm or us_desc.get(tk) or _uci.get(tk) or tk
+                    idx.append((tk, label, f"{tk.lower()}|{(label or '').lower()}"))
+                    seen.add(tk)
+                for tk, desc in _uci.items():
+                    if tk not in seen:
+                        idx.append((tk, desc, f"{tk.lower()}|{(desc or '').lower()}"))
+                _SEARCH_IDX["US"] = idx
+        except Exception as e:
+            logging.warning("_get_search_idx failed: %s", e)
+            _SEARCH_IDX[market] = []
+        return _SEARCH_IDX.get(market, [])
 
 
 def _configure_yf_cache() -> None:
@@ -355,7 +428,7 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
         try:
             adapter_cls = _get_scan_adapter_cls()
             adapter = adapter_cls(market=market, strategy=strategy)
-            results = adapter.scan_sector(sector, prefer_cache=True) if sector else adapter.scan_all(prefer_cache=True, max_workers=8)
+            results = adapter.scan_sector(sector, prefer_cache=True, cache_only=True) if sector else adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=8)
             try:
                 import history
                 results = history.annotate_deltas(results, market)
@@ -380,12 +453,13 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
                 bonus = r.get("MoatBonus", 0)
                 if bonus and isinstance(r.get("TotalScore"), (int, float)):
                     r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
-            # 스캔 결과 전체 캐시 갱신
+            # Phase-3: moat 주입 후 투기주 졸업 재평가
+            from speculative_themes import apply_speculative_correction as _spec_reeval_batch
+            _spec_reeval_batch(results)
+            # 스캔 결과 전체 캐시 갱신 (Breakdown 제거 + 사전 압축)
             if results:
-                with _scan_results_cache_lock:
-                    _scan_results_cache[(market, strategy, sector)] = {
-                        "_ts": int(time.time()), "data": results,
-                    }
+                _cached_results = _strip_heavy(results)
+                _store_scan_cache((market, strategy, sector), int(time.time()), _cached_results)
         except Exception as e:
             logging.warning("background scan refresh failed: %s", e)
         finally:
@@ -402,10 +476,18 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
 
 
 # ── 캐시 메타데이터 (stale-data UX 헤더용) ─────────────────────────────────
+_scan_cache_meta_result: dict[str, tuple] = {}
+_scan_cache_meta_ts: dict[str, float] = {}
+_SCAN_CACHE_META_TTL = 120  # 2분 캐시 — 6,773개 파일 stat을 매 요청 반복하지 않도록
+
+
 def _scan_cache_meta(market: str) -> tuple[int | None, str | None]:
     """cache_v19/ 디렉토리에서 해당 market 캐시 파일들의 최고령(가장 오래된) 분 + 가장 최신 mtime ISO 반환.
-    실패/없음 시 (None, None).
+    실패/없음 시 (None, None). 결과는 2분 캐시 (6,773개 파일 stat 매 요청 방지).
     """
+    _now = time.time()
+    if market in _scan_cache_meta_result and (_now - _scan_cache_meta_ts.get(market, 0)) < _SCAN_CACHE_META_TTL:
+        return _scan_cache_meta_result[market]
     try:
         from datetime import datetime, timezone
         cache_dir = os.path.join(_BASE, "cache_v19")
@@ -445,6 +527,8 @@ def _scan_cache_meta(market: str) -> tuple[int | None, str | None]:
             return (None, None)
         cache_age_min = int(oldest_age_sec // 60)
         as_of_iso = datetime.fromtimestamp(newest_mtime, tz=timezone.utc).isoformat()
+        _scan_cache_meta_result[market] = (cache_age_min, as_of_iso)
+        _scan_cache_meta_ts[market] = _now
         return (cache_age_min, as_of_iso)
     except Exception:
         return (None, None)
@@ -533,6 +617,13 @@ def _populate_sector_caches(market: str, strategy: str, results: list, ts: int) 
 def _warmup_fill_cache(market: str) -> None:
     """prefer_cache=True로 pickle에서 in-memory cache를 빠르게 채운다 (quick-warm pass)."""
     try:
+        # moat 메모리 캐시가 비어 있으면 먼저 채운다 — annotate_one_liners 디스크 I/O 제거
+        try:
+            import moat as _moat
+            if not _moat._mem_cache:
+                _moat.preload_cache()
+        except Exception:
+            pass
         adapter_cls = _get_scan_adapter_cls()
         adapter = adapter_cls(market=market, strategy="BALANCED")
         results = adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=8)
@@ -541,11 +632,22 @@ def _warmup_fill_cache(market: str) -> None:
                 results = _annotate_one_liners(results)
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
+            results = _strip_heavy(results)
             ts = int(time.time())
-            with _scan_results_cache_lock:
-                _scan_results_cache[(market, "BALANCED", "")] = {"_ts": ts, "data": results}
+            _store_scan_cache((market, "BALANCED", ""), ts, results)
             _populate_sector_caches(market, "BALANCED", results, ts)
             logging.info("%s quick-warm done: %d tickers (from pickle)", market, len(results))
+            # 상위 20개 4축 차트 선제 생성 — 첫 클릭 즉시 표시 (matplotlib 직렬화로 단일 스레드)
+            _top20 = sorted(results, key=lambda r: r.get("TotalScore") or 0, reverse=True)[:20]
+            def _bg_4ax_warm(_tickers=_top20, _mkt=market):
+                for _r in _tickers:
+                    _tk = _r.get("Ticker", "")
+                    if _tk:
+                        try:
+                            _warm_four_axis(_tk, _mkt)
+                        except Exception as _e:
+                            logging.debug("4ax-warm %s: %s", _tk, _e)
+            threading.Thread(target=_bg_4ax_warm, daemon=True, name=f"4ax-warm-{market}").start()
     except Exception as e:
         logging.warning("%s quick-warm failed: %s", market, e)
 
@@ -574,7 +676,7 @@ def _kr_warmup_loop(interval_sec: int = 1800) -> None:
                 try:
                     adapter_cls = _get_scan_adapter_cls()
                     adapter = adapter_cls(market="KR", strategy="BALANCED")
-                    _wm_workers = _get_config_int("WARMUP_WORKERS", 4, minimum=1, maximum=16)
+                    _wm_workers = _get_config_int("WARMUP_WORKERS", 8, minimum=1, maximum=16)
                     results = adapter.scan_all(max_workers=_wm_workers)
                     logging.info("KR warm-up done: %d tickers", len(results) if results else 0)
                     if results:
@@ -582,11 +684,9 @@ def _kr_warmup_loop(interval_sec: int = 1800) -> None:
                             results = _annotate_one_liners(results)
                         except Exception as _e:
                             logging.debug("silent except (app.py): %s", _e)
+                        results = _strip_heavy(results)
                         ts = int(time.time())
-                        with _scan_results_cache_lock:
-                            _scan_results_cache[("KR", "BALANCED", "")] = {
-                                "_ts": ts, "data": results,
-                            }
+                        _store_scan_cache(("KR", "BALANCED", ""), ts, results)
                         _populate_sector_caches("KR", "BALANCED", results, ts)
                 except Exception as e:
                     logging.warning("KR warm-up failed: %s", e)
@@ -709,7 +809,7 @@ def _us_warmup_loop(interval_sec: int = 1800) -> None:
                     logging.info("US warm-up started (slow-refresh)")
                     adapter_cls = _get_scan_adapter_cls()
                     adapter = adapter_cls(market="US", strategy="BALANCED")
-                    _wm_workers = _get_config_int("WARMUP_WORKERS", 4, minimum=1, maximum=16)
+                    _wm_workers = _get_config_int("WARMUP_WORKERS", 8, minimum=1, maximum=16)
                     results = adapter.scan_all(max_workers=_wm_workers)
                     logging.info("US warm-up done: %d tickers", len(results) if results else 0)
                     if results:
@@ -717,11 +817,9 @@ def _us_warmup_loop(interval_sec: int = 1800) -> None:
                             results = _annotate_one_liners(results)
                         except Exception as _e:
                             logging.debug("silent except (app.py): %s", _e)
+                        results = _strip_heavy(results)
                         ts = int(time.time())
-                        with _scan_results_cache_lock:
-                            _scan_results_cache[("US", "BALANCED", "")] = {
-                                "_ts": ts, "data": results,
-                            }
+                        _store_scan_cache(("US", "BALANCED", ""), ts, results)
                         _populate_sector_caches("US", "BALANCED", results, ts)
                 except Exception as e:
                     logging.warning("US warm-up failed: %s", e)
@@ -935,15 +1033,23 @@ def api_scan():
         with _scan_results_cache_lock:
             _sr_cached = _scan_results_cache.get(_sr_key)
         if _sr_cached:
-            _refresh_scan_background(market, strategy, sector)
-            resp = jsonify(_sr_cached["data"])
+            _age_sec = _sr_now - _sr_cached.get("_ts", 0)
+            if _age_sec > _SCAN_RESULTS_TTL_SEC:
+                _refresh_scan_background(market, strategy, sector)
+            # 사전 압축 캐시 히트 — flask_compress 재압축 완전 우회
+            with _scan_gz_cache_lock:
+                _gz_bytes = _scan_gz_cache.get(_sr_key)
+            if _gz_bytes:
+                resp = Response(_gz_bytes, mimetype="application/json")
+                resp.headers["Content-Encoding"] = "gzip"
+            else:
+                resp = jsonify(_sr_cached["data"])
             try:
                 cache_age_min, as_of_iso = _scan_cache_meta(market)
                 if cache_age_min is not None:
                     resp.headers["X-Cache-Age-Min"] = str(cache_age_min)
                 if as_of_iso:
                     resp.headers["X-As-Of"] = as_of_iso
-                _age_sec = _sr_now - _sr_cached.get("_ts", 0)
                 resp.headers["X-Warming-In-Progress"] = "true" if _age_sec > _SCAN_RESULTS_TTL_SEC else "false"
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
@@ -979,10 +1085,18 @@ def api_scan():
         try:
             import history
             results = history.annotate_deltas(results, market)
-            # 섹터 스캔이 아닐 때만 스냅샷 저장 (전체 스캔만 저장)
+            # 섹터 스캔이 아닐 때만 스냅샷 저장 — 백그라운드로 이동해 응답 차단 제거
             if not sector:
-                universe = {t for ts in adapter.get_sectors().values() for t in ts}
-                history.save_snapshot(results, market, universe=universe)
+                _snap_rows = list(results)
+                _snap_market = market
+                _snap_universe = {t for ts in adapter.get_sectors().values() for t in ts}
+                def _bg_snap(_r=_snap_rows, _m=_snap_market, _u=_snap_universe):
+                    try:
+                        import history as _h
+                        _h.save_snapshot(_r, _m, universe=_u)
+                    except Exception as _e:
+                        logging.warning("bg save_snapshot failed: %s", _e)
+                threading.Thread(target=_bg_snap, daemon=True).start()
         except Exception as he:
             logging.warning("history annotate/save failed: %s", he)
         # KR 종목은 네이버 실시간 등락률로 즉시 오버라이드 (yfinance 장중 고착 회피).
@@ -1002,18 +1116,24 @@ def api_scan():
             bonus = r.get("MoatBonus", 0)
             if bonus and isinstance(r.get("TotalScore"), (int, float)):
                 r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
+        # Phase-3: moat 주입 후 투기주 졸업 재평가
+        from speculative_themes import apply_speculative_correction as _spec_reeval_sync
+        _spec_reeval_sync(results)
         # AgentQuant 융합 (상위 N개)
         if aq_top > 0:
             try:
                 results = _apply_aq_fusion(results, market, top_n=aq_top)
             except Exception as ae:
                 logging.warning("aq fusion failed: %s", ae)
-        # ── 스캔 결과 전체 캐시 저장 ──
-        if results:
-            with _scan_results_cache_lock:
-                _scan_results_cache[_sr_key] = {"_ts": _sr_now, "data": results}
-        # Stale-data UX 헤더 (non-breaking: 본문은 array 유지)
-        resp = jsonify(results)
+        # ── 스캔 결과 전체 캐시 저장 (Breakdown 제거 + 사전 압축) ──
+        results = _strip_heavy(results)
+        _gz_bytes = _store_scan_cache(_sr_key, _sr_now, results) if results else b""
+        # 사전 압축 bytes 직접 서빙 — flask_compress 재압축 우회 (gzip 지원 클라이언트 한정)
+        if _gz_bytes and "gzip" in request.headers.get("Accept-Encoding", ""):
+            resp = Response(_gz_bytes, mimetype="application/json")
+            resp.headers["Content-Encoding"] = "gzip"
+        else:
+            resp = jsonify(results)
         try:
             cache_age_min, as_of_iso = _scan_cache_meta(market)
             if cache_age_min is not None:
@@ -1137,28 +1257,16 @@ def api_search():
     """GET /api/search?q=rf&market=KR → [{ticker, name}, ...] 이름/티커 부분매칭."""
     q = (request.args.get("q") or "").strip().lower()
     market = (request.args.get("market") or "US").upper()
-    if not q or len(q) < 1:
+    if not q:
         return jsonify([])
     hits = []
     try:
-        from quant_nexus_v20 import QuantNexusApp
-        if market == "KR":
-            for tk, nm in QuantNexusApp.KR_NAMES.items():
-                code = tk.split(".")[0]
-                if q in nm.lower() or q in tk.lower() or q in code.lower():
-                    hits.append({"ticker": tk, "name": nm})
-        else:
-            try:
-                from us_company_info import US_COMPANY_INFO
-            except Exception:
-                US_COMPANY_INFO = {}
-            for tk, desc in US_COMPANY_INFO.items():
-                if q in tk.lower() or q in desc.lower():
-                    hits.append({"ticker": tk, "name": desc})
+        for tk, nm, blob in _get_search_idx(market):
+            if q in blob:
+                hits.append({"ticker": tk, "name": nm})
     except Exception as e:
         logging.warning("api_search failed: %s", e)
     # 정렬: (1) 이름이 q로 시작 (2) 티커가 q로 시작 (3) 이름 길이 짧은 순 (4) 알파벳
-    # 짧은 이름 우선 — '한' 검색 시 '한켐'(2자)이 '한국가스공사'(6자)보다 위로.
     hits.sort(key=lambda h: (
         not h["name"].lower().startswith(q),
         not h["ticker"].lower().startswith(q),
@@ -1182,9 +1290,11 @@ def api_ticker(ticker: str):
     with _ticker_detail_cache_lock:
         _td_cached = _ticker_detail_cache.get(_td_key)
         if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
-            # 한줄평은 항상 최신 로직으로 재생성 (캐시는 raw 데이터만 재사용)
+            # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
             try:
-                fresh = _annotate_one_liners([_td_cached["data"]], force=True)[0]
+                from one_liner import annotate as _ol_annotate
+                fresh = dict(_td_cached["data"])
+                _ol_annotate([fresh])
             except Exception:
                 fresh = _td_cached["data"]
             return jsonify(fresh)
@@ -1209,59 +1319,14 @@ def api_ticker(ticker: str):
                         result["Name"] = fixed
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
-            # 네이버 금융 투자자 매매동향 (외인/기관 순매수, 단위: 주)
-            try:
-                from naver_finance import get_investor_flow
-                inv = get_investor_flow(code6)
-                if inv.get("rows"):
-                    result["_Investor_Foreign"] = int(inv.get("foreign_net_latest") or 0)
-                    result["_Investor_Institution"] = int(inv.get("inst_net_latest") or 0)
-                    result["_Investor_Available"] = True
-            except Exception as ne:
-                logging.debug("naver investor flow failed for %s: %s", ticker, ne)
+            # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
+            result["_Investor_Available"] = False
         else:
-            # US 종목: yfinance 수급/센티먼트 데이터
-            try:
-                import yfinance as yf
-                yf_info = _run_with_timeout(
-                    lambda: yf.Ticker(ticker).info, 10, f"yf_info {ticker}"
-                ) or {}
-                short_pct = yf_info.get("shortPercentOfFloat")
-                inst_pct = yf_info.get("heldPercentInstitutions")
-                rec_mean = yf_info.get("recommendationMean")
-                target_mean = yf_info.get("targetMeanPrice")
-                cur_price = yf_info.get("currentPrice")
-                n_analysts = yf_info.get("numberOfAnalystOpinions")
-                if short_pct is not None:
-                    result["_YF_ShortPctFloat"] = round(short_pct * 100, 2)
-                if inst_pct is not None:
-                    result["_YF_InstPct"] = round(inst_pct * 100, 1)
-                if rec_mean is not None and n_analysts:
-                    result["_YF_RecMean"] = round(rec_mean, 2)
-                    result["_YF_RecKey"] = yf_info.get("recommendationKey", "")
-                    result["_YF_NumAnalysts"] = int(n_analysts)
-                if target_mean and cur_price and cur_price > 0:
-                    gap_pct = (target_mean - cur_price) / cur_price * 100
-                    result["_YF_TargetGapPct"] = round(gap_pct, 1)
-                result["_YF_Available"] = True
-            except Exception as ye:
-                logging.debug("yfinance sentiment failed for %s: %s", ticker, ye)
-            # Finnhub 데이터 (내부자 거래, 애널리스트 추천 변화, 실적 서프라이즈)
-            try:
-                from finnhub_api import get_sentiment_data, is_available as fh_ok
-                if fh_ok():
-                    fh = get_sentiment_data(ticker)
-                    if fh.get("available"):
-                        result["_FH_InsiderNet"] = fh["insider_net_shares"]
-                        result["_FH_InsiderCount"] = fh["insider_tx_count"]
-                        result["_FH_RecBuy"] = fh["rec_strong_buy"] + fh["rec_buy"]
-                        result["_FH_RecSell"] = fh["rec_sell"]
-                        result["_FH_RecChange"] = fh["rec_change"]
-                        result["_FH_EarnSurprise"] = fh["earnings_surprise_pct"]
-                        result["_FH_EarnStreak"] = fh["earnings_beat_streak"]
-                        result["_FH_Available"] = True
-            except Exception as fe:
-                logging.debug("Finnhub sentiment failed for %s: %s", ticker, fe)
+            # US 종목: yfinance + Finnhub 센티먼트는 /api/sentiment/<ticker>로 분리 (lazy-load).
+            # 종목 상세 패널 첫 paint 지연(5~10s yfinance .info hang)을 제거하기 위함.
+            # 프론트는 sentiment 응답 도착 시 _YF_*/_FH_* 키를 머지.
+            result["_YF_Available"] = False
+            result["_FH_Available"] = False
         try:
             result = _annotate_one_liners([result])[0]
         except Exception as oe:
@@ -1270,7 +1335,11 @@ def api_ticker(ticker: str):
         bonus = result.get("MoatBonus", 0)
         if bonus and isinstance(result.get("TotalScore"), (int, float)):
             result["TotalScore"] = min(100.0, result["TotalScore"] + bonus)
-        # AQ 융합은 /api/aq_signal/<ticker> 로 분리 (드로어 lazy-load)
+        # Phase-3: moat 주입 후 투기주 졸업 재평가
+        # (engine_adapter에서 moat 없이 1차 평가 → moat 주입 후 2차 재평가)
+        from speculative_themes import apply_to_row as _spec_reeval
+        _spec_reeval(result)
+
         # ── 응답 캐시 저장 ──
         with _ticker_detail_cache_lock:
             if len(_ticker_detail_cache) >= _TICKER_DETAIL_MAX:
@@ -1308,6 +1377,193 @@ def api_aq_signal(ticker: str):
         return jsonify({"ok": False, "error": str(e)})
 
 
+_sentiment_cache: dict[str, dict] = {}
+_sentiment_cache_lock = threading.Lock()
+_SENTIMENT_TTL_SEC = 300  # 5분
+
+
+@app.route("/api/sentiment/<ticker>")
+def api_sentiment(ticker: str):
+    """GET /api/sentiment/AAPL → yfinance + Finnhub 센티먼트 (lazy-load).
+
+    /api/ticker 응답 후 프론트가 별도로 호출해서 _YF_*/_FH_* 키를 머지한다.
+    yfinance .info 호출이 5~10초 hang하는 케이스를 격리해 첫 paint 지연을 막는다.
+    """
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
+    market = (request.args.get("market") or "US").upper()
+    if market == "KR":
+        return jsonify({"ok": False, "reason": "kr_not_supported"})
+
+    # ── 5분 TTL 메모리 캐시: 같은 종목 반복 호출시 yfinance/Finnhub 재호출 회피 ──
+    _now = time.time()
+    with _sentiment_cache_lock:
+        _cached = _sentiment_cache.get(ticker)
+        if _cached and (_now - _cached.get("_ts", 0)) < _SENTIMENT_TTL_SEC:
+            return jsonify(_cached["data"])
+
+    out: dict = {"ok": True, "ticker": ticker}
+    # yfinance 수급/센티먼트
+    try:
+        import yfinance as yf
+        yf_info = _run_with_timeout(
+            lambda: yf.Ticker(ticker).info, 5, f"yf_info {ticker}"
+        ) or {}
+        short_pct = yf_info.get("shortPercentOfFloat")
+        inst_pct = yf_info.get("heldPercentInstitutions")
+        rec_mean = yf_info.get("recommendationMean")
+        target_mean = yf_info.get("targetMeanPrice")
+        cur_price = yf_info.get("currentPrice")
+        n_analysts = yf_info.get("numberOfAnalystOpinions")
+        if short_pct is not None:
+            out["_YF_ShortPctFloat"] = round(short_pct * 100, 2)
+        if inst_pct is not None:
+            out["_YF_InstPct"] = round(inst_pct * 100, 1)
+        if rec_mean is not None and n_analysts:
+            out["_YF_RecMean"] = round(rec_mean, 2)
+            out["_YF_RecKey"] = yf_info.get("recommendationKey", "")
+            out["_YF_NumAnalysts"] = int(n_analysts)
+        if target_mean and cur_price and cur_price > 0:
+            gap_pct = (target_mean - cur_price) / cur_price * 100
+            out["_YF_TargetGapPct"] = round(gap_pct, 1)
+        out["_YF_Available"] = True
+    except Exception as ye:
+        logging.debug("yfinance sentiment failed for %s: %s", ticker, ye)
+        out["_YF_Available"] = False
+
+    # Finnhub 데이터 (내부자/추천 변화/실적 서프라이즈/뉴스/실시간 시세)
+    try:
+        from finnhub_api import get_sentiment_data, is_available as fh_ok
+        if fh_ok():
+            fh = get_sentiment_data(ticker)
+            if fh.get("available"):
+                out["_FH_InsiderNet"] = fh["insider_net_shares"]
+                out["_FH_InsiderCount"] = fh["insider_tx_count"]
+                out["_FH_RecBuy"] = fh["rec_strong_buy"] + fh["rec_buy"]
+                out["_FH_RecSell"] = fh["rec_sell"]
+                out["_FH_RecChange"] = fh["rec_change"]
+                out["_FH_EarnSurprise"] = fh["earnings_surprise_pct"]
+                out["_FH_EarnStreak"] = fh["earnings_beat_streak"]
+                out["_FH_DaysToEarnings"] = fh.get("days_to_earnings_est", -1)
+                out["_FH_NextEarnings"] = fh.get("next_earnings_estimate", "")
+                out["_FH_News7d"] = fh.get("news_count_7d", 0)
+                out["_FH_Headlines"] = fh.get("news_headlines", [])
+                out["_FH_DayChangePct"] = fh.get("day_change_pct", 0)
+                out["_FH_CurrentPrice"] = fh.get("current_price", 0)
+                out["_FH_Available"] = True
+            else:
+                out["_FH_Available"] = False
+        else:
+            out["_FH_Available"] = False
+    except Exception as fe:
+        logging.debug("Finnhub sentiment failed for %s: %s", ticker, fe)
+        out["_FH_Available"] = False
+
+    # 캐시 저장
+    with _sentiment_cache_lock:
+        if len(_sentiment_cache) > 500:
+            _sentiment_cache.pop(next(iter(_sentiment_cache)), None)
+        _sentiment_cache[ticker] = {"_ts": int(time.time()), "data": out}
+    return jsonify(out)
+
+
+@app.route("/api/investor_flow/<ticker>")
+def api_investor_flow(ticker: str):
+    """GET /api/investor_flow/005930?market=KR → 네이버 외인/기관 순매수 (lazy-load).
+
+    /api/ticker의 KR blocking 병목 제거를 위해 분리.
+    """
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
+    market = (request.args.get("market") or "KR").upper()
+    if market != "KR":
+        return jsonify({"ok": False, "reason": "us_not_supported"})
+    try:
+        from naver_finance import get_investor_flow
+        code6 = _strip_kr_suffix(ticker).zfill(6)
+        inv = get_investor_flow(code6)
+        if inv.get("rows"):
+            return jsonify({
+                "ok": True,
+                "ticker": ticker,
+                "_Investor_Foreign": int(inv.get("foreign_net_latest") or 0),
+                "_Investor_Institution": int(inv.get("inst_net_latest") or 0),
+                "_Investor_Available": True,
+            })
+        return jsonify({"ok": False, "ticker": ticker, "_Investor_Available": False})
+    except Exception as e:
+        logging.debug("investor_flow failed for %s: %s", ticker, e)
+        return jsonify({"ok": False, "_Investor_Available": False})
+
+
+
+
+
+
+def _peers_from_finnhub(ticker: str, limit: int) -> dict | None:
+    """US 종목 전용: Finnhub company_peers + basic_financials로 라이브 데이터 생성.
+
+    스캔 캐시 의존성을 우회해 stale 시총/PE 문제를 해결한다.
+    """
+    try:
+        import finnhub_api as fh
+        if not fh.is_available():
+            return None
+        peer_tickers = fh.get_peers(ticker)
+        if not peer_tickers:
+            return None
+
+        def _build_row(tk: str, name_fallback: str = "") -> dict:
+            try:
+                import yfinance as yf
+                yi = _run_with_timeout(lambda: yf.Ticker(tk).info or {}, 5, f"peer_info_{tk}") or {}
+            except Exception:
+                yi = {}
+            fin = fh.get_basic_financials(tk)
+            try:
+                q = fh._client().quote(tk)
+                price = q.get("c") if q else None
+            except Exception:
+                price = yi.get("currentPrice") or yi.get("regularMarketPrice")
+            return {
+                "Ticker":          tk,
+                "Name":            yi.get("shortName") or yi.get("longName") or name_fallback or tk,
+                "Sector":          yi.get("sector") or "",
+                "Industry":        yi.get("industry") or "",
+                "Price":           price,
+                "TotalScore":      None,
+                "MarketCap":       fin.get("marketCap") or yi.get("marketCap"),
+                "PER":             fin.get("trailingPE") or yi.get("trailingPE"),
+                "PBR":             fin.get("priceToBook") or yi.get("priceToBook"),
+                "ROE":             fin.get("returnOnEquity") or yi.get("returnOnEquity"),
+                "OperatingMargin": fin.get("operatingMargins") or yi.get("operatingMargins"),
+                "Mom12M":          None,
+                "DivYield":        fin.get("dividendYield") or yi.get("dividendYield"),
+            }
+
+        me_row = _build_row(ticker)
+        peer_rows = []
+        for tk in peer_tickers[:limit]:
+            try:
+                peer_rows.append(_build_row(tk))
+            except Exception as e:
+                logging.warning("peer row build failed for %s: %s", tk, e)
+        # 시총 큰 순
+        peer_rows.sort(key=lambda r: -float(r.get("MarketCap") or 0))
+        return {
+            "ok": True,
+            "self":  me_row,
+            "peers": peer_rows,
+            "sector":   me_row.get("Sector") or "",
+            "industry": me_row.get("Industry") or "",
+            "count":    len(peer_rows),
+            "source":   "finnhub",
+        }
+    except Exception as e:
+        logging.warning("_peers_from_finnhub(%s) failed: %s", ticker, e)
+        return None
 
 
 @app.route("/api/peers/<ticker>")
@@ -1322,7 +1578,14 @@ def api_peers(ticker: str):
     except (TypeError, ValueError):
         limit = 5
 
-    # 스캔 캐시에서 전체 종목 목록 조회 (sector="" 인 BALANCED 캐시)
+    # US 종목: Finnhub 라이브 우선 (스캔 캐시 stale 회피)
+    is_kr = ticker.endswith(".KS") or ticker.endswith(".KQ") or ticker.isdigit()
+    if market == "US" and not is_kr:
+        fh_payload = _peers_from_finnhub(ticker, limit)
+        if fh_payload:
+            return jsonify(fh_payload)
+
+    # KR 또는 Finnhub 실패 시 기존 스캔 캐시 폴백
     rows = []
     with _scan_results_cache_lock:
         for strat in ("BALANCED", "AGGRESSIVE", "CONSERVATIVE"):
@@ -1391,6 +1654,8 @@ def api_peers(ticker: str):
         "industry": industry,
         "count":    len(peers),
     })
+
+
 
 
 # ── 매출 세그먼트 파이 ─────────────────────────────────────────────────────
@@ -1489,7 +1754,7 @@ def _fetch_ticker_events(ticker: str) -> list:
         t = yf.Ticker(ticker)
         # 다음 실적일
         try:
-            cal = t.calendar
+            cal = _run_with_timeout(lambda: t.calendar, 5, "ticker_events_cal")
             if isinstance(cal, dict):
                 ed = cal.get("Earnings Date")
                 if ed:
@@ -1506,7 +1771,7 @@ def _fetch_ticker_events(ticker: str) -> list:
             logging.debug("silent except (app.py): %s", _e)
         # info에서 보조 필드
         try:
-            info = t.info or {}
+            info = _run_with_timeout(lambda: t.info or {}, 5, "ticker_events_info") or {}
             ts_earn = info.get("earningsTimestamp") or info.get("earningsTimestampStart")
             if ts_earn and not any(e["kind"] == "earnings" for e in events):
                 d = _dt.datetime.fromtimestamp(int(ts_earn), tz=_dt.timezone.utc).date().isoformat()
@@ -1626,7 +1891,7 @@ def _fetch_insider_transactions(ticker: str) -> dict:
         t = yf.Ticker(ticker)
         df = None
         try:
-            df = t.insider_transactions
+            df = _run_with_timeout(lambda: t.insider_transactions, 8, "insider_transactions")
         except Exception:
             df = None
         if df is None or df.empty:
@@ -1870,7 +2135,9 @@ def api_consensus(ticker: str):
     else:  # US ? yfinance ??? (?? broker ???? ??)
         try:
             import yfinance as yf
-            info = yf.Ticker(ticker).info or {}
+            info = _run_with_timeout(
+                lambda: yf.Ticker(ticker).info or {}, 5, f"consensus yf {ticker}"
+            ) or {}
             def _flt(v):
                 try: return float(v)
                 except: return 0
@@ -1908,6 +2175,287 @@ def api_regime(ticker: str):
         return jsonify({"error": str(e)}), 500
 
 
+def _compute_four_axis_payload(ticker: str, market: str) -> tuple:
+    """yfinance + FourAxisAnalyzer + HandDrawnChartRenderer → (payload_dict|None, err_str|None)."""
+    try:
+        import yfinance as yf
+        _configure_yf_cache()
+        from four_axis_analyzer import FourAxisAnalyzer
+        from handdrawn_renderer import HandDrawnChartRenderer
+
+        candidates = _build_yf_candidates(ticker, market)
+        fetch_timeout_sec = _get_config_int("FOUR_AXIS_FETCH_TIMEOUT_SEC", 20, minimum=5, maximum=120)
+        info_timeout_sec = _get_config_int("FOUR_AXIS_INFO_TIMEOUT_SEC", 8, minimum=3, maximum=60)
+        min_rows = _get_config_int("FOUR_AXIS_MIN_ROWS", 20, minimum=10, maximum=252)
+
+        hist = None
+        tried = []
+        periods = ("2y", "1y", "6mo", "3mo")
+        for yt in candidates:
+            rate_limited_break = False
+            for period in periods:
+                tried.append(f"{yt}({period})")
+                try:
+                    h = _run_with_timeout(
+                        lambda yt=yt, period=period: yf.Ticker(yt).history(
+                            period=period,
+                            auto_adjust=True,
+                            timeout=fetch_timeout_sec,
+                        ),
+                        fetch_timeout_sec,
+                        f"four_axis history {yt} {period}",
+                    )
+                    if h is not None and not h.empty and len(h) >= min_rows:
+                        hist = h
+                        break
+                except Exception as exc:
+                    msg = str(exc).lower()
+                    logging.warning("four_axis history fetch failed: %s", exc)
+                    if "too many requests" in msg or "rate" in msg and "limit" in msg:
+                        try:
+                            time.sleep(1.0)
+                            h = _run_with_timeout(
+                                lambda yt=yt, period=period: yf.Ticker(yt).history(
+                                    period=period,
+                                    auto_adjust=True,
+                                    timeout=fetch_timeout_sec,
+                                ),
+                                fetch_timeout_sec,
+                                f"four_axis history {yt} {period} retry",
+                            )
+                            if h is not None and not h.empty and len(h) >= min_rows:
+                                hist = h
+                                break
+                        except Exception as _e:
+                            logging.debug("silent except (app.py): %s", _e)
+                        rate_limited_break = True
+                        break
+                    continue
+            if hist is not None:
+                break
+
+        if (hist is None or hist.empty or len(hist) < min_rows) and market == "KR":
+            try:
+                import FinanceDataReader as fdr
+                from datetime import datetime, timedelta
+                code6 = _strip_kr_suffix(ticker).zfill(6)
+                start = (datetime.now() - timedelta(days=750)).strftime("%Y-%m-%d")
+                tried.append(f"FDR:{code6}")
+                fdr_df = _run_with_timeout(
+                    lambda: fdr.DataReader(code6, start),
+                    fetch_timeout_sec,
+                    f"four_axis FDR {code6}",
+                )
+                if fdr_df is not None and not fdr_df.empty and len(fdr_df) >= min_rows:
+                    keep = ["Open", "High", "Low", "Close", "Volume"]
+                    hist = fdr_df[keep].copy()
+            except Exception as exc:
+                logging.warning("four_axis FDR fallback failed: %s", exc)
+
+        if hist is None or hist.empty or len(hist) < min_rows:
+            _rows_n = 0 if hist is None or hist.empty else len(hist)
+            return None, f"데이터 부족 (시도: {', '.join(tried[:6])} / 확보: {_rows_n}일, 필요: {min_rows}일)"
+
+        analyzer = FourAxisAnalyzer(hist, ticker)
+        result = analyzer.analyze()
+
+        chart_title = ""
+        try:
+            if market == "KR":
+                code6 = _strip_kr_suffix(ticker).zfill(6)
+                try:
+                    from quant_nexus_v20 import QuantNexusApp
+                    chart_title = (
+                        QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
+                        or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
+                        or ""
+                    )
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
+                try:
+                    from swing_scan.config import stock_names as _sn
+                    nm = _sn.get_name(code6)
+                    if nm and nm != code6:
+                        chart_title = str(nm)
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
+            if not chart_title and market == "US":
+                try:
+                    yt0 = candidates[0] if candidates else ticker
+                    yinfo = _run_with_timeout(
+                        lambda yt0=yt0: yf.Ticker(yt0).info or {},
+                        info_timeout_sec,
+                        f"four_axis info {yt0}",
+                    )
+                    chart_title = (yinfo.get("longName") or yinfo.get("shortName") or "")
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
+        chart_title = chart_title or ticker
+
+        renderer = HandDrawnChartRenderer(
+            hist, result, ticker=chart_title,
+            width_px=1200, height_px=560, dpi=100,
+        )
+        img = renderer.render()
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+        chart_b64 = base64.b64encode(buf.read()).decode("ascii")
+
+        import numpy as np
+
+        def _sanitize_np(obj):
+            if isinstance(obj, dict):
+                return {k: _sanitize_np(v) for k, v in obj.items()}
+            if isinstance(obj, (list, tuple)):
+                return [_sanitize_np(v) for v in obj]
+            if isinstance(obj, (np.integer,)):
+                return int(obj)
+            if isinstance(obj, (np.floating,)):
+                return float(obj)
+            if isinstance(obj, (np.bool_,)):
+                return bool(obj)
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            return obj
+
+        rd = _sanitize_np(result.to_dict())
+        payload = {
+            "chart": chart_b64,
+            "phase": rd["phase"],
+            "signal_stars": rd["signal_stars"],
+            "haiku": rd["haiku"],
+            "trend": rd["trend"],
+            "momentum": rd["momentum"],
+            "volatility": rd["volatility"],
+            "volume": rd["volume"],
+            "key_observation": rd.get("key_observation", ""),
+            "structured_analysis": rd.get("structured_analysis", ""),
+        }
+
+        # ── 과열/바닥 신호 ────────────────────────────────────────────
+        try:
+            from heat_signal import compute_heat_signal as _chs
+            payload["heat_signal"] = _chs(hist, market)
+        except Exception as _e:
+            logging.debug("heat_signal: %s", _e)
+
+        # ── 분할매수 가이드 + 포지션 리스크 데이터 ───────────────────
+        try:
+            _atr  = float(result.volatility.details.get("atr") or 0)
+            _atp  = float(result.volatility.details.get("atr_pct") or 0)
+            _curr = float((result.key_levels or {}).get("current") or 0)
+            _sl   = float((result.risk or {}).get("stop_loss") or 0)
+            _sp   = float((result.risk or {}).get("stop_pct") or 0)
+
+            _lvls = []
+            if _curr > 0 and _atr > 0:
+                for _m, _r, _l in [(0, 30, "1차"), (1, 30, "2차"), (2, 25, "3차"), (3, 15, "4차")]:
+                    _lvls.append({
+                        "step": _m + 1, "label": _l,
+                        "price": round(_curr - _m * _atr, 2),
+                        "ratio": _r,
+                        "from_pct": round(-_m * _atp, 1),
+                    })
+            payload["dca_plan"] = {
+                "levels": _lvls, "atr_pct": round(_atp, 2), "current": _curr,
+            }
+            payload["position_data"] = {
+                "current_price": _curr, "stop_loss": round(_sl, 2),
+                "stop_pct": round(_sp, 2), "atr_pct": round(_atp, 2),
+            }
+        except Exception as _e:
+            logging.debug("dca_plan/position_data: %s", _e)
+
+        # ── RS Rating (개별 계산 + 스캔 캐시 퍼센타일 오버라이드) ─────────────
+        try:
+            import numpy as _np
+            _c = hist["Close"]
+            _n = len(_c)
+            _r1  = (float(_c.iloc[-1]) / float(_c.iloc[-21])  - 1) if _n >= 21  else 0.0
+            _r3  = (float(_c.iloc[-1]) / float(_c.iloc[-63])  - 1) if _n >= 63  else _r1
+            _r6  = (float(_c.iloc[-1]) / float(_c.iloc[-126]) - 1) if _n >= 126 else _r3
+            _r12 = (float(_c.iloc[-1]) / float(_c.iloc[-252]) - 1) if _n >= 252 else _r6
+            _wret = _r1 * 0.25 + _r3 * 0.40 + _r6 * 0.20 + _r12 * 0.15
+            if   _wret > 0.90: _rsr_calc = 99
+            elif _wret > 0.60: _rsr_calc = 97
+            elif _wret > 0.38: _rsr_calc = 93
+            elif _wret > 0.25: _rsr_calc = 88
+            elif _wret > 0.15: _rsr_calc = 82
+            elif _wret > 0.09: _rsr_calc = 74
+            elif _wret > 0.03: _rsr_calc = 62
+            elif _wret > 0.00: _rsr_calc = 52
+            elif _wret > -0.07: _rsr_calc = 38
+            elif _wret > -0.18: _rsr_calc = 25
+            else:               _rsr_calc = 12
+            # 스캔 캐시에 퍼센타일 기반 RSRating이 있으면 우선 사용
+            with _scan_results_cache_lock:
+                _all_cached = list(_scan_results_cache.values())
+            for _entry in _all_cached:
+                for _row in (_entry.get("data") or []):
+                    if str(_row.get("Ticker", "")).upper() == ticker.upper():
+                        _v = _row.get("RSRating")
+                        if isinstance(_v, (int, float)) and 1 <= _v <= 99:
+                            _rsr_calc = int(_v)
+                        break
+            _rsr = _rsr_calc
+            payload["rs_rating_data"] = {
+                "rating": _rsr,
+                "is_leader": _rsr >= 80,
+                "label": (
+                    "주도주" if _rsr >= 80 else
+                    "준주도주" if _rsr >= 70 else
+                    "중립" if _rsr >= 50 else
+                    "약세" if _rsr >= 30 else
+                    "하위권"
+                ),
+                "ret_pct": round(_wret * 100, 1),
+                "r1_pct":  round(_r1  * 100, 1),
+                "r3_pct":  round(_r3  * 100, 1),
+                "r6_pct":  round(_r6  * 100, 1),
+                "r12_pct": round(_r12 * 100, 1),
+            }
+        except Exception as _e:
+            logging.debug("rs_rating_data: %s", _e)
+
+        return payload, None
+    except Exception as e:
+        logging.debug("_compute_four_axis_payload %s/%s: %s", market, ticker, e)
+        return None, str(e)
+
+
+_four_axis_render_lock = threading.Lock()  # BG warm만 직렬화 — 유저 요청은 락 없이 즉시 실행
+
+
+def _warm_four_axis(ticker: str, market: str) -> None:
+    """BG 선제 4축 캐시 채우기 — 클릭 시 차트 즉시 표시."""
+    cache_key = f"{ticker}:{market}"
+    with _four_axis_cache_lock:
+        if cache_key in _four_axis_cache:
+            return
+    # 비블로킹 — 다른 BG warm이 실행 중이면 스킵 (유저 요청을 막지 않기 위해)
+    if not _four_axis_render_lock.acquire(blocking=False):
+        return
+    try:
+        with _four_axis_cache_lock:
+            if cache_key in _four_axis_cache:
+                return
+        payload, err = _compute_four_axis_payload(ticker, market)
+        if payload:
+            with _four_axis_cache_lock:
+                if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
+                    _four_axis_cache.pop(next(iter(_four_axis_cache)), None)
+                _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
+            logging.info("4axis pre-warm: %s/%s OK", market, ticker)
+        elif err:
+            logging.debug("4axis pre-warm: %s/%s failed: %s", market, ticker, err)
+    finally:
+        _four_axis_render_lock.release()
+
+
 @app.route("/api/four_axis/<ticker>")
 def api_four_axis(ticker: str):
     """4축 핸드드로윙 차트 + 분석 데이터 반환 (base64 PNG)."""
@@ -1935,189 +2483,15 @@ def api_four_axis(ticker: str):
         cached = _four_axis_cache.get(cache_key)
         if cached and (now - cached.get("_ts", 0)) < _FOUR_AXIS_TTL_SEC:
             return jsonify(cached["data"])
-    try:
-        import yfinance as yf
-        _configure_yf_cache()
-        from four_axis_analyzer import FourAxisAnalyzer
-        from handdrawn_renderer import HandDrawnChartRenderer
-
-        candidates = _build_yf_candidates(ticker, market)
-        fetch_timeout_sec = _get_config_int("FOUR_AXIS_FETCH_TIMEOUT_SEC", 20, minimum=5, maximum=120)
-        info_timeout_sec = _get_config_int("FOUR_AXIS_INFO_TIMEOUT_SEC", 8, minimum=3, maximum=60)
-        min_rows = _get_config_int("FOUR_AXIS_MIN_ROWS", 20, minimum=10, maximum=252)
-
-        # 다중 기간 폴백 — 2y → 1y → 6mo → 3mo 순으로 시도
-        # 일부 ETF/저유동 종목은 1y로는 비어있고 6mo 이하에서만 데이터가 나오기도 함
-        # 429 (rate-limited) 수신 시 한 번 backoff 후 재시도하고, 그래도 실패면
-        # 즉시 다음 후보로 이동(같은 후보로 4 period 모두 두드리는 N+1 회피).
-        hist = None
-        tried = []
-        periods = ("2y", "1y", "6mo", "3mo")
-        for yt in candidates:
-            # rate-limit 은 후보(ticker suffix)별로 따로 판단 — .KS 가 막혔다고
-            # .KQ 까지 포기하면 멀쩡한 대체 후보를 놓친다.
-            rate_limited_break = False
-            for period in periods:
-                tried.append(f"{yt}({period})")
-                try:
-                    h = _run_with_timeout(
-                        lambda yt=yt, period=period: yf.Ticker(yt).history(
-                            period=period,
-                            auto_adjust=True,
-                            timeout=fetch_timeout_sec,
-                        ),
-                        fetch_timeout_sec,
-                        f"four_axis history {yt} {period}",
-                    )
-                    if h is not None and not h.empty and len(h) >= min_rows:
-                        hist = h
-                        break
-                except Exception as exc:
-                    msg = str(exc).lower()
-                    logging.warning("four_axis history fetch failed: %s", exc)
-                    if "too many requests" in msg or "rate" in msg and "limit" in msg:
-                        # 한 번만 짧게 backoff 하고 같은 period 재시도, 그래도 실패면 후보 자체를 포기
-                        try:
-                            time.sleep(2.0)
-                            h = _run_with_timeout(
-                                lambda yt=yt, period=period: yf.Ticker(yt).history(
-                                    period=period,
-                                    auto_adjust=True,
-                                    timeout=fetch_timeout_sec,
-                                ),
-                                fetch_timeout_sec,
-                                f"four_axis history {yt} {period} retry",
-                            )
-                            if h is not None and not h.empty and len(h) >= min_rows:
-                                hist = h
-                                break
-                        except Exception as _e:
-                            logging.debug("silent except (app.py): %s", _e)
-                        rate_limited_break = True
-                        break
-                    continue
-            if hist is not None:
-                break
-
-        # yfinance가 KR 종목에 빈 데이터를 자주 반환 → FinanceDataReader 폴백
-        if (hist is None or hist.empty or len(hist) < min_rows) and market == "KR":
-            try:
-                import FinanceDataReader as fdr
-                from datetime import datetime, timedelta
-                code6 = _strip_kr_suffix(ticker).zfill(6)
-                start = (datetime.now() - timedelta(days=750)).strftime("%Y-%m-%d")
-                tried.append(f"FDR:{code6}")
-                fdr_df = _run_with_timeout(
-                    lambda: fdr.DataReader(code6, start),
-                    fetch_timeout_sec,
-                    f"four_axis FDR {code6}",
-                )
-                if fdr_df is not None and not fdr_df.empty and len(fdr_df) >= min_rows:
-                    keep = ["Open", "High", "Low", "Close", "Volume"]
-                    hist = fdr_df[keep].copy()
-            except Exception as exc:
-                logging.warning("four_axis FDR fallback failed: %s", exc)
-
-        if hist is None or hist.empty or len(hist) < min_rows:
-            rows = 0 if hist is None or hist.empty else len(hist)
-            return jsonify({
-                "error": f"데이터 부족 (시도: {', '.join(tried[:6])} / 확보: {rows}일, 필요: {min_rows}일)"
-            }), 404
-
-        analyzer = FourAxisAnalyzer(hist, ticker)
-        result = analyzer.analyze()
-
-        # 차트 제목에 종목명 표시 (티커 코드 대신).
-        # KR 우선순위: kr_company_info → yfinance longName/shortName → 티커 폴백.
-        chart_title = ""
-        try:
-            if market == "KR":
-                code6 = _strip_kr_suffix(ticker).zfill(6)
-                try:
-                    from quant_nexus_v20 import QuantNexusApp
-                    chart_title = (
-                        QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
-                        or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
-                        or ""
-                    )
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
-                try:
-                    from swing_scan.config import stock_names as _sn
-                    nm = _sn.get_name(code6)
-                    if nm and nm != code6:
-                        chart_title = str(nm)
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
-            # yf.Ticker(...).info 호출은 매우 느리고 hang 위험이 큼.
-            # KR은 stock_names 미스 시 ticker 폴백 (info 호출 안 함).
-            # US만 보조 폴백으로 info 사용.
-            if not chart_title and market == "US":
-                try:
-                    yt0 = candidates[0] if candidates else ticker
-                    yinfo = _run_with_timeout(
-                        lambda yt0=yt0: yf.Ticker(yt0).info or {},
-                        info_timeout_sec,
-                        f"four_axis info {yt0}",
-                    )
-                    chart_title = (yinfo.get("longName")
-                                   or yinfo.get("shortName") or "")
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
-        except Exception as _e:
-            logging.debug("silent except (app.py): %s", _e)
-        chart_title = chart_title or ticker
-
-        # 큰 차트 렌더링 (1200x560) — 2패널(가격+거래량) 구성
-        renderer = HandDrawnChartRenderer(
-            hist, result, ticker=chart_title,
-            width_px=1200, height_px=560, dpi=100,
-        )
-        img = renderer.render()
-
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
-        chart_b64 = base64.b64encode(buf.read()).decode("ascii")
-
-        import numpy as np
-
-        def _sanitize(obj):
-            if isinstance(obj, dict):
-                return {k: _sanitize(v) for k, v in obj.items()}
-            if isinstance(obj, (list, tuple)):
-                return [_sanitize(v) for v in obj]
-            if isinstance(obj, (np.integer,)):
-                return int(obj)
-            if isinstance(obj, (np.floating,)):
-                return float(obj)
-            if isinstance(obj, (np.bool_,)):
-                return bool(obj)
-            if isinstance(obj, np.ndarray):
-                return obj.tolist()
-            return obj
-
-        rd = _sanitize(result.to_dict())
-        payload = {
-            "chart": chart_b64,
-            "phase": rd["phase"],
-            "signal_stars": rd["signal_stars"],
-            "haiku": rd["haiku"],
-            "trend": rd["trend"],
-            "momentum": rd["momentum"],
-            "volatility": rd["volatility"],
-            "volume": rd["volume"],
-            "key_observation": rd.get("key_observation", ""),
-            "structured_analysis": rd.get("structured_analysis", ""),
-        }
-        with _four_axis_cache_lock:
-            if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
-                _four_axis_cache.pop(next(iter(_four_axis_cache)), None)
-            _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
-        return jsonify(payload)
-    except Exception as e:
-        logging.exception("api_four_axis")
-        return jsonify({"error": str(e)}), 500
+    # 유저 요청은 락 없이 즉시 실행 — BG warm과 경쟁해도 Agg 백엔드에서 안전
+    payload, err = _compute_four_axis_payload(ticker, market)
+    if payload is None:
+        return jsonify({"error": err or "생성 실패"}), (404 if "데이터 부족" in (err or "") else 500)
+    with _four_axis_cache_lock:
+        if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
+            _four_axis_cache.pop(next(iter(_four_axis_cache)), None)
+        _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
+    return jsonify(payload)
 
 
 # ── 공시·뉴스 API (DART + Naver News) ─────────────────────────────────
@@ -2169,21 +2543,10 @@ def api_dart_news(ticker: str):
                 logging.debug("silent except (app.py): %s", _e)
             if not stock_name:
                 try:
-                    from quant_nexus_v20 import QuantNexusApp
-                    stock_name = (
-                        QuantNexusApp.KR_NAMES.get(f"{code}.KS")
-                        or QuantNexusApp.KR_NAMES.get(f"{code}.KQ")
-                        or ""
-                    )
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
-            if not stock_name:
-                try:
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
-                        data = s.get("data") or {}
-                        stock_name = data.get("stock_name") or data.get("corp_name", "")
+                        stock_name = s["data"].get("corp_name", "")
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
             if stock_name:
@@ -2212,7 +2575,7 @@ def _load_sec_cik_map() -> dict:
         "Accept-Encoding": "gzip",
     })
     try:
-        with urllib.request.urlopen(req, timeout=15) as r:
+        with urllib.request.urlopen(req, timeout=8) as r:
             raw = r.read()
             if raw[:2] == b'\x1f\x8b':
                 raw = _gzip.decompress(raw)
@@ -2239,7 +2602,7 @@ def _get_sec_filings(ticker: str, count: int = 10) -> list:
         "User-Agent": "StockScanner admin@example.com",
     })
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=6) as r:
             data = _json.loads(r.read().decode("utf-8"))
         recent = data.get("filings", {}).get("recent", {})
         forms = recent.get("form", [])
@@ -2299,7 +2662,8 @@ def api_us_insight(ticker: str):
     # 2) 기관보유 + 공매도
     try:
         import yfinance as yf
-        info = yf.Ticker(ticker).info or {}
+        _t_insight = yf.Ticker(ticker)
+        info = _run_with_timeout(lambda: _t_insight.info or {}, 5, "us_insight_info") or {}
         holders = {
             "institutional_pct": info.get("heldPercentInstitutions"),
             "insider_pct": info.get("heldPercentInsiders"),
@@ -2322,8 +2686,8 @@ def api_us_insight(ticker: str):
         #    여기 리스트와 헤드라인 '증권사 목표가 평균'이 항상 일치한다.
         try:
             import analyst_consensus
-            _cons = analyst_consensus.summarize_upgrades_downgrades(
-                yf.Ticker(ticker).upgrades_downgrades)
+            _upgrades = _run_with_timeout(lambda: _t_insight.upgrades_downgrades, 5, "us_insight_upgrades")
+            _cons = analyst_consensus.summarize_upgrades_downgrades(_upgrades)
             if _cons["rows"]:
                 result["recommendations"] = _cons["rows"]
         except Exception as _e:
@@ -2388,6 +2752,8 @@ def api_score_history(ticker: str):
     return jsonify({"ticker": ticker, "market": market, "points": points})
 
 
+
+
 @app.route("/api/signal-history/<ticker>")
 def api_signal_history(ticker):
     ticker = _validate_ticker(ticker)
@@ -2428,7 +2794,6 @@ def api_deep_analysis(ticker: str):
     except Exception as e:
         return jsonify({"ok": False, "error": f"deep_analysis 모듈 로드 실패: {e}"}), 500
 
-    # cache_only: 캐시 적중 시만 결과, 미적중 시 304 의미로 빈 응답
     if cache_only:
         cached = deep_analysis._load_cache(ticker, mode)  # noqa: SLF001
         if cached:
@@ -2490,6 +2855,92 @@ try:
     _start_multibagger_warmup_once()
 except Exception as _e:
     logging.warning("multibagger warm-up bootstrap failed: %s", _e)
+
+# 검색 인덱스 사전 빌드 (백그라운드) — 첫 검색 요청 시 지연 제거
+def _warmup_search_index():
+    try:
+        _get_search_idx("KR")
+        _get_search_idx("US")
+        logging.info("[search-idx] pre-built KR=%d US=%d",
+                     len(_SEARCH_IDX.get("KR", [])),
+                     len(_SEARCH_IDX.get("US", [])))
+    except Exception as _e:
+        logging.warning("search index warmup failed: %s", _e)
+
+threading.Thread(target=_warmup_search_index, daemon=True, name="search-idx-warmup").start()
+
+
+def _warmup_moat_cache():
+    try:
+        import moat
+        n = moat.preload_cache()
+        logging.info("[moat-cache] preloaded %d entries into memory", n)
+    except Exception as _e:
+        logging.warning("moat cache preload failed: %s", _e)
+    # speculative_themes도 미리 로드해 첫 스캔 import 지연 제거
+    try:
+        import speculative_themes  # noqa: F401
+    except Exception:
+        pass
+
+
+threading.Thread(target=_warmup_moat_cache, daemon=True, name="moat-cache-warmup").start()
+
+
+def _cold_start_live_scan(market: str) -> None:
+    """pickle이 없어 quick-warm으로도 캐시를 못 채울 때 BG에서 live scan_all 1회 수행.
+    UI는 그 사이 빈 화면을 보지만 30분 warm 루프를 기다리진 않게 된다."""
+    try:
+        adapter_cls = _get_scan_adapter_cls()
+        adapter = adapter_cls(market=market, strategy="BALANCED")
+        results = adapter.scan_all(prefer_cache=False, cache_only=False, max_workers=8)
+        if not results:
+            return
+        try:
+            results = _annotate_one_liners(results)
+        except Exception:
+            pass
+        results = _strip_heavy(results)
+        ts = int(time.time())
+        _store_scan_cache((market, "BALANCED", ""), ts, results)
+        _populate_sector_caches(market, "BALANCED", results, ts)
+        logging.info("cold-start live scan done: %s %d tickers", market, len(results))
+    except Exception as _e:
+        logging.warning("cold-start live scan %s failed: %s", market, _e)
+
+
+def _cold_start_fill():
+    """서버 기동 직후 파일 잠금 없이 US/KR 캐시를 즉시 채운다.
+    파일 잠금 실패로 quick-warm이 건너뛰어질 때도 첫 요청이 캐시 히트하도록 보장.
+
+    C2: quick-warm(prefer_cache=True, cache_only=True)으로도 캐시가 비어 있으면
+    (pickle 자체가 없는 첫 기동) 즉시 라이브 scan_all을 BG로 트리거해서
+    사용자가 30분 warmup 주기를 기다리지 않도록 한다.
+    """
+    time.sleep(0.1)  # Flask/SocketIO 초기화 완료 대기
+    for _m in ("US", "KR"):
+        try:
+            # 이미 채워진 캐시는 덮어쓰지 않음
+            with _scan_results_cache_lock:
+                _already = _scan_results_cache.get((_m, "BALANCED", ""))
+            if not _already:
+                _warmup_fill_cache(_m)
+            # quick-warm 후에도 캐시가 비었으면(=pickle 없음) live scan 트리거
+            with _scan_results_cache_lock:
+                _filled = _scan_results_cache.get((_m, "BALANCED", ""))
+            if not _filled:
+                logging.info("cold-start: %s pickle empty → live scan kicked", _m)
+                threading.Thread(
+                    target=_cold_start_live_scan,
+                    args=(_m,),
+                    daemon=True,
+                    name=f"cold-live-{_m}",
+                ).start()
+        except Exception as _e:
+            logging.warning("cold-start-fill %s failed: %s", _m, _e)
+
+
+threading.Thread(target=_cold_start_fill, daemon=True, name="cold-start-fill").start()
 
 if __name__ == "__main__":
     debug = (os.environ.get("FLASK_DEBUG") or "0").strip().lower() in ("1", "true", "yes")

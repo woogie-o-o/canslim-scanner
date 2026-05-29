@@ -63,6 +63,23 @@ def _resolve_cap(cap: float | None) -> float:
     return float(cap) if cap is not None else _SCORE_CAP
 
 
+def _is_graduated(row: dict) -> bool:
+    """Phase-3: 투기주 졸업 조건 — 모멘텀+해자+매출성장 입증 시 캡 면제.
+
+    조건 (모두 충족):
+      - RSRating >= 85  (강한 상대강도, 일시적 급등 아님)
+      - MoatBonus > 0   (구조적 경쟁 우위 인정)
+      - 매출 성장 양수   (_RevenueGrowth > 0 또는 _EPSGrowth > 0)
+    월가 퀀트 패널 Phase 3 합의: 모멘텀·해자·성장 3축이 입증되면
+    단순 투기주가 아니라 고성장 프리프로핏(pre-profit) 종목으로 재분류.
+    """
+    rs = row.get("RSRating") or 0
+    moat = row.get("MoatBonus") or 0
+    rev_g = row.get("_RevenueGrowth") or 0
+    eps_g = row.get("_EPSGrowth") or 0
+    return rs >= 85 and moat > 0 and (rev_g > 0 or eps_g > 0)
+
+
 def apply_to_row(row: dict, score_cap: float | None = None) -> dict:
     """단일 row in-place 보정. 보정된 dict 반환(동일 객체)."""
     if not row:
@@ -70,6 +87,15 @@ def apply_to_row(row: dict, score_cap: float | None = None) -> dict:
     ticker = row.get("Ticker") or ""
     spec, reason = is_speculative(ticker)
     if not spec:
+        return row
+    # Phase-3: 졸업 조건 충족 시 캡·플래그 모두 면제 + 이전 캡 복원
+    if _is_graduated(row):
+        row["IsSpeculativeTheme"] = False
+        row["_SpecGraduated"] = True
+        raw = row.pop("_RawTotalScore", None)
+        if raw is not None:
+            row["TotalScore"] = raw
+        row.pop("ThemeWarning", None)
         return row
     cap = _resolve_cap(score_cap)
     ts = row.get("TotalScore")
