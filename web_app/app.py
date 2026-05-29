@@ -1351,32 +1351,6 @@ def api_ticker(ticker: str):
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/aq_signal/<ticker>")
-def api_aq_signal(ticker: str):
-    """GET /api/aq_signal/AAPL?market=US → AgentQuant 진입 타이밍 (lazy-load)."""
-    ticker = _validate_ticker(ticker)
-    if not ticker:
-        return jsonify({"error": "invalid ticker"}), 400
-    market = (request.args.get("market") or "US").upper()
-    try:
-        from agentquant_signal import get_regime_signal
-        aq = get_regime_signal(ticker, market=market)
-        if not aq or not aq.get("stock"):
-            return jsonify({"ok": False})
-        stock = aq["stock"]
-        return jsonify({
-            "ok": True,
-            "EntryScore_aq": float(stock.get("score") or 0),
-            "AQ_Verdict": stock.get("verdict_kr"),
-            "AQ_VerdictCode": stock.get("verdict"),
-            "AQ_Regime": aq.get("market", {}).get("label"),
-            "AQ_Reasons": stock.get("reasons", [])[:4],
-        })
-    except Exception as e:
-        logging.warning("api_aq_signal failed for %s: %s", ticker, e)
-        return jsonify({"ok": False, "error": str(e)})
-
-
 _sentiment_cache: dict[str, dict] = {}
 _sentiment_cache_lock = threading.Lock()
 _SENTIMENT_TTL_SEC = 300  # 5분
@@ -2754,68 +2728,6 @@ def api_score_history(ticker: str):
 
 
 
-@app.route("/api/signal-history/<ticker>")
-def api_signal_history(ticker):
-    ticker = _validate_ticker(ticker)
-    if not ticker:
-        return jsonify({"error": "invalid ticker"}), 400
-    market = request.args.get("market")
-    if market not in ("KR", "US"):
-        return jsonify({"error": "market must be KR or US"}), 400
-    try:
-        import history
-        timeline = history.load_timeline(ticker, market)
-    except Exception as e:
-        logging.warning("signal-history failed (%s): %s", ticker, e)
-        return jsonify({"ticker": ticker, "market": market, "timeline": []}), 500
-    return jsonify({"ticker": ticker, "market": market, "timeline": timeline})
-
-
-@app.route("/api/deep-analysis/<ticker>")
-def api_deep_analysis(ticker: str):
-    ticker_valid = _validate_ticker(ticker)
-    if not ticker_valid:
-        return jsonify({"error": "invalid ticker"}), 400
-    ticker = ticker_valid
-    """Gemini 2.0 Flash + Google Search 그라운딩 기반 8-Phase 종목 심층 분석.
-
-    Query: market=KR|US, mode=brief|standard|detail, force=1 (캐시 무시)
-    """
-    market = (request.args.get("market") or "KR").upper()
-    mode = (request.args.get("mode") or "standard").lower()
-    if mode not in ("brief", "standard", "detail"):
-        mode = "standard"
-    force = (request.args.get("force") or "").lower() in ("1", "true", "yes")
-    cache_only = (request.args.get("cache_only") or "").lower() in ("1", "true", "yes")
-    name = (request.args.get("name") or "").strip() or None
-
-    try:
-        import deep_analysis
-    except Exception as e:
-        return jsonify({"ok": False, "error": f"deep_analysis 모듈 로드 실패: {e}"}), 500
-
-    if cache_only:
-        cached = deep_analysis._load_cache(ticker, mode)  # noqa: SLF001
-        if cached:
-            return jsonify(cached)
-        return jsonify({"ok": False, "error": "no-cache", "_cached": False}), 204
-
-    if not deep_analysis.is_available():
-        return jsonify({
-            "ok": False,
-            "error": "GEMINI_API_KEY가 설정되지 않았습니다. 설정 화면에서 등록해주세요.",
-        }), 503
-
-    try:
-        result = deep_analysis.analyze(
-            ticker=ticker, market=market, mode=mode, name=name, force=force,
-        )
-        return jsonify(result)
-    except Exception as e:
-        logging.exception("deep-analysis failed: %s", ticker)
-        return jsonify({"ok": False, "error": str(e)}), 500
-
-
 @app.route("/api/bucket-stats")
 def api_bucket_stats():
     from one_liner import _bucket_counter
@@ -2825,18 +2737,6 @@ def api_bucket_stats():
         for k, v in _bucket_counter.most_common()
     ]
     return jsonify({"total": total, "distribution": data})
-
-
-# ── 멀티배거 파인더 — 상태(blueprint 와 공유) ─────────────────────────────
-# 라우트는 multibagger_blueprint.py 로 분리. 상태는 여기 유지(테스트가
-# flask_app._multibagger_results_cache / _MULTIBAGGER_BAGGERS_PATH 를 monkeypatch).
-_multibagger_results_cache: dict = {}
-_multibagger_build_lock = threading.Lock()
-_MULTIBAGGER_TTL_SEC = 12 * 3600
-_MULTIBAGGER_BAGGERS_PATH = os.path.join(app.root_path, "cache_v19", "baggers_us.json")
-
-from multibagger_blueprint import multibagger_bp, start_multibagger_warmup_once as _start_multibagger_warmup_once
-app.register_blueprint(multibagger_bp)
 
 
 # SocketIO 초기화 (gunicorn / 직접 실행 모두 대응)
@@ -2851,10 +2751,6 @@ try:
     _start_us_warmup_once()
 except Exception as _e:
     logging.warning("US warm-up bootstrap failed: %s", _e)
-try:
-    _start_multibagger_warmup_once()
-except Exception as _e:
-    logging.warning("multibagger warm-up bootstrap failed: %s", _e)
 
 # 검색 인덱스 사전 빌드 (백그라운드) — 첫 검색 요청 시 지연 제거
 def _warmup_search_index():
