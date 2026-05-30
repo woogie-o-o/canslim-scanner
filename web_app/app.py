@@ -5,6 +5,8 @@ engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더�
 실행: python web_app/app.py
 접속: http://localhost:5000
 """
+from __future__ import annotations
+
 import sys
 import os
 import io
@@ -923,6 +925,73 @@ def _validate_ticker(ticker) -> str | None:
     return t
 
 
+_KR_LOCAL_NAME_CACHE: dict[str, str] | None = None
+
+
+def _lookup_kr_name_local(code6: str) -> str:
+    """의존성 없이 repo 내 테마 종목표에서 한국 종목명을 찾는 가벼운 폴백."""
+    global _KR_LOCAL_NAME_CACHE
+    if _KR_LOCAL_NAME_CACHE is None:
+        names: dict[str, str] = {}
+        path = os.path.join(_BASE, "theme_stocks.txt")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for raw in f:
+                    parts = raw.strip().split()
+                    if len(parts) < 2:
+                        continue
+                    tk, nm = parts[0], parts[1]
+                    code = tk.split(".")[0].zfill(6)
+                    names.setdefault(code, nm)
+                    names.setdefault(tk.upper(), nm)
+        except OSError:
+            pass
+        _KR_LOCAL_NAME_CACHE = names
+    return _KR_LOCAL_NAME_CACHE.get(code6) or ""
+
+
+def _normalize_kr_display_fields(result: dict, ticker: str, adapter=None) -> dict:
+    """KR 상세 응답은 yfinance 영문명/대분류 대신 앱의 큐레이션 명칭을 우선 표시."""
+    if not isinstance(result, dict):
+        return result
+    code6 = _strip_kr_suffix(ticker).zfill(6)
+
+    fixed_name = ""
+    try:
+        from swing_scan.config import stock_names as _sn
+        nm = _sn.get_name(code6)
+        if nm and nm != code6:
+            fixed_name = str(nm)
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+    if not fixed_name:
+        fixed_name = _lookup_kr_name_local(code6)
+    if not fixed_name:
+        try:
+            from quant_nexus_v20 import QuantNexusApp
+            fixed_name = (
+                QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
+                or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
+                or ""
+            )
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
+    if fixed_name:
+        result["Name"] = fixed_name
+
+    try:
+        if adapter is not None:
+            wanted = {code6.upper(), f"{code6}.KS", f"{code6}.KQ"}
+            for sector_name, tickers in adapter.get_sectors().items():
+                if any(str(t).upper() in wanted for t in tickers):
+                    result["Sector"] = sector_name
+                    break
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+
+    return result
+
+
 @app.route("/detail/<ticker>")
 def detail(ticker: str):
     safe = _validate_ticker(ticker)
@@ -1297,6 +1366,12 @@ def api_ticker(ticker: str):
                 _ol_annotate([fresh])
             except Exception:
                 fresh = _td_cached["data"]
+            if market_arg == "KR":
+                try:
+                    fresh = dict(fresh)
+                    _normalize_kr_display_fields(fresh, ticker, _make_adapter())
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
             return jsonify(fresh)
     try:
         adapter = _make_adapter()
@@ -1305,20 +1380,7 @@ def api_ticker(ticker: str):
         if result is None:
             return jsonify({"error": "해당 티커의 데이터를 찾을 수 없습니다."}), 404
         if market == "KR":
-            code6 = _strip_kr_suffix(ticker).zfill(6)
-            name_now = str(result.get("Name") or "").strip()
-            if not name_now or name_now in {ticker, code6, f"{code6}.KS", f"{code6}.KQ"}:
-                try:
-                    from quant_nexus_v20 import QuantNexusApp
-                    fixed = (
-                        QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
-                        or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
-                        or ""
-                    )
-                    if fixed:
-                        result["Name"] = fixed
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
+            _normalize_kr_display_fields(result, ticker, adapter)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
         else:
@@ -2516,11 +2578,24 @@ def api_dart_news(ticker: str):
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
             if not stock_name:
+                stock_name = _lookup_kr_name_local(code)
+            if not stock_name:
+                try:
+                    from quant_nexus_v20 import QuantNexusApp
+                    stock_name = (
+                        QuantNexusApp.KR_NAMES.get(f"{code}.KS")
+                        or QuantNexusApp.KR_NAMES.get(f"{code}.KQ")
+                        or ""
+                    )
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
+            if not stock_name:
                 try:
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
-                        stock_name = s["data"].get("corp_name", "")
+                        data = s.get("data") or {}
+                        stock_name = data.get("stock_name") or data.get("corp_name", "")
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
             if stock_name:

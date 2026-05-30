@@ -4253,7 +4253,7 @@ function generateShareCard() {
   });
 
   const cardHtml = `
-  <div style="width:580px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:-apple-system,'Pretendard','Noto Sans KR',system-ui,sans-serif;">
+  <div style="width:580px;background:#ffffff;border-radius:16px;overflow:hidden;font-family:'Paperlogy',-apple-system,'Pretendard','Noto Sans KR',system-ui,sans-serif;">
     <div style="background:linear-gradient(135deg,#3182F6,#1B64DA);padding:20px 20px 16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;">
         <div>
@@ -4350,7 +4350,7 @@ async function captureStockList() {
     const sectorLbl = (typeof _currentSector !== 'undefined' && _currentSector) ? _currentSector : '전체';
 
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'background:#ffffff;padding:0;font-family:-apple-system,Pretendard,Noto Sans KR,system-ui,sans-serif;';
+    wrap.style.cssText = 'background:#ffffff;padding:0;font-family:Paperlogy,-apple-system,Pretendard,Noto Sans KR,system-ui,sans-serif;';
     wrap.innerHTML = `
       <div style="background:linear-gradient(135deg,#7C3AED,#3182F6);padding:16px 20px;color:#fff;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
