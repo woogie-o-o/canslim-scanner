@@ -3402,6 +3402,7 @@ document.addEventListener('click', function(e) {
   const announceBtn = document.getElementById('admin-announce-btn');
   const clearBtn = document.getElementById('admin-clear-btn');
   let myNick = '', isOpen = false, unread = 0, isAdmin = false;
+  let seenMsgIds = new Set();
 
   // 토글은 socket과 무관하게 우선 등록 (socket.io 로드 실패해도 패널은 열림)
   toggle.addEventListener('click', () => {
@@ -3427,6 +3428,11 @@ document.addEventListener('click', function(e) {
     requestAnimationFrame(() => { msgs.scrollTop = msgs.scrollHeight; });
   }
   function addMsg(nick, msg, ts, id) {
+    if (id) {
+      const key = String(id);
+      if (seenMsgIds.has(key)) return;
+      seenMsgIds.add(key);
+    }
     const el = document.createElement('div');
     const isMe = nick === myNick;
     el.className = 'msg' + (isMe ? ' me' : '');
@@ -3460,6 +3466,8 @@ document.addEventListener('click', function(e) {
   socket.on('init', (data) => {
     myNick = data.nick;
     onlineEl.textContent = data.online + '명 접속';
+    msgs.innerHTML = '';
+    seenMsgIds = new Set();
     data.history.forEach(m => {
       if (m.nick === '공지') addAnnounce(m.msg, m.ts);
       else addMsg(m.nick, m.msg, m.ts, m.id);
