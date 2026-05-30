@@ -91,6 +91,11 @@ _online: int = 0
 _online_lock = threading.Lock()
 _admins: set[str] = set()
 _banned: set[str] = set()
+_BLOCKED_MESSAGES = {"test from python"}
+
+
+def _is_blocked_message(msg: str) -> bool:
+    return (msg or "").strip().lower() in _BLOCKED_MESSAGES
 
 
 def _recent_messages(limit=50) -> list[dict]:
@@ -101,7 +106,11 @@ def _recent_messages(limit=50) -> list[dict]:
             (limit,),
         ).fetchall()
         conn.close()
-    return [{"id": r[0], "ts": r[1], "nick": r[2], "msg": r[3]} for r in reversed(rows)]
+    return [
+        {"id": r[0], "ts": r[1], "nick": r[2], "msg": r[3]}
+        for r in reversed(rows)
+        if not _is_blocked_message(r[3])
+    ]
 
 
 def _save_message(sid: str, nick: str, msg: str) -> int:
@@ -158,6 +167,8 @@ def on_chat(data):
     nick = _nicks.get(sid, "익명")
     msg = (data.get("msg") or "").strip()
     if not msg or len(msg) > 500:
+        return
+    if _is_blocked_message(msg):
         return
     msg_id = _save_message(sid, nick, msg)
     emit("chat", {"id": msg_id, "ts": time.time(), "nick": nick, "msg": msg}, broadcast=True)
