@@ -3058,7 +3058,7 @@ function _fillNewsBar(data) {
   const link = document.getElementById('dp-news-bar-link');
   if (!bar || !link) return;
   const news = data.news || {};
-  const first = (news.top_positive || []).concat(news.top_negative || []).find(i => i.title);
+  const first = _newsItems(news).find(i => i.title);
   if (first) {
     link.textContent = first.title;
     link.href = (first.link && /^https?:\/\//.test(first.link)) ? first.link : '#';
@@ -3071,6 +3071,25 @@ function _fillNewsBar(data) {
   } else {
     bar.style.display = 'none';
   }
+}
+
+function _newsItems(news) {
+  if (Array.isArray(news?.items) && news.items.length) return news.items;
+  return [...(news?.top_positive || []), ...(news?.top_negative || [])];
+}
+
+function _newsToneClass(item) {
+  if (item?.bucket) return item.bucket;
+  const s = Number(item?.sentiment || 0);
+  return s > 0 ? 'positive' : s < 0 ? 'negative' : 'neutral';
+}
+
+function _renderNewsItem(item) {
+  const cls = _newsToneClass(item);
+  const safeTitle = esc(item?.title || '');
+  const safeHref = (item?.link && /^https?:\/\//.test(item.link)) ? esc(item.link) : '';
+  const link = safeHref ? `<a href="${safeHref}" target="_blank" rel="noopener">${safeTitle}</a>` : safeTitle;
+  return `<div class="dn-news-item"><span class="dn-news-dot ${cls}"></span><span class="dn-news-title">${link}</span></div>`;
 }
 
 async function loadDpUSInsight(ticker) {
@@ -3334,15 +3353,11 @@ function _renderDartNews(container, data) {
       <div class="dn-summary-text">${esc(news.summary_text || '')}</div>`;
 
     // 주요 뉴스 헤드라인
-    const topItems = [...(news.top_positive || []), ...(news.top_negative || [])].slice(0, 5);
-    if (topItems.length) {
+    const newsItems = _newsItems(news);
+    if (newsItems.length) {
       html += '<div style="margin-top:12px;display:flex;flex-direction:column;">';
-      for (const item of topItems) {
-        const cls = item.sentiment > 0 ? 'positive' : item.sentiment < 0 ? 'negative' : 'neutral';
-        const safeTitle = esc(item.title || '');
-        const safeHref = (item.link && /^https?:\/\//.test(item.link)) ? esc(item.link) : '';
-        const link = safeHref ? `<a href="${safeHref}" target="_blank" rel="noopener">${safeTitle}</a>` : safeTitle;
-        html += `<div class="dn-news-item"><span class="dn-news-dot ${cls}"></span><span class="dn-news-title">${link}</span></div>`;
+      for (const item of newsItems) {
+        html += _renderNewsItem(item);
       }
       html += '</div>';
     }
@@ -3534,15 +3549,11 @@ function _renderUSInsight(container, data) {
       </div>
       <div class="dn-summary-text">${esc(news.summary_text || '')}</div>`;
 
-    const topItems = [...(news.top_positive || []), ...(news.top_negative || [])].slice(0, 5);
-    if (topItems.length) {
+    const newsItems = _newsItems(news);
+    if (newsItems.length) {
       html += '<div style="margin-top:12px;display:flex;flex-direction:column;">';
-      for (const item of topItems) {
-        const cls = item.sentiment > 0 ? 'positive' : item.sentiment < 0 ? 'negative' : 'neutral';
-        const safeTitle = esc(item.title || '');
-        const safeHref = (item.link && /^https?:\/\//.test(item.link)) ? esc(item.link) : '';
-        const link = safeHref ? `<a href="${safeHref}" target="_blank" rel="noopener">${safeTitle}</a>` : safeTitle;
-        html += `<div class="dn-news-item"><span class="dn-news-dot ${cls}"></span><span class="dn-news-title">${link}</span></div>`;
+      for (const item of newsItems) {
+        html += _renderNewsItem(item);
       }
       html += '</div>';
     }

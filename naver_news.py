@@ -56,12 +56,11 @@ _IRRELEVANT_KW = {
 _WS_RE = re.compile(r"\s+")
 
 
-def _is_subject(title: str, query: str) -> bool:
-    """제목에 종목명이 등장하면 해당 종목 기사로 인정 (공백 무시).
+def _is_subject(text: str, query: str) -> bool:
+    """텍스트에 종목명이 등장하면 해당 종목 기사로 인정 (공백 무시).
 
-    제목에 종목명이 있으면 그 회사가 기사의 주제일 가능성이 높고,
-    본문에만 스쳐 지나간 타사 기사는 제목에 안 나오므로 자연히 걸러진다.
-    (기존엔 '제목이 종목명으로 시작'만 통과시켜 90% 이상을 버렸음)
+    제목 또는 요약에 종목명이 있으면 관련 기사로 인정한다.
+    단, 이후 명백한 생활/연예/스포츠 잡뉴스 키워드는 별도로 제외한다.
     """
     norm_q = _WS_RE.sub("", query)
     norm_q = (
@@ -71,14 +70,14 @@ def _is_subject(title: str, query: str) -> bool:
     )
     if not norm_q:
         return False
-    title_norm = _WS_RE.sub("", title)
-    if norm_q in title_norm:
+    text_norm = _WS_RE.sub("", text)
+    if norm_q in text_norm:
         return True
 
     # '지주', '홀딩스' 등이 생략된 채 보도되는 헤드라인 대응
     # 예: 우리금융지주 -> 우리금융
     flex_q = norm_q.replace("지주", "").replace("홀딩스", "")
-    if len(flex_q) >= 2 and flex_q in title_norm:
+    if len(flex_q) >= 2 and flex_q in text_norm:
         return True
 
     return False
@@ -86,11 +85,11 @@ def _is_subject(title: str, query: str) -> bool:
 
 def _is_relevant(title: str, desc: str, query: str) -> bool:
     """뉴스가 해당 종목의 주식/사업과 관련 있는지 판별."""
-    # 제목에 종목명이 없으면 제외 (본문에만 스쳐간 타사 기사 차단)
-    if not _is_subject(title, query):
+    text = f"{title} {desc}"
+    # 제목 또는 요약에 종목명이 없으면 제외
+    if not _is_subject(text, query):
         return False
     # 연예/스포츠/맛집 등 명백히 무관한 기사만 제외
-    text = f"{title} {desc}"
     if any(kw in text for kw in _IRRELEVANT_KW):
         return False
     return True
@@ -223,6 +222,7 @@ def summarize(query: str, *, limit: int = 20) -> dict:
             "positive": 0,
             "negative": 0,
             "neutral": 0,
+            "items": [],
             "top_positive": [],
             "top_negative": [],
             "summary_text": f"{query} 관련 네이버 뉴스가 없습니다.",
@@ -249,6 +249,17 @@ def summarize(query: str, *, limit: int = 20) -> dict:
         {"title": x["title"], "sentiment": round(x["sentiment"], 3), "link": x["link"]}
         for x in sorted(scored, key=lambda r: r["sentiment"]) if x["sentiment"] < 0
     ][:3]
+    public_items = [
+        {
+            "title": x["title"],
+            "description": x["description"],
+            "sentiment": round(x["sentiment"], 3),
+            "bucket": x["bucket"],
+            "link": x["link"],
+            "pub_date": x.get("pub_date", ""),
+        }
+        for x in scored
+    ]
     tone = "중립적"
     if avg > 0.15:
         tone = "대체로 긍정적"
@@ -271,6 +282,7 @@ def summarize(query: str, *, limit: int = 20) -> dict:
         "positive": pos,
         "negative": neg,
         "neutral": neu,
+        "items": public_items,
         "top_positive": top_pos,
         "top_negative": top_neg,
         "summary_text": f"{s1} {s2}",
