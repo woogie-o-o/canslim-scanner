@@ -1,5 +1,5 @@
 """
-(.)(.)스캐너
+종목분석기
 =============================================================
 윌리엄 오닐(William O'Neil) CAN SLIM 원칙 + 월가 퀀트 전략 융합
 
@@ -3473,16 +3473,16 @@ class WallStreetQuantStrategies:
 # ============================================================
 class QuantNexusApp:
     """
-    (.)(.)스캐너 메인 애플리케이션.
+    종목분석기 메인 애플리케이션.
 
     스큐어모피즘 UI + 전략 패턴 아키텍처.
     v20: High DPI 지원 / Malgun Gothic 한글 폰트 / 섹터 대규모 확장.
     """
 
     def __init__(self, root: tk.Tk):
-        logging.info("(.)(.)스캐너 시작")
+        logging.info("종목분석기 시작")
         self.root = root
-        self.root.title("(.)(.)스캐너")
+        self.root.title("종목분석기")
 
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         w, h   = min(int(sw * 0.88), 1650), min(int(sh * 0.90), 960)
@@ -3890,7 +3890,7 @@ class QuantNexusApp:
         # ─ 왼쪽: 타이틀
         left = tk.Frame(inner, bg=C["HEADER_BG"])
         left.pack(side=tk.LEFT, fill=tk.Y)
-        tk.Label(left, text="(.)(.)스캐너", font=F["TITLE"],
+        tk.Label(left, text="종목분석기", font=F["TITLE"],
                  bg=C["HEADER_BG"], fg=C["ACCENT"]).pack(side=tk.LEFT)
         tk.Label(left, text="  주식 스캐너",
                  font=F["BODY"], bg=C["HEADER_BG"], fg=C["GOLD"]).pack(side=tk.LEFT)
@@ -4979,7 +4979,7 @@ class QuantNexusApp:
     @rate_limit(max_per_second=20)
     def _analyze_ticker(self, ticker: str) -> dict | None:
         """
-        (.)(.)스캐너 단일 티커 분석 진입점 (v20.1)
+        종목분석기 단일 티커 분석 진입점 (v20.1)
         ─────────────────────────────────────────────────────────────────
         점수 산출 순서 (예산 분배 아키텍처):
           1. 19개 전략 원점수 계산
@@ -8218,10 +8218,10 @@ class QuantNexusApp:
     # ─────────────────────────────────────────────────────────────────────
     def _show_guide(self):
         win = tk.Toplevel(self.root)
-        win.title("📘 (.)(.)스캐너 가이드")
+        win.title("📘 종목분석기 가이드")
         win.geometry("900x960")
         win.configure(bg=C["PANEL"])
-        tk.Label(win, text="⭐  (.)(.)스캐너",
+        tk.Label(win, text="⭐  종목분석기",
                  font=F["POPUP_SUB"], bg=C["PANEL"], fg=C["ACCENT"], pady=14).pack()
         tk.Label(win, text="윌리엄 오닐(William O'Neil) 7원칙 + 월가 퀀트 19전략 융합",
                  font=F["BODY"], bg=C["PANEL"], fg=C["GOLD"]).pack()
@@ -8401,7 +8401,7 @@ class QuantNexusApp:
             messagebox.showwarning("데이터 없음", "먼저 스캔을 실행해 주세요.")
             return
         try:
-            fname = f"(.)(.)스캐너_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            fname = f"종목분석기_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             wb    = xlsxwriter.Workbook(fname)
             ws    = wb.add_worksheet("분석_결과")
 
@@ -13340,7 +13340,7 @@ class QuantNexusApp:
 # ============================================================
 if __name__ == "__main__":
     try:
-        logging.info("(.)(.)스캐너 시작")
+        logging.info("종목분석기 시작")
         root = tk.Tk()
         app  = QuantNexusApp(root)
         root.mainloop()

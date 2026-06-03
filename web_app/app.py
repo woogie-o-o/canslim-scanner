@@ -1,5 +1,5 @@
 """
-app.py — (.)(.)분석기 Flask 웹 서버
+app.py — 종목분석기 Flask 웹 서버
 engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더링한다.
 
 실행: python web_app/app.py
@@ -2937,7 +2937,7 @@ def _cold_start_fill():
     # US/KR 병렬 quick-warm — 순차 대비 ~50% 시간 단축
     threads = [
         threading.Thread(target=_fill_market, args=(m,), daemon=True, name=f"cold-fill-{m}")
-        for m in ("US", "KR")
+        for m in ("KR", "US")
     ]
     for t in threads:
         t.start()
