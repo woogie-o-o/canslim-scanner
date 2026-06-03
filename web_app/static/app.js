@@ -2338,14 +2338,10 @@ function closeCalcPopup() {
 function _mergeCachedDetailSnapshot(data, cached) {
   if (!data || !cached) return data;
   const keep = [
-    'Price', 'DayChg', 'RSI', '_AvgVol20', '_MarketCap',
     'BrokerTarget', 'BrokerTargetSource', 'BrokerAnalystCount',
     'TargetPrice', 'TargetUpside', 'TargetSource', 'TargetMethod', 'TargetView',
     'DcfLow', 'DcfHigh', 'PerFair', 'PbrFair', 'EvEbitdaFair',
-    'NomuraTarget', 'NomuraMethod', 'NomuraUpside', 'NomuraBias', 'NomuraUsed',
-    '_EPSGrowth', 'EPSAcceleration', '_ROE', '_OperatingMargin', '_RevenueGrowth',
-    '_PER', '_PBR', '_DebtRatio', '_DivYield',
-    'RSRating', 'ValueScore', 'QualityScore', 'MomentumScore'
+    'NomuraTarget', 'NomuraMethod', 'NomuraUpside', 'NomuraBias', 'NomuraUsed'
   ];
   for (const key of keep) {
     if (cached[key] !== undefined && cached[key] !== null && cached[key] !== '') {
@@ -2406,10 +2402,6 @@ async function openDetail(ticker) {
     // 스캐너에서 본 한줄평이 패널 열 때 보였다가 API 응답 도착 시 다른 문구로
     // 바뀌는 깜빡임을 막기 위해, 캐시된 한줄평이 있으면 무조건 그대로 유지한다.
     // (버킷이 달라도 시각적 깜빡임이 더 거슬리므로 캐시 우선.)
-    if (cached) {
-      if (cached.TotalScore != null) data.TotalScore = cached.TotalScore;
-      if (cached.Signal != null) data.Signal = cached.Signal;
-    }
     if (cached && cached.OneLiner) {
       data.OneLiner = cached.OneLiner;
       if (cached.OneLinerData != null) data.OneLinerData = cached.OneLinerData;

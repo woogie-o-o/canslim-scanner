@@ -2887,8 +2887,16 @@ class WallStreetQuantStrategies:
             #   2) earningsQuarterlyGrowth (분기 YoY 순이익 — C 원칙 정통)
             #   3) forwardEps vs trailingEps 파생 성장률
             #   4) revenueGrowth 보수적 프록시 (0.6× 할인)
-            eg  = safe_get(info.get("earningsGrowth"), None)
-            src = "annual_eps"
+            prefer_quarterly = bool(info.get("_preferQuarterlyEPSGrowth"))
+            eg = None
+            src = ""
+            if prefer_quarterly:
+                eg = safe_get(info.get("earningsQuarterlyGrowth"), None)
+                if eg is not None:
+                    src = "quarterly_eps"
+            if eg is None:
+                eg = safe_get(info.get("earningsGrowth"), None)
+                src = "annual_eps"
             if eg is None:
                 eg = safe_get(info.get("earningsQuarterlyGrowth"), None)
                 src = "quarterly_eps"
@@ -5261,6 +5269,7 @@ class QuantNexusApp:
                         info["earningsGrowth"] = annual_eg
                     if fin.get("eps_qoq_growth") is not None:
                         info["earningsQuarterlyGrowth"] = fin["eps_qoq_growth"]
+                        info["_preferQuarterlyEPSGrowth"] = True
                     src_tag = fin.get("source", "?")
                     target_source = f"DCF ({src_tag} {fin.get('fiscal_period','')})"
                 else:
