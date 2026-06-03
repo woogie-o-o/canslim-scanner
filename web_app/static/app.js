@@ -2335,6 +2335,26 @@ function closeCalcPopup() {
 
 // ── 디테일 드로어 ────────────────────────────────────────────────────────
 
+function _mergeCachedDetailSnapshot(data, cached) {
+  if (!data || !cached) return data;
+  const keep = [
+    'Price', 'DayChg', 'RSI', '_AvgVol20', '_MarketCap',
+    'BrokerTarget', 'BrokerTargetSource', 'BrokerAnalystCount',
+    'TargetPrice', 'TargetUpside', 'TargetSource', 'TargetMethod', 'TargetView',
+    'DcfLow', 'DcfHigh', 'PerFair', 'PbrFair', 'EvEbitdaFair',
+    'NomuraTarget', 'NomuraMethod', 'NomuraUpside', 'NomuraBias', 'NomuraUsed',
+    '_EPSGrowth', 'EPSAcceleration', '_ROE', '_OperatingMargin', '_RevenueGrowth',
+    '_PER', '_PBR', '_DebtRatio', '_DivYield',
+    'RSRating', 'ValueScore', 'QualityScore', 'MomentumScore'
+  ];
+  for (const key of keep) {
+    if (cached[key] !== undefined && cached[key] !== null && cached[key] !== '') {
+      data[key] = cached[key];
+    }
+  }
+  return data;
+}
+
 async function openDetail(ticker) {
   const overlay = document.getElementById('detail-overlay');
   const panel   = document.getElementById('detail-panel');
@@ -2381,6 +2401,7 @@ async function openDetail(ticker) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
+    _mergeCachedDetailSnapshot(data, cached);
     // 한줄평은 시드(score/RSI 양자화 + 시간 회전)에 따라 매번 달라질 수 있다.
     // 스캐너에서 본 한줄평이 패널 열 때 보였다가 API 응답 도착 시 다른 문구로
     // 바뀌는 깜빡임을 막기 위해, 캐시된 한줄평이 있으면 무조건 그대로 유지한다.

@@ -5147,10 +5147,11 @@ class QuantNexusApp:
             #   4) 티커 코드 폴백
             # 주의: KR_NAMES 에는 재상장·코드재사용·사명변경으로 stale 된 항목이 91건 존재,
             # KRX 공식명을 항상 우선해 잘못된 한글명 매칭을 차단한다.
-            _is_kr_t = bool(ticker) and (ticker.endswith(".KS") or ticker.endswith(".KQ"))
-            _name = getattr(self, "_ticker_name_cache", {}).get(ticker)
-            if not _name:
-                _name = info.get("longName") or info.get("shortName")
+            _fallback_name = info.get("longName") or info.get("shortName") or ""
+            try:
+                _name = self._resolve_display_name(ticker, _fallback_name)
+            except Exception:
+                _name = getattr(self, "_ticker_name_cache", {}).get(ticker) or _fallback_name
             name = (_name or ticker)[:20]
             # regularMarketChangePercent를 우선 사용 (yfinance 원자값 — 캐시 지연 없음)
             _rt_chg_pct = info.get("regularMarketChangePercent")

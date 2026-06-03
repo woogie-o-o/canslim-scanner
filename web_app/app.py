@@ -372,6 +372,10 @@ def _apply_scan_score_adjustments(results: list, *, reeval_speculative: bool = T
     for r in results:
         if not isinstance(r, dict):
             continue
+        try:
+            _normalize_kr_display_fields(r, str(r.get("Ticker") or ""))
+        except Exception as e:
+            logging.debug("KR display normalize failed: %s", e)
         bonus = r.get("MoatBonus", 0)
         if bonus and isinstance(r.get("TotalScore"), (int, float)):
             r["TotalScore"] = min(100.0, r["TotalScore"] + float(bonus))
@@ -1074,6 +1078,66 @@ def _lookup_kr_name_local(code6: str) -> str:
     return _KR_LOCAL_NAME_CACHE.get(code6) or ""
 
 
+def _lookup_kr_display_name(code6: str) -> str:
+    """한국 종목 코드를 화면 표시용 한글명으로 변환한다."""
+    code6 = str(code6 or "").split(".")[0].zfill(6)
+    if not code6.isdigit():
+        return ""
+
+    # stock_names가 이미 로드되어 있으면 KRX/FDR 공식명을 우선 사용한다.
+    # 미로드 상태에서 스캔 응답 후처리가 네트워크 로드로 막히지 않도록 한다.
+    try:
+        from swing_scan.config import stock_names as _sn
+        if getattr(_sn, "_loaded", False):
+            nm = _sn.get_name(code6)
+            if nm and nm != code6:
+                return str(nm)
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+
+    fixed = _lookup_kr_name_local(code6)
+    if fixed:
+        return fixed
+
+    try:
+        from quant_nexus_v20 import QuantNexusApp
+        fixed = (
+            QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
+            or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
+            or ""
+        )
+        if fixed:
+            return str(fixed)
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+
+    return ""
+
+
+def _normalize_kr_display_fields(result: dict, ticker: str, adapter=None) -> dict:
+    """KR 상세/스캔 응답에서 영문 yfinance명을 한글 표시명으로 고정한다."""
+    if not isinstance(result, dict):
+        return result
+    code6 = _strip_kr_suffix(ticker or result.get("Ticker") or "").zfill(6)
+    if not code6.isdigit():
+        return result
+
+    fixed_name = _lookup_kr_display_name(code6)
+    if fixed_name:
+        result["Name"] = fixed_name
+
+    if adapter is not None:
+        try:
+            wanted = {code6.upper(), f"{code6}.KS", f"{code6}.KQ"}
+            for sector_name, tickers in adapter.get_sectors().items():
+                if any(str(t).upper() in wanted for t in tickers):
+                    result["Sector"] = sector_name
+                    break
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
+    return result
+
+
 @app.route("/detail/<ticker>")
 def detail(ticker: str):
     safe = _validate_ticker(ticker)
@@ -1440,7 +1504,10 @@ def api_ticker(ticker: str):
                 fresh = dict(_td_cached["data"])
                 _ol_annotate([fresh])
             except Exception:
-                fresh = _td_cached["data"]
+                fresh = dict(_td_cached["data"])
+            if market_arg == "KR":
+                _normalize_kr_display_fields(fresh, ticker)
+                fresh["_Investor_Available"] = False
             return jsonify(fresh)
     try:
         adapter = _make_adapter()
@@ -1449,20 +1516,7 @@ def api_ticker(ticker: str):
         if result is None:
             return jsonify({"error": "해당 티커의 데이터를 찾을 수 없습니다."}), 404
         if market == "KR":
-            code6 = _strip_kr_suffix(ticker).zfill(6)
-            name_now = str(result.get("Name") or "").strip()
-            if not name_now or name_now in {ticker, code6, f"{code6}.KS", f"{code6}.KQ"}:
-                try:
-                    from quant_nexus_v20 import QuantNexusApp
-                    fixed = (
-                        QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
-                        or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
-                        or ""
-                    )
-                    if fixed:
-                        result["Name"] = fixed
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
+            _normalize_kr_display_fields(result, ticker, adapter)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
         else:
