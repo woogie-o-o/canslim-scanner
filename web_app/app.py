@@ -5,6 +5,8 @@ engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더�
 실행: python web_app/app.py
 접속: http://localhost:5000
 """
+from __future__ import annotations
+
 import sys
 import os
 import io
@@ -1021,6 +1023,31 @@ def _validate_ticker(ticker) -> str | None:
     if not _TICKER_RE.match(t):
         return None
     return t
+
+
+_KR_LOCAL_NAME_CACHE: dict[str, str] | None = None
+
+
+def _lookup_kr_name_local(code6: str) -> str:
+    """repo 내 테마 종목표에서 한국 종목명을 찾는 가벼운 fallback."""
+    global _KR_LOCAL_NAME_CACHE
+    if _KR_LOCAL_NAME_CACHE is None:
+        names: dict[str, str] = {}
+        path = os.path.join(_BASE, "theme_stocks.txt")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for raw in f:
+                    parts = raw.strip().split()
+                    if len(parts) < 2:
+                        continue
+                    tk, nm = parts[0], parts[1]
+                    code = tk.split(".")[0].zfill(6)
+                    names.setdefault(code, nm)
+                    names.setdefault(tk.upper(), nm)
+        except OSError:
+            pass
+        _KR_LOCAL_NAME_CACHE = names
+    return _KR_LOCAL_NAME_CACHE.get(code6) or ""
 
 
 @app.route("/detail/<ticker>")
@@ -2618,11 +2645,24 @@ def api_dart_news(ticker: str):
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
             if not stock_name:
+                stock_name = _lookup_kr_name_local(code)
+            if not stock_name:
+                try:
+                    from quant_nexus_v20 import QuantNexusApp
+                    stock_name = (
+                        QuantNexusApp.KR_NAMES.get(f"{code}.KS")
+                        or QuantNexusApp.KR_NAMES.get(f"{code}.KQ")
+                        or ""
+                    )
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
+            if not stock_name:
                 try:
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
-                        stock_name = s["data"].get("corp_name", "")
+                        data = s.get("data") or {}
+                        stock_name = data.get("stock_name") or data.get("corp_name", "")
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
             if stock_name:

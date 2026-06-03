@@ -408,6 +408,7 @@ function onMarketChange(val) {
 // 중첩 키 접근 ("Scores.BALANCED" → obj.Scores?.BALANCED)
 function _getByPath(obj, path) {
   if (!obj || !path) return undefined;
+  if (path === 'BrokerTarget') return obj.BrokerTarget ?? obj.TargetPrice;
   return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
 }
 
@@ -1361,11 +1362,14 @@ function renderStockRow(stock, rank) {
   const avgVol     = _fmtAvgVol(stock._AvgVol20);
   const marketCap  = _fmtMarketCap(stock._MarketCap);
   const targetLabel = stock.NomuraUsed ? '섹터 밸류에이션 목표가' : 'DCF 메인 목표가';
-  const upsidePct  = stock.TargetUpside != null
-    ? (stock.TargetUpside >= 0 ? '+' : '') + fmt(stock.TargetUpside * 100, 1) + '%'
+  const targetUpside = stock.TargetUpside != null
+    ? Number(stock.TargetUpside)
+    : (stock.TargetPrice && stock.Price ? (stock.TargetPrice - stock.Price) / stock.Price : null);
+  const upsidePct  = targetUpside != null
+    ? (targetUpside >= 0 ? '+' : '') + fmt(targetUpside * 100, 1) + '%'
     : '—';
-  const upsideColor = stock.TargetUpside != null
-    ? (stock.TargetUpside >= 0 ? 'var(--success)' : 'var(--destructive)')
+  const upsideColor = targetUpside != null
+    ? (targetUpside >= 0 ? 'var(--success)' : 'var(--destructive)')
     : '';
   const upside     = stock.TargetPrice
     ? `<div class="target-price">${fmtPrice(stock.TargetPrice)}</div><div class="target-upside" style="color:${upsideColor}">${upsidePct}</div>`
@@ -1382,15 +1386,21 @@ function renderStockRow(stock, rank) {
   // TopReason 태그 HTML
   const reasonHtml = _renderReasonTags(stock.TopReason);
 
-  // 증권사 컨센서스 목표가 HTML (IIFE 제거 — 500+ 종목 렌더 시 함수 생성 오버헤드 제거)
-  let brokerHtml;
+  // 목표가 HTML: 증권사 컨센서스 우선, 없으면 내부 산출 목표가로 fallback.
+  let targetHtml;
+  let targetTitle;
   if (stock.BrokerTarget) {
     const bUp = stock.Price ? ((stock.BrokerTarget - stock.Price) / stock.Price) * 100 : null;
     const bColor = bUp != null && bUp >= 0 ? 'var(--success)' : 'var(--destructive)';
     const bPct = bUp != null ? (bUp >= 0 ? '+' : '') + fmt(bUp, 1) + '%' : '';
-    brokerHtml = `<div class="target-price">${fmtPrice(stock.BrokerTarget)}</div><div class="target-upside" style="color:${bColor}">${bPct}</div>`;
+    targetHtml = `<div class="target-price">${fmtPrice(stock.BrokerTarget)}</div><div class="target-upside" style="color:${bColor}">${bPct}</div>`;
+    targetTitle = stock.BrokerTargetSource ? esc(stock.BrokerTargetSource) : '증권사 컨센서스';
+  } else if (stock.TargetPrice) {
+    targetHtml = upside;
+    targetTitle = esc(`${targetLabel}${stock.TargetSource ? ' · ' + stock.TargetSource : ''}`);
   } else {
-    brokerHtml = '<div class="target-empty">컨센서스 없음</div>';
+    targetHtml = '<div class="target-empty">목표가 없음</div>';
+    targetTitle = '목표가 없음';
   }
 
   const checked = _selectedStocks.has(stock.Ticker);
@@ -1418,7 +1428,7 @@ function renderStockRow(stock, rank) {
   <td class="right">${rsi}</td>
   <td class="right">${avgVol}</td>
   <td class="right">${marketCap}</td>
-  <td class="right" title="${stock.BrokerTargetSource ? esc(stock.BrokerTargetSource) : '증권사 컨센서스 없음'}">${brokerHtml}</td>
+  <td class="right" title="${targetTitle}">${targetHtml}</td>
   <td class="reason-cell">${reasonHtml}</td>
 </tr>`;
 }
@@ -2375,6 +2385,10 @@ async function openDetail(ticker) {
     // 스캐너에서 본 한줄평이 패널 열 때 보였다가 API 응답 도착 시 다른 문구로
     // 바뀌는 깜빡임을 막기 위해, 캐시된 한줄평이 있으면 무조건 그대로 유지한다.
     // (버킷이 달라도 시각적 깜빡임이 더 거슬리므로 캐시 우선.)
+    if (cached) {
+      if (cached.TotalScore != null) data.TotalScore = cached.TotalScore;
+      if (cached.Signal != null) data.Signal = cached.Signal;
+    }
     if (cached && cached.OneLiner) {
       data.OneLiner = cached.OneLiner;
       if (cached.OneLinerData != null) data.OneLinerData = cached.OneLinerData;
