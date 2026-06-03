@@ -602,6 +602,8 @@ function _applyQuickFilter(stocks) {
       return stocks.filter(s => s.NearHighPass);
     case 'oversold':
       return stocks.filter(s => s.RSI != null && s.RSI < 30);
+    case 'greedzone':
+      return stocks.filter(s => !!s.GreedZone);
     case 'intraday':
       return stocks.filter(s =>
         (s.ORBSignal && s.ORBSignal !== 'NEUTRAL' && s.ORBSignal !== '-') ||
@@ -1281,8 +1283,58 @@ function renderStockTable(stocks) {
       })
       .map(x => x.s);
   }
-  _renderHtmlInBatches(tbody, view, renderStockRow, 100, 200, renderToken);
-  _updateMobileList(view, null, renderToken);
+  const initialCap = 100;
+  const capped = view.length > initialCap ? view.slice(0, initialCap) : view;
+  const remaining = view.length - capped.length;
+
+  if (window.innerWidth <= 768) {
+    tbody.innerHTML = '';
+    _updateMobileList(capped, null, renderToken);
+    if (remaining > 0) {
+      const mEl = document.getElementById('mobile-stock-list');
+      if (mEl) {
+        const btn = document.createElement('div');
+        btn.className = 'load-more-btn';
+        btn.innerHTML = `<button onclick="this.parentElement.remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>`;
+        mEl.appendChild(btn);
+      }
+    }
+  } else {
+    _renderHtmlInBatches(tbody, capped, renderStockRow, 30, 50, renderToken);
+    if (remaining > 0) {
+      _scheduleDeferredRender(() => {
+        if (renderToken !== _renderToken) return;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="${_colCount()}" class="center" style="padding:12px;">
+          <button class="load-more-btn-inner" onclick="this.closest('tr').remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>
+        </td>`;
+        tbody.appendChild(tr);
+      });
+    }
+  }
+  window._pendingFullView = remaining > 0 ? view : null;
+  window._pendingRenderToken = renderToken;
+}
+
+function _renderAllStocks() {
+  const view = window._pendingFullView;
+  const token = window._pendingRenderToken;
+  if (!view || token !== _renderToken) return;
+  window._pendingFullView = null;
+  const cap = 100;
+  const rest = view.slice(cap);
+  if (window.innerWidth <= 768) {
+    const mEl = document.getElementById('mobile-stock-list');
+    if (mEl) _renderHtmlInBatches(mEl, rest, renderMobileCard, 15, 30, token);
+  } else {
+    const tbody = document.getElementById('stock-list');
+    if (tbody) {
+      const html = rest.map((item, i) => renderStockRow(item, cap + i + 1)).join('');
+      const frag = document.createElement('tbody');
+      frag.innerHTML = html;
+      while (frag.firstChild) tbody.appendChild(frag.firstChild);
+    }
+  }
 }
 
 function _deltaBadge(stock) {
@@ -1337,14 +1389,25 @@ function renderStockRow(stock, rank) {
   // TopReason 태그 HTML
   const reasonHtml = _renderReasonTags(stock.TopReason);
 
+  let brokerHtml;
+  if (stock.BrokerTarget) {
+    const bUp = stock.Price ? ((stock.BrokerTarget - stock.Price) / stock.Price) * 100 : null;
+    const bColor = bUp != null && bUp >= 0 ? 'var(--success)' : 'var(--destructive)';
+    const bPct = bUp != null ? (bUp >= 0 ? '+' : '') + fmt(bUp, 1) + '%' : '';
+    brokerHtml = `<div class="target-price">${fmtPrice(stock.BrokerTarget)}</div><div class="target-upside" style="color:${bColor}">${bPct}</div>`;
+  } else {
+    brokerHtml = '<div class="target-empty">컨센서스 없음</div>';
+  }
+
   const checked = _selectedStocks.has(stock.Ticker);
+  const t = esc(stock.Ticker);
   return `
-<tr onclick="openDetail('${esc(stock.Ticker)}')" data-ticker="${esc(stock.Ticker)}" style="cursor:pointer;">
-  <td class="center"><input type="checkbox" ${checked ? 'checked' : ''} onclick="toggleSelectStock('${esc(stock.Ticker)}', event)" style="cursor:pointer;width:16px;height:16px;accent-color:#3182F6;"></td>
+<tr onclick="openDetail('${t}')" data-ticker="${t}" style="cursor:pointer;">
+  <td class="center"><input type="checkbox" ${checked ? 'checked' : ''} onclick="toggleSelectStock('${t}', event)" style="cursor:pointer;width:16px;height:16px;accent-color:#3182F6;"></td>
   <td class="center"><span class="rank-cell ${rankClass}">${rank}</span></td>
-  <td class="name-cell" onmouseenter="showStockPopup('${esc(stock.Ticker)}', event)" onmouseleave="hideStockPopup()">
-    <span class="stock-name">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠ 테마</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬 마이크로 이상</span>` : ''}</span>
-    <span class="stock-code">${esc(stock.Ticker)}</span>
+  <td class="name-cell" onmouseenter="showStockPopup('${t}', event)" onmouseleave="hideStockPopup()">
+    <span class="stock-name">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠ 테마</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬 마이크로 이상</span>` : ''}${stock.GreedZone ? ` <span class="greed-badge" title="GreedZone 진입${stock.GreedZoneDays ? ' (' + stock.GreedZoneDays + '일)' : ''}${stock.GreedZoneEntry ? ' — 오늘 신규 진입!' : ''}">🟡 탐욕</span>` : ''}</span>
+    <span class="stock-code">${t}</span>
   </td>
   <td class="desc-cell">${esc(stock.Desc || '')}</td>
   <td><span class="sector-tag">${esc(stock.Sector || '—')}</span></td>
@@ -1361,7 +1424,7 @@ function renderStockRow(stock, rank) {
   <td class="right">${rsi}</td>
   <td class="right">${avgVol}</td>
   <td class="right">${marketCap}</td>
-  <td class="right" title="${stock.BrokerTargetSource ? esc(stock.BrokerTargetSource) : '증권사 컨센서스 없음'}">${stock.BrokerTarget ? (() => { const bUp = stock.Price ? ((stock.BrokerTarget - stock.Price) / stock.Price) * 100 : null; return `<div class="target-price">${fmtPrice(stock.BrokerTarget)}</div><div class="target-upside" style="color:${bUp != null && bUp >= 0 ? 'var(--success)' : 'var(--destructive)'}">${bUp != null ? (bUp >= 0 ? '+' : '') + fmt(bUp, 1) + '%' : ''}</div>`; })() : '<div class="target-empty">컨센서스 없음</div>'}</td>
+  <td class="right" title="${stock.BrokerTargetSource ? esc(stock.BrokerTargetSource) : '증권사 컨센서스 없음'}">${brokerHtml}</td>
   <td class="reason-cell">${reasonHtml}</td>
 </tr>`;
 }
@@ -1374,7 +1437,7 @@ function _updateMobileList(view, emptyMsg, renderToken) {
     el.innerHTML = `<div class="mobile-stock-list-msg">${emptyMsg || '결과 없음'}</div>`;
     return;
   }
-  _renderHtmlInBatches(el, view, renderMobileCard, 50, 100, token);
+  _renderHtmlInBatches(el, view, renderMobileCard, 15, 30, token);
 }
 
 // Mobile override: clearer hierarchy and lighter information density on small screens.
@@ -1385,14 +1448,15 @@ function renderMobileCard(stock, rank) {
   const chgPct   = (dayChg * 100).toFixed(2);
   const chgClass = dayChg > 0 ? 'chg-up' : dayChg < 0 ? 'chg-down' : 'chg-flat';
   const chgSign  = dayChg > 0 ? '+' : '';
+  const t = esc(stock.Ticker);
   return `
-<div class="stock-card" data-ticker="${esc(stock.Ticker)}" onclick="openDetail('${esc(stock.Ticker)}')">
+<div class="stock-card" data-ticker="${t}" onclick="openDetail('${t}')">
   <div class="stock-card-row1">
     <div class="stock-card-main">
       <span class="stock-card-rank">${rank}</span>
       <div class="stock-card-name">
-        <span class="stock-card-name-main">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬</span>` : ''}</span>
-        <span class="stock-card-ticker">${esc(stock.Ticker)}${stock.Sector ? ` · ${esc(stock.Sector)}` : ''}</span>
+        <span class="stock-card-name-main">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬</span>` : ''}${stock.GreedZone ? ` <span class="greed-badge" title="GreedZone 진입${stock.GreedZoneDays ? ' (' + stock.GreedZoneDays + '일)' : ''}${stock.GreedZoneEntry ? ' — 오늘 신규 진입!' : ''}">🟡 탐욕</span>` : ''}</span>
+        <span class="stock-card-ticker">${t}${stock.Sector ? ` · ${esc(stock.Sector)}` : ''}</span>
       </div>
     </div>
     <div class="stock-card-meta">

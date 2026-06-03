@@ -54,7 +54,7 @@ class ScanAdapter:
         self._strategy = strategy
 
         # ── analyze_ticker가 사용하는 속성 (QuantNexusApp 인터페이스 호환) ──
-        self.cache          = _qn.DataCache()
+        self.cache          = _qn.DataCache(os.path.join(_BASE, "cache_v19"))
         self.engine         = _qn.WallStreetQuantStrategies()
         # C1: VIX fetch는 cold start를 막지 않는다.
         # 캐시가 비어 있으면 20.0으로 출발하고 백그라운드에서 채운다.
@@ -78,12 +78,14 @@ class ScanAdapter:
         # ── 네이버 캐시 파일 경로 (원본 엔진과 동일 위치) ──
         self._naver_cache_path = os.path.join(_BASE, "naver_target_cache.pkl")
         self._naver_fund_cache_path = os.path.join(_BASE, "naver_fund_cache.pkl")
-        # 기존 캐시 로드
-        _qn.QuantNexusApp._load_naver_cache(self)
-        _qn.QuantNexusApp._load_naver_fund_cache(self)
-
-        # ── 섹터·종목 데이터 초기화 ──────────────────────────────────────────
-        _qn.QuantNexusApp._init_sector_data(self)
+        # ── 병렬 초기화: pickle 로드 2건과 섹터 데이터 초기화는 독립적이다.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as _init_ex:
+            _f1 = _init_ex.submit(_qn.QuantNexusApp._load_naver_cache, self)
+            _f2 = _init_ex.submit(_qn.QuantNexusApp._load_naver_fund_cache, self)
+            _f3 = _init_ex.submit(_qn.QuantNexusApp._init_sector_data, self)
+            _f1.result()
+            _f2.result()
+            _f3.result()
         # 클래스 속성 인스턴스에 직접 복사 (_analyze_ticker에서 self.*로 접근)
         self.KR_NAMES = _qn.QuantNexusApp.KR_NAMES
         self.US_DESC  = _qn.QuantNexusApp.US_DESC
@@ -196,7 +198,7 @@ class ScanAdapter:
     def _log(self, msg: str) -> None:
         logging.debug("[ScanAdapter] %s", msg)
 
-    def _pre_build_scan_caches(self, tickers: list[str]) -> None:
+    def _pre_build_scan_caches(self, tickers: list[str], *, cache_only: bool = False) -> None:
         """스캔 루프 전 1회 실행 — F5(종목명 dict) + F2b(KR 재무 병렬 사전 로드)."""
         # F5: 종목명 사전 구축
         _kr_names_d = getattr(self, "KR_NAMES", {})
@@ -220,7 +222,7 @@ class ScanAdapter:
                 _name_pre[_nt] = _nn
         self._ticker_name_cache = _name_pre
         # F2b: KR 재무 데이터 사전 병렬 로드
-        if self._market == "KR":
+        if self._market == "KR" and not cache_only:
             _fetch_fund = _qn.QuantNexusApp._fetch_naver_fundamentals
             _kr_uncached = [
                 t for t in tickers
@@ -229,7 +231,7 @@ class ScanAdapter:
             ]
             if _kr_uncached:
                 logging.debug("[ScanAdapter] KR 재무 사전 로드 %d개", len(_kr_uncached))
-                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as _nex:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=12) as _nex:
                     list(_nex.map(lambda t: _fetch_fund(self, t), _kr_uncached))
 
     def _fetch_naver_target(self, ticker: str):
@@ -285,11 +287,13 @@ class ScanAdapter:
             # _analyze_ticker(quant_nexus_v20.py:4684)와 동일한 dated 키 포맷.
             # 키 포맷 불일치 시 cache_only 분기에서 종목이 대량 누락되어
             # /api/scan 이 일부 universe만 반환하던 버그를 잡는다.
-            _today = time.strftime("%Y%m%d")
-            strategy_key = f"{ticker}__{self._scan_strategy}__{_today}"
-            cached = self.cache.get(strategy_key, max_age_minutes=60 * 24)
-            if cached:
-                return apply_to_row(cached)
+            from datetime import datetime as _dt, timedelta as _td
+            for _days_back in range(8):
+                _date = (_dt.now() - _td(days=_days_back)).strftime("%Y%m%d")
+                strategy_key = f"{ticker}__{self._scan_strategy}__{_date}"
+                cached = self.cache.get(strategy_key, max_age_minutes=60 * 24 * (_days_back + 1))
+                if cached:
+                    return apply_to_row(cached)
             if cache_only:
                 return None
         result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
@@ -298,7 +302,7 @@ class ScanAdapter:
     def scan_sector(self, sector: str, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "8")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:
         """특정 섹터 종목을 병렬 분석 후 TotalScore 내림차순 반환."""
         tickers = self._sectors.get(sector, [])
-        self._pre_build_scan_caches(tickers)
+        self._pre_build_scan_caches(tickers, cache_only=cache_only)
         results: list[dict] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {
@@ -328,7 +332,7 @@ class ScanAdapter:
                     ticker_sector[t] = sector
 
         all_tickers = list(ticker_sector.keys())
-        self._pre_build_scan_caches(all_tickers)
+        self._pre_build_scan_caches(all_tickers, cache_only=cache_only)
         results: list[dict] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as ex:
             futures = {

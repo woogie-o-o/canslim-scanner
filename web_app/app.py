@@ -21,6 +21,8 @@ import time
 import urllib.request
 import urllib.parse
 
+os.environ.setdefault("QN_HEADLESS", "1")
+
 sys.path.insert(0, os.path.dirname(__file__))
 
 # 프로젝트 루트 경로 (four_axis_analyzer, handdrawn_renderer 접근용)
@@ -149,7 +151,9 @@ def _render_deployment() -> bool:
 # ── 4축 차트 / 컨센서스 캐시 (성능 최적화) ──
 _FOUR_AXIS_TTL_SEC = 1800  # 30분
 _FOUR_AXIS_MAX = 200
-_four_axis_cache: dict[str, dict] = {}
+# OrderedDict LRU — 유저가 실제 조회한 hot entry를 오래 보존한다.
+from collections import OrderedDict as _OrderedDict
+_four_axis_cache: "_OrderedDict[str, dict]" = _OrderedDict()
 _four_axis_cache_lock = threading.Lock()
 
 _CONSENSUS_TTL_SEC = 900  # 15분
@@ -172,12 +176,30 @@ _scan_results_cache: dict[tuple[str, str, str], dict] = {}
 _scan_results_cache_lock = threading.Lock()
 
 # 스캔 JSON 응답에서 제거할 무거운 필드 (상세 패널은 /api/ticker 에서 별도 제공)
-_SCAN_STRIP_FIELDS: frozenset = frozenset({"Breakdown"})
+_SCAN_STRIP_FIELDS: frozenset = frozenset({"Breakdown", "Scores", "Reason", "About"})
+_ENTRY_PLAN_KEEP: frozenset = frozenset({
+    "entry", "entry_discount", "atr_pct", "as_of_ts", "headline_action",
+    "current", "stop", "t1", "t2", "rr", "rr_now",
+})
+_MOAT_DATA_STRIP: frozenset = frozenset({"scores", "evidence_source", "story_risk"})
 
 def _strip_heavy(rows: list) -> list:
-    if not _SCAN_STRIP_FIELDS or not rows:
+    if not rows:
         return rows
-    return [{k: v for k, v in r.items() if k not in _SCAN_STRIP_FIELDS} if isinstance(r, dict) else r for r in rows]
+    out = []
+    for r in rows:
+        if not isinstance(r, dict):
+            out.append(r)
+            continue
+        d = {k: v for k, v in r.items() if k not in _SCAN_STRIP_FIELDS}
+        ep = d.get("EntryPlan")
+        if isinstance(ep, dict):
+            d["EntryPlan"] = {k: v for k, v in ep.items() if k in _ENTRY_PLAN_KEEP}
+        md = d.get("MoatData")
+        if isinstance(md, dict):
+            d["MoatData"] = {k: v for k, v in md.items() if k not in _MOAT_DATA_STRIP}
+        out.append(d)
+    return out
 
 # ── 스캔 응답 사전 압축 캐시 — cache hit 시 재직렬화/재압축 제거 ──
 # jsonify+flask_compress(brotli/gzip) 는 5.5MB 응답에 2~4s 소요 → 1회만 실행, 이후 bytes 직접 서빙
@@ -375,6 +397,9 @@ def _override_kr_day_chg(results: list) -> list:
             pct = q.get("change_pct")
             if pct is not None:
                 r["DayChg"] = float(pct) / 100.0
+            price = q.get("price")
+            if price is not None and price > 0:
+                r["Price"] = float(price)
         except Exception as _e:
             logging.debug("silent except (app.py): %s", _e)
         return r
@@ -430,7 +455,7 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
         try:
             adapter_cls = _get_scan_adapter_cls()
             adapter = adapter_cls(market=market, strategy=strategy)
-            results = adapter.scan_sector(sector, prefer_cache=True, cache_only=True) if sector else adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=8)
+            results = adapter.scan_sector(sector, prefer_cache=True, cache_only=True) if sector else adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=20)
             try:
                 import history
                 results = history.annotate_deltas(results, market)
@@ -458,6 +483,10 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
             # Phase-3: moat 주입 후 투기주 졸업 재평가
             from speculative_themes import apply_speculative_correction as _spec_reeval_batch
             _spec_reeval_batch(results)
+            try:
+                results = _enrich_greedzone_batch(results)
+            except Exception as ge:
+                logging.warning("background GreedZone enrichment failed: %s", ge)
             # 스캔 결과 전체 캐시 갱신 (Breakdown 제거 + 사전 압축)
             if results:
                 _cached_results = _strip_heavy(results)
@@ -506,7 +535,8 @@ def _scan_cache_meta(market: str) -> tuple[int | None, str | None]:
         oldest_age_sec = 0.0
         newest_mtime = 0.0
         count = 0
-        for fn in os.listdir(cache_dir):
+        for entry in os.scandir(cache_dir):
+            fn = entry.name
             if not fn.endswith(".pkl"):
                 continue
             if market == "KR":
@@ -516,7 +546,7 @@ def _scan_cache_meta(market: str) -> tuple[int | None, str | None]:
                 if any(p in fn for p in ("_KS__", "_KQ__")):
                     continue
             try:
-                mt = os.path.getmtime(os.path.join(cache_dir, fn))
+                mt = entry.stat().st_mtime
             except OSError:
                 continue
             age = now - mt
@@ -542,12 +572,13 @@ _kr_warmup_started = False
 _kr_warmup_lock = threading.Lock()
 
 
-def _acquire_warmer_file_lock():
+def _acquire_warmer_file_lock(lock_path: str | None = None):
     """non-blocking 파일 잠금 획득. 성공 시 (file_handle, 'win'|'posix'), 실패 시 None.
     반환된 핸들은 워밍 종료까지 open 상태 유지 필요 (finally에서 release+close)."""
+    lock_path = lock_path or _KR_WARMUP_LOCK_PATH
     try:
-        os.makedirs(os.path.dirname(_KR_WARMUP_LOCK_PATH), exist_ok=True)
-        fh = open(_KR_WARMUP_LOCK_PATH, "a+b")
+        os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+        fh = open(lock_path, "a+b")
     except OSError as e:
         logging.warning("warmer lock open failed: %s", e)
         return None
@@ -616,6 +647,53 @@ def _populate_sector_caches(market: str, strategy: str, results: list, ts: int) 
     logging.info("%s sector-cache populated: %d sectors", market, len(by_sector))
 
 
+def _enrich_greedzone_batch(results: list) -> list:
+    """GreedZone 필드가 없는 결과에 yfinance batch download로 GreedZone을 주입한다."""
+    if not results:
+        return results
+    missing = [r for r in results if isinstance(r, dict) and "GreedZone" not in r and r.get("Ticker")]
+    if not missing:
+        return results
+
+    from greedzone import calc_greedzone
+    import yfinance as yf
+
+    tickers = [r["Ticker"] for r in missing]
+    ticker_gz: dict[str, dict] = {}
+    batch_size = 200
+    logging.info("GreedZone batch enrichment: %d tickers", len(tickers))
+    for i in range(0, len(tickers), batch_size):
+        batch = tickers[i:i + batch_size]
+        try:
+            data = yf.download(batch, period="1y", group_by="ticker",
+                               progress=False, threads=True, auto_adjust=True)
+            for t in batch:
+                try:
+                    hist = data[t].dropna() if len(batch) > 1 else data.dropna()
+                    if len(hist) >= 182:
+                        ticker_gz[t] = calc_greedzone(hist, low_period=112, stdev_period=50)
+                except Exception:
+                    pass
+        except Exception as e:
+            logging.warning("GreedZone batch download failed (batch %d): %s", i, e)
+
+    for r in results:
+        if not isinstance(r, dict) or "GreedZone" in r:
+            continue
+        gz = ticker_gz.get(r.get("Ticker", ""))
+        if gz:
+            r["GreedZone"] = gz["in_zone"]
+            r["GreedZoneEntry"] = gz["new_entry"]
+            r["GreedZoneDays"] = gz["days_in_zone"]
+        else:
+            r["GreedZone"] = False
+            r["GreedZoneEntry"] = False
+            r["GreedZoneDays"] = 0
+    logging.info("GreedZone batch done: %d enriched, %d in zone",
+                 len(ticker_gz), sum(1 for g in ticker_gz.values() if g.get("in_zone")))
+    return results
+
+
 def _warmup_fill_cache(market: str) -> None:
     """prefer_cache=True로 pickle에서 in-memory cache를 빠르게 채운다 (quick-warm pass)."""
     try:
@@ -628,7 +706,7 @@ def _warmup_fill_cache(market: str) -> None:
             pass
         adapter_cls = _get_scan_adapter_cls()
         adapter = adapter_cls(market=market, strategy="BALANCED")
-        results = adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=8)
+        results = adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=20)
         if results:
             try:
                 results = _annotate_one_liners(results)
@@ -639,6 +717,28 @@ def _warmup_fill_cache(market: str) -> None:
             _store_scan_cache((market, "BALANCED", ""), ts, results)
             _populate_sector_caches(market, "BALANCED", results, ts)
             logging.info("%s quick-warm done: %d tickers (from pickle)", market, len(results))
+            # 네이버 실시간 + GreedZone 보강은 첫 API 응답을 막지 않도록 뒤에서 갱신한다.
+            def _bg_enrich(_res=list(results), _mkt=market):
+                try:
+                    if _mkt == "KR" and _is_kr_market_open_window():
+                        try:
+                            _override_kr_day_chg(_res)
+                            logging.info("KR quick-warm: naver realtime overlay applied (bg)")
+                        except Exception as _e:
+                            logging.warning("KR quick-warm naver overlay failed: %s", _e)
+                    try:
+                        _res = _enrich_greedzone_batch(_res)
+                    except Exception as _e:
+                        logging.warning("%s GreedZone bg failed: %s", _mkt, _e)
+                    if _res:
+                        _s = _strip_heavy(_res)
+                        _t = int(time.time())
+                        _store_scan_cache((_mkt, "BALANCED", ""), _t, _s)
+                        _populate_sector_caches(_mkt, "BALANCED", _s, _t)
+                        logging.info("%s bg enrich done", _mkt)
+                except Exception as _e:
+                    logging.warning("%s bg enrich failed: %s", _mkt, _e)
+            threading.Thread(target=_bg_enrich, daemon=True, name=f"enrich-{market}").start()
             # 상위 20개 4축 차트 선제 생성 — 첫 클릭 즉시 표시 (matplotlib 직렬화로 단일 스레드)
             _top20 = sorted(results, key=lambda r: r.get("TotalScore") or 0, reverse=True)[:20]
             def _bg_4ax_warm(_tickers=_top20, _mkt=market):
@@ -654,11 +754,12 @@ def _warmup_fill_cache(market: str) -> None:
         logging.warning("%s quick-warm failed: %s", market, e)
 
 
-def _kr_warmup_loop(interval_sec: int = 1800) -> None:
+def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> None:
     """KR 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지.
 
     KRX 휴장 시간엔 호출 자체를 건너뛴다(yfinance/KRX 호출 0). 첫 실행은
     캐시 채우기 위해 항상 1회 수행.
+    initial_delay는 quick-warm 직후 slow-refresh만 늦춰 US와의 동시 yfinance 호출을 줄인다.
     """
     first_run = True
     while True:
@@ -674,6 +775,9 @@ def _kr_warmup_loop(interval_sec: int = 1800) -> None:
                 if first_run:
                     _warmup_fill_cache("KR")
                     first_run = False
+                    if initial_delay > 0:
+                        logging.info("KR slow-refresh delayed %.0fs (429 avoidance)", initial_delay)
+                        time.sleep(initial_delay)
                 logging.info("KR warm-up started (slow-refresh)")
                 try:
                     adapter_cls = _get_scan_adapter_cls()
@@ -686,6 +790,15 @@ def _kr_warmup_loop(interval_sec: int = 1800) -> None:
                             results = _annotate_one_liners(results)
                         except Exception as _e:
                             logging.debug("silent except (app.py): %s", _e)
+                        if _is_kr_market_open_window():
+                            try:
+                                results = _override_kr_day_chg(results)
+                            except Exception as _e:
+                                logging.warning("KR slow-refresh naver overlay failed: %s", _e)
+                        try:
+                            results = _enrich_greedzone_batch(results)
+                        except Exception as _e:
+                            logging.warning("KR slow-refresh GreedZone enrichment failed: %s", _e)
                         results = _strip_heavy(results)
                         ts = int(time.time())
                         _store_scan_cache(("KR", "BALANCED", ""), ts, results)
@@ -706,12 +819,9 @@ def _start_kr_warmup_once() -> None:
     if os.environ.get("DISABLE_KR_WARMUP", "").strip() in ("1", "true", "yes"):
         logging.info("KR warm-up disabled by env DISABLE_KR_WARMUP")
         return
-    # KR warmup 을 60초 지연 — US warmup 과 동시에 yfinance 를 두드려
-    # 자가 rate-limit(429) 을 유발하던 문제 회피.
-    def _delayed_kr():
-        time.sleep(60.0)
-        _kr_warmup_loop()
-    threading.Thread(target=_delayed_kr, daemon=True, name="kr-warmup").start()
+    def _fast_kr():
+        _kr_warmup_loop(initial_delay=10.0)
+    threading.Thread(target=_fast_kr, daemon=True, name="kr-warmup").start()
 
 
 # ── US 캐시 워밍 (서버 기동 시 + 30분 주기) ───────────────────────────────
@@ -819,6 +929,10 @@ def _us_warmup_loop(interval_sec: int = 1800) -> None:
                             results = _annotate_one_liners(results)
                         except Exception as _e:
                             logging.debug("silent except (app.py): %s", _e)
+                        try:
+                            results = _enrich_greedzone_batch(results)
+                        except Exception as _e:
+                            logging.warning("US slow-refresh GreedZone enrichment failed: %s", _e)
                         results = _strip_heavy(results)
                         ts = int(time.time())
                         _store_scan_cache(("US", "BALANCED", ""), ts, results)
@@ -2466,9 +2580,9 @@ def _compute_four_axis_payload(ticker: str, market: str) -> tuple:
 _four_axis_render_lock = threading.Lock()  # BG warm만 직렬화 — 유저 요청은 락 없이 즉시 실행
 
 
-def _warm_four_axis(ticker: str, market: str) -> None:
+def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> None:
     """BG 선제 4축 캐시 채우기 — 클릭 시 차트 즉시 표시."""
-    cache_key = f"{ticker}:{market}"
+    cache_key = f"{ticker}:{market}:{timeframe}"
     with _four_axis_cache_lock:
         if cache_key in _four_axis_cache:
             return
@@ -2483,7 +2597,7 @@ def _warm_four_axis(ticker: str, market: str) -> None:
         if payload:
             with _four_axis_cache_lock:
                 if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
-                    _four_axis_cache.pop(next(iter(_four_axis_cache)), None)
+                    _four_axis_cache.popitem(last=False)
                 _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
             logging.info("4axis pre-warm: %s/%s OK", market, ticker)
         elif err:
@@ -2513,11 +2627,13 @@ def api_four_axis(ticker: str):
                 return jsonify({"error": f"상폐/리네임 티커: {ticker}"}), 404
         except Exception as _e:
             logging.debug("silent except (app.py): %s", _e)
-    cache_key = f"{ticker}:{market}"
+    timeframe = (request.args.get("timeframe") or "default").strip() or "default"
+    cache_key = f"{ticker}:{market}:{timeframe}"
     now = int(time.time())
     with _four_axis_cache_lock:
         cached = _four_axis_cache.get(cache_key)
         if cached and (now - cached.get("_ts", 0)) < _FOUR_AXIS_TTL_SEC:
+            _four_axis_cache.move_to_end(cache_key)
             return jsonify(cached["data"])
     # 유저 요청은 락 없이 즉시 실행 — BG warm과 경쟁해도 Agg 백엔드에서 안전
     payload, err = _compute_four_axis_payload(ticker, market)
@@ -2525,7 +2641,7 @@ def api_four_axis(ticker: str):
         return jsonify({"error": err or "생성 실패"}), (404 if "데이터 부족" in (err or "") else 500)
     with _four_axis_cache_lock:
         if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
-            _four_axis_cache.pop(next(iter(_four_axis_cache)), None)
+            _four_axis_cache.popitem(last=False)
         _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
     return jsonify(payload)
 
@@ -2838,8 +2954,6 @@ def _warmup_search_index():
     except Exception as _e:
         logging.warning("search index warmup failed: %s", _e)
 
-threading.Thread(target=_warmup_search_index, daemon=True, name="search-idx-warmup").start()
-
 
 def _warmup_moat_cache():
     try:
@@ -2854,8 +2968,7 @@ def _warmup_moat_cache():
     except Exception:
         pass
 
-
-threading.Thread(target=_warmup_moat_cache, daemon=True, name="moat-cache-warmup").start()
+# search index + moat cache는 cold-start fill 뒤에 실행해 첫 API 응답 가능 시점을 앞당긴다.
 
 
 def _cold_start_live_scan(market: str) -> None:
@@ -2864,7 +2977,7 @@ def _cold_start_live_scan(market: str) -> None:
     try:
         adapter_cls = _get_scan_adapter_cls()
         adapter = adapter_cls(market=market, strategy="BALANCED")
-        results = adapter.scan_all(prefer_cache=False, cache_only=False, max_workers=8)
+        results = adapter.scan_all(prefer_cache=False, cache_only=False, max_workers=16)
         if not results:
             return
         try:
@@ -2889,26 +3002,37 @@ def _cold_start_fill():
     사용자가 30분 warmup 주기를 기다리지 않도록 한다.
     """
     time.sleep(0.1)  # Flask/SocketIO 초기화 완료 대기
-    for _m in ("US", "KR"):
+    def _fill_market(market: str) -> None:
         try:
-            # 이미 채워진 캐시는 덮어쓰지 않음
             with _scan_results_cache_lock:
-                _already = _scan_results_cache.get((_m, "BALANCED", ""))
+                _already = _scan_results_cache.get((market, "BALANCED", ""))
             if not _already:
-                _warmup_fill_cache(_m)
+                _warmup_fill_cache(market)
             # quick-warm 후에도 캐시가 비었으면(=pickle 없음) live scan 트리거
             with _scan_results_cache_lock:
-                _filled = _scan_results_cache.get((_m, "BALANCED", ""))
+                _filled = _scan_results_cache.get((market, "BALANCED", ""))
             if not _filled:
-                logging.info("cold-start: %s pickle empty → live scan kicked", _m)
+                logging.info("cold-start: %s pickle empty → live scan kicked", market)
                 threading.Thread(
                     target=_cold_start_live_scan,
-                    args=(_m,),
+                    args=(market,),
                     daemon=True,
-                    name=f"cold-live-{_m}",
+                    name=f"cold-live-{market}",
                 ).start()
         except Exception as _e:
-            logging.warning("cold-start-fill %s failed: %s", _m, _e)
+            logging.warning("cold-start-fill %s failed: %s", market, _e)
+
+    threads = [
+        threading.Thread(target=_fill_market, args=(m,), daemon=True, name=f"cold-fill-{m}")
+        for m in ("US", "KR")
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    _warmup_search_index()
+    _warmup_moat_cache()
 
 
 threading.Thread(target=_cold_start_fill, daemon=True, name="cold-start-fill").start()

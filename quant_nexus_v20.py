@@ -36,7 +36,10 @@ warnings.filterwarnings("ignore", message=".*parseString.*")
 warnings.filterwarnings("ignore", message=".*resetCache.*")
 warnings.filterwarnings("ignore", message=".*enablePackrat.*")
 
+_HEADLESS = __import__("os").environ.get("QN_HEADLESS", "").strip().lower() in ("1", "true", "yes")
 try:
+    if _HEADLESS:
+        raise ImportError("headless mode — skip tkinter")
     import tkinter as tk
     from tkinter import messagebox, ttk
     _TK_AVAILABLE = True
@@ -94,10 +97,22 @@ from functools import wraps
 import re
 import urllib.request
 import urllib.error
+try:
+    import urllib3 as _urllib3
+    _NAVER_HTTP = _urllib3.PoolManager(
+        num_pools=1,
+        maxsize=16,
+        retries=False,
+        timeout=_urllib3.Timeout(total=2.0),
+    )
+except Exception:
+    _urllib3 = None
+    _NAVER_HTTP = None
 import valuation_engine
 from entry_pricing import strong_entry_floor as _strong_entry_floor
 from us_company_info import US_COMPANY_INFO as _US_COMPANY_INFO
 from kr_company_info import KR_COMPANY_INFO as _KR_COMPANY_INFO
+from greedzone import calc_greedzone as _calc_greedzone
 
 # ─── 투자지주사 보유지분 테이블 (NAV-할인율 평가용) ──────────────────────
 # 투자지주사는 실적/DCF가 아니라 보유 상장지분 시가총액(NAV)에 지주사
@@ -3672,11 +3687,14 @@ class QuantNexusApp:
         result = {}
         try:
             url = f"https://m.stock.naver.com/api/stock/{code}/finance/annual"
-            req = urllib.request.Request(url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-            })
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                data = json.loads(resp.read().decode('utf-8'))
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            if _NAVER_HTTP is not None:
+                resp = _NAVER_HTTP.request('GET', url, headers=headers)
+                data = json.loads(resp.data.decode('utf-8'))
+            else:
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
 
             fi = data.get('financeInfo', {})
             # 최신 실적 연도 키 (컨센서스 제외)
@@ -6401,6 +6419,16 @@ class QuantNexusApp:
                 "_DivYield":        _normalize_div_yield(info.get("dividendYield")),
                 "_AvgVol20":        float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else 0.0,
                 "_AvgDollarVol20":  float((hist["Close"] * hist["Volume"]).tail(20).mean()) if len(hist) >= 20 else 0.0}
+
+            try:
+                _gz = _calc_greedzone(hist, low_period=112, stdev_period=50)
+                result["GreedZone"] = _gz["in_zone"]
+                result["GreedZoneEntry"] = _gz["new_entry"]
+                result["GreedZoneDays"] = _gz["days_in_zone"]
+            except Exception:
+                result["GreedZone"] = False
+                result["GreedZoneEntry"] = False
+                result["GreedZoneDays"] = 0
 
             # 한국 종목: 네이버 증권 재무 데이터로 보강
             if _is_kr:

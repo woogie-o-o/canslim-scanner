@@ -624,6 +624,19 @@ td.score-col {
 .name-cell { max-width: 180px; }
 .stock-name { font-weight: 600; font-size: 14px; display: block; overflow: hidden; text-overflow: ellipsis; }
 .stock-code { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+.greed-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #B45309;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  vertical-align: middle;
+  cursor: help;
+}
 .theme-warn {
   display: inline-block;
   font-size: 10px;
@@ -1434,6 +1447,25 @@ td.score-col {
   text-align: center;
   color: var(--text-tertiary);
   font-size: 14px;
+}
+
+.load-more-btn { text-align: center; padding: 12px; }
+.load-more-btn button,
+.load-more-btn-inner {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 24px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.load-more-btn button:hover,
+.load-more-btn-inner:hover {
+  background: var(--brand);
+  color: #fff;
+  border-color: var(--brand);
 }
 
 /* ── Game-style Loading Screen ────────────────────────────── */
@@ -2831,6 +2863,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
         <button class="chip" data-filter="strong" title="종합점수 60점 이상 — S등급(75+)·A등급(60+) 해당 종목만 표시">🔥 S·A등급</button>
         <button class="chip" data-filter="near_high" title="52주 신고가에 근접한 종목 — 추세 돌파 후보">📈 신고가</button>
         <button class="chip" data-filter="oversold" title="RSI 30 미만 — 과매도 반등 후보">📉 RSI&lt;30</button>
+        <button class="chip" data-filter="greedzone" title="GreedZone 진입 — 저점 대비 과열 구간 (Zeiierman 지표)">🟡 탐욕구간</button>
         <button class="chip" data-filter="intraday" title="당일 단타 신호 보유 — 시초가 돌파(ORB), 좁은범위(NR7), 볼린저 평균회귀 중 하나 이상 트리거">⚡ 단타신호</button>
       </div>
     </div>

@@ -153,6 +153,14 @@ class HandDrawnChartRenderer:
                  width_px: int = 720, height_px: int = 600, dpi: int = 100):
         from four_axis_analyzer import _ema, _bb
         h = hist.copy()
+        self._gz_zone = None
+        try:
+            from greedzone import calc_greedzone
+            gz_series = calc_greedzone(h, low_period=112, stdev_period=50, _return_series=True)
+            if gz_series is not None and len(gz_series) == len(h):
+                self._gz_zone = gz_series
+        except Exception:
+            pass
         # 기본 지표
         if "EMA20" not in h.columns:
             h["EMA20"]  = _ema(h["Close"], 20)
@@ -241,6 +249,18 @@ class HandDrawnChartRenderer:
                 ax_price.fill_between(x, self.hist["BB_LOW"].values,
                                       self.hist["BB_UP"].values,
                                       color="#3182F6", alpha=0.05, zorder=1)
+
+            if self._gz_zone is not None:
+                gz_tail = self._gz_zone.iloc[-self._lookback:].reset_index(drop=True).values
+                if len(gz_tail) == len(x):
+                    ymin, ymax = ax_price.get_ylim()
+                    ax_price.fill_between(
+                        x, ymin, ymax,
+                        where=gz_tail.astype(bool),
+                        color="#FCD34D", alpha=0.18, zorder=0,
+                        label="GreedZone",
+                    )
+                    ax_price.set_ylim(ymin, ymax)
 
             # 어노테이션/하이쿠 제목 제거 — 차트 위 텍스트는 모두 분석 카드로 분리
             ax_price.set_title(

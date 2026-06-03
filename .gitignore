@@ -36,6 +36,7 @@ backtest/reports/
 
 # === 로그 ===
 *.log
+*.err
 quant_nexus_v20.log
 sca_debug.log
 
