@@ -2409,11 +2409,23 @@ td.desc-cell {
 }
 
 /* ── 핵심 이유 컬럼 ───────────────────────────────────────────────────── */
-.reason-col { min-width: 120px; max-width: 220px; }
+.stock-table th[data-sort="BrokerTarget"],
+.stock-table td:nth-child(13) {
+  width: 116px;
+  min-width: 116px;
+}
+
+.reason-col {
+  width: 190px;
+  min-width: 190px;
+  max-width: 220px;
+}
 td.reason-cell {
   font-size: 11px;
   color: var(--text-secondary);
   line-height: 1.6;
+  width: 190px;
+  min-width: 190px;
   max-width: 220px;
   white-space: normal;
   word-break: keep-all;
