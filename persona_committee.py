@@ -40,17 +40,17 @@ class CommitteeResult:
     grade:            str        # "Must Buy" / "Strong Buy" / ...
     summary:          str        # 한 줄 결론
     weak_trend_warning: bool = False
-    canslim_low_warning: bool = False  # CANSLIM TotalScore < 40이면 진입 보류
+    canslim_low_warning: bool = False  # CANSLIM TotalScore < 40이면 관망
 
 
 _GRADE_TABLE = [
-    (90, "Must Buy"),
-    (80, "Strong Buy"),
-    (70, "Buy"),
-    (60, "Hold"),
-    (50, "Weak Hold"),
-    (40, "Sell"),
-    (0,  "Strong Sell"),
+    (90, "Top Pick"),
+    (80, "Strong"),
+    (70, "Positive"),
+    (60, "Neutral"),
+    (50, "Cautious"),
+    (40, "Weak"),
+    (0,  "Avoid"),
 ]
 
 
@@ -109,7 +109,7 @@ def _v_momentum(four: Any) -> PersonaVerdict:
             f"BB 스퀴즈 + 모멘텀 {m}/5 — 브레이크아웃 임박")
     if bear >= 3 or t <= 2:
         return PersonaVerdict("Momentum", "매도",
-            f"4축 약세 {bear}/4 · 추세 {t}/5 — 진입 불가")
+            f"4축 약세 {bear}/4 · 추세 {t}/5 — 관망")
     return PersonaVerdict("Momentum", "보유",
         f"4축 혼조 (정렬 {bull}, 약세 {bear}) — 트리거 대기")
 
@@ -252,13 +252,13 @@ def evaluate(four_axis_result: Any = None,
     if gate:
         summary = f"위원회 {buy}/7 매수 / {canslim_label} — {grade} ({integrated:.0f}/100)"
     elif total < 40:
-        summary = f"⚠ {canslim_label} — 펀더멘털 미달, 진입 불가 ({integrated:.0f}/100)"
+        summary = f"⚠ {canslim_label} — 펀더멘털 미달 ({integrated:.0f}/100)"
     elif total < 55:
-        summary = f"⚠ {canslim_label} — 진입 보류 (위원회 {buy}/7) ({integrated:.0f}/100)"
+        summary = f"⚠ {canslim_label} — 관망 (위원회 {buy}/7) ({integrated:.0f}/100)"
     elif weak_trend:
-        summary = f"⚠ 추세 약 — {canslim_label}, 진입 보류 ({integrated:.0f}/100)"
+        summary = f"⚠ 추세 약 — {canslim_label}, 관망 ({integrated:.0f}/100)"
     else:
-        summary = f"매수 {buy}/7 / {canslim_label} — {grade} ({integrated:.0f}/100), 관찰"
+        summary = f"위원회 {buy}/7 / {canslim_label} — {grade} ({integrated:.0f}/100), 관찰"
 
     return CommitteeResult(
         verdicts=verdicts, buy_count=buy, sell_count=sell,

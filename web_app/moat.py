@@ -137,6 +137,12 @@ _cache_lock = threading.Lock()
 
 # 인메모리 LRU (프로세스 수명 동안)
 _mem_cache: dict[str, dict] = {}
+# (mtime, size) 튜플 — NTFS 2초 mtime 해상도 silent stale 방지용 dual check
+_mem_cache_stat: dict[str, tuple] = {}
+
+# BG batch refill 상태 — 중복 트리거 방지
+_bg_refill_inflight = {"on": False}
+_bg_refill_lock = threading.Lock()
 
 
 def _ensure_dir() -> None:
@@ -151,11 +157,45 @@ def _cache_path(ticker: str) -> str:
     return os.path.join(_CACHE_DIR, f"{safe}.json")
 
 
+def _stat_tuple(path: str) -> Optional[tuple]:
+    try:
+        st = os.stat(path)
+        return (st.st_mtime, st.st_size)
+    except OSError:
+        return None
+
+
+def _trigger_bg_refill() -> None:
+    """디스크 캐시를 백그라운드에서 _mem_cache로 일괄 재로드 — cache miss시 후속 요청 가속용."""
+    with _bg_refill_lock:
+        if _bg_refill_inflight["on"]:
+            return
+        _bg_refill_inflight["on"] = True
+
+    def _worker():
+        try:
+            n = preload_cache()
+            _log.debug("moat BG refill: %d entries", n)
+        finally:
+            with _bg_refill_lock:
+                _bg_refill_inflight["on"] = False
+
+    threading.Thread(target=_worker, name="moat-bg-refill", daemon=True).start()
+
+
 def _cache_read(ticker: str) -> Optional[dict]:
     if ticker in _mem_cache:
-        return _mem_cache[ticker]
+        # NTFS 2s 해상도 silent stale 방지 — (mtime, size) dual check
+        path = _cache_path(ticker)
+        cur_stat = _stat_tuple(path)
+        prev_stat = _mem_cache_stat.get(ticker)
+        if cur_stat is None or prev_stat is None or cur_stat == prev_stat:
+            return _mem_cache[ticker]
+        # 디스크 파일이 변경됨 — 재로드 fallthrough
     path = _cache_path(ticker)
     if not os.path.exists(path):
+        # 미스 — BG batch refill 트리거 (preload가 누락한 항목 후속 캐싱)
+        _trigger_bg_refill()
         return None
     try:
         st = os.stat(path)
@@ -164,6 +204,7 @@ def _cache_read(ticker: str) -> Optional[dict]:
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
         _mem_cache[ticker] = data
+        _mem_cache_stat[ticker] = (st.st_mtime, st.st_size)
         return data
     except (OSError, json.JSONDecodeError) as e:
         _log.debug("moat cache read failed %s: %s", ticker, e)
@@ -177,6 +218,9 @@ def _cache_write(ticker: str, data: dict) -> None:
         with _cache_lock, open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
         _mem_cache[ticker] = data
+        st = _stat_tuple(path)
+        if st is not None:
+            _mem_cache_stat[ticker] = st
     except OSError as e:
         _log.debug("moat cache write failed %s: %s", ticker, e)
 
@@ -198,7 +242,9 @@ def preload_cache() -> int:
                     continue
                 with open(path, encoding="utf-8") as f:
                     data = json.load(f)
-                _mem_cache[fname[:-5]] = data  # stem = ticker (대부분 일치)
+                ticker = fname[:-5]
+                _mem_cache[ticker] = data  # stem = ticker (대부분 일치)
+                _mem_cache_stat[ticker] = (st.st_mtime, st.st_size)
                 count += 1
             except Exception:
                 pass

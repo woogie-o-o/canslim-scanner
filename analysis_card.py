@@ -85,7 +85,7 @@ def _section(parent, C, F, title: str, accent_color: str,
 
 
 def _friendly_axis_text(axis_name: str, axis) -> str:
-    """4축 분석 기술 용어를 일반 투자자가 바로 이해할 수 있는 문장으로 변환."""
+    """4축 분석 결과를 주갤 감성 문장으로 변환."""
     d = getattr(axis, "details", {}) or {}
     score = getattr(axis, "score", 3)
 
@@ -97,19 +97,19 @@ def _friendly_axis_text(axis_name: str, axis) -> str:
         above200  = d.get("above_ema200", False)
         slope_dir = d.get("slope_dir", "")
         if "정배열" in state:
-            dir_txt = "오름세가 점점 강해지고 있어요." if slope > 0 else "기울기는 다소 둔화됐지만 구조는 양호합니다."
+            dir_txt = "오름세 점점 강해지는 중임." if slope > 0 else "기울기 좀 둔해졌는데 구조는 아직 양호함."
             pos_str = f"EMA50 {'위' if above50 else '아래'} · EMA200 {'위' if above200 else '아래'}"
-            return f"단기·중기·장기 평균선이 모두 위로 정렬된 우상향 구조입니다. {dir_txt} ({pos_str})"
+            return f"이평선 전부 위로 정렬된 우상향 구조임. {dir_txt} ({pos_str})"
         elif "역배열" in state:
-            pos_txt = "주가가 평균선 아래에 있어" if not above20 else "주가가 일부 평균선을 회복했지만"
-            return f"평균선이 하락 배열입니다. {pos_txt} 전반적인 하락 압력이 남아 있어요. ({slope_dir})"
+            pos_txt = "주가가 이평선 아래에 깔려 있어서" if not above20 else "일부 이평선 회복했는데"
+            return f"이평선 하락 배열임. {pos_txt} 하락 압력 남아있음. ({slope_dir})"
         elif "골든크로스" in state:
-            return f"단기 평균선이 중기 평균선을 막 돌파했습니다. 추세 전환의 첫 신호일 수 있어요. 거래량으로 확인하세요. ({slope_dir})"
+            return f"단기 이평선이 중기 이평선 돌파함. 추세 전환 첫 신호일 수 있음. 거래량으로 확인해야 함. ({slope_dir})"
         elif "데드크로스" in state:
-            return f"단기 평균선이 중기 평균선 아래로 꺾였습니다. 단기 하락 압력이 커지는 구간이에요. ({slope_dir})"
+            return f"단기 이평선이 중기 이평선 아래로 꺾임. 단기 하락 압력 커지는 구간임. ({slope_dir})"
         else:
             pos_str = f"EMA50 {'위' if above50 else '아래'} · EMA200 {'위' if above200 else '아래'}"
-            return f"상승·하락 어느 쪽도 우세하지 않은 방향성 탐색 구간입니다. ({pos_str}) 돌파 신호를 기다리는 게 유리해요."
+            return f"방향 모르겠는 구간임. ({pos_str}) 돌파 신호 나올 때까지 지켜보는 게 나음."
 
     elif axis_name == "momentum":
         rsi           = d.get("rsi", 50)
@@ -120,24 +120,24 @@ def _friendly_axis_text(axis_name: str, axis) -> str:
         macd_above    = d.get("macd_above", False)
         bull_div      = d.get("bull_div", False)
         bear_div      = d.get("bear_div", False)
-        if macd_cross_up:   macd_txt = " MACD 골든크로스가 발생해 동력이 크게 실렸습니다!"
-        elif macd_cross_dn: macd_txt = " MACD 데드크로스가 발생해 주의가 필요해요."
-        elif macd_turn_up:  macd_txt = " MACD 히스토그램이 상승 전환해 기세가 살아나고 있어요."
-        elif macd_turn_dn:  macd_txt = " MACD 히스토그램이 하락 전환했어요."
-        elif macd_above:    macd_txt = " MACD가 시그널 위에 있어 긍정적이에요."
+        if macd_cross_up:   macd_txt = " MACD 골든크로스 떠서 동력 확 실림."
+        elif macd_cross_dn: macd_txt = " MACD 데드크로스 떴음. 조심해야 함."
+        elif macd_turn_up:  macd_txt = " MACD 히스토그램 상승 전환, 기세 살아나는 중임."
+        elif macd_turn_dn:  macd_txt = " MACD 히스토그램 하락 전환됨."
+        elif macd_above:    macd_txt = " MACD 시그널 위에 있어서 긍정적임."
         else:               macd_txt = ""
         if rsi <= 30:
-            return f"RSI {rsi:.0f}로 극단적 과매도입니다.{macd_txt} 단기 기술적 반등 가능성이 높아요. 다만 추세 방향을 먼저 확인하세요."
+            return f"RSI {rsi:.0f} 극단적 과매도임.{macd_txt} 기술적 반등 나올 수 있는데 추세 방향부터 확인해야 함."
         elif rsi >= 70:
-            return f"RSI {rsi:.0f}로 과열 구간입니다.{macd_txt} 단기 차익 실현 압력이 나타날 수 있어요."
+            return f"RSI {rsi:.0f} 과열 구간임.{macd_txt} 차익 실현 압력 나올 수 있음."
         elif rsi >= 55:
-            return f"RSI {rsi:.0f}로 모멘텀이 살아있는 구간입니다.{macd_txt}"
+            return f"RSI {rsi:.0f} 모멘텀 살아있는 구간임.{macd_txt}"
         elif bull_div:
-            return f"가격은 하락했지만 RSI는 더 높은 저점을 형성했습니다(상승 다이버전스).{macd_txt} 바닥을 다지고 있을 가능성이 있어요."
+            return f"가격은 빠졌는데 RSI는 더 높은 저점 찍음(상승 다이버전스).{macd_txt} 바닥 다지는 중일 수 있음."
         elif bear_div:
-            return f"가격은 올랐지만 RSI는 더 낮은 고점을 형성했습니다(하락 다이버전스).{macd_txt} 상승 동력이 약해지는 신호예요."
+            return f"가격은 올랐는데 RSI는 더 낮은 고점 찍음(하락 다이버전스).{macd_txt} 상승 동력 약해지는 신호임."
         else:
-            return f"RSI {rsi:.0f}. 매수·매도 어느 쪽도 우세하지 않은 중립 구간입니다.{macd_txt} 방향 확인 후 대응하세요."
+            return f"RSI {rsi:.0f}. 매수·매도 어느 쪽도 우세하지 않은 중립 구간임.{macd_txt} 방향 나올 때까지 관망."
 
     elif axis_name == "volatility":
         squeeze = d.get("squeeze", False)
@@ -147,21 +147,21 @@ def _friendly_axis_text(axis_name: str, axis) -> str:
         bb_pos = d.get("bb_position", 0.5)
         atr_pct = d.get("atr_pct", 0)
         if squeeze:
-            return f"볼린저 밴드가 역사적으로 좁게 수축되어 있습니다(ATR {atr_pct:.1f}%). 큰 방향성 움직임이 임박했을 수 있어요. 돌파 방향에 올라타세요."
+            return f"BB가 역사적으로 좁게 수축됨(ATR {atr_pct:.1f}%). 큰 움직임 임박할 수 있음. 돌파 방향 잘 봐야 함."
         elif expand and upper_break:
-            return f"밴드가 넓어지며 상단을 돌파했습니다. 강한 상승 모멘텀이 실린 구간이에요 (ATR {atr_pct:.1f}%)."
+            return f"밴드 넓어지면서 상단 돌파함. 강한 상승 모멘텀 실린 구간임 (ATR {atr_pct:.1f}%)."
         elif expand and lower_touch:
-            return f"밴드가 넓어지며 하단을 이탈했습니다. 패닉 매도가 출회되는 구간으로 리스크 관리가 중요해요."
+            return f"밴드 넓어지면서 하단 이탈함. 패닉 매도 나오는 구간이라 리스크 관리 중요함."
         elif lower_touch:
-            return f"밴드 하단에 닿았습니다. 단기 과매도로 기술적 반등이 나올 수 있지만, 추세 확인 후 진입하세요."
+            return f"밴드 하단 닿음. 과매도라 기술적 반등 나올 수 있는데 추세부터 확인해야 함."
         elif upper_break:
-            return f"밴드 상단을 시도 중입니다. 돌파 성공 시 강한 추가 상승이 가능하지만 거래량을 꼭 확인하세요."
+            return f"밴드 상단 돌파 시도 중임. 성공하면 강한 추가 상승 가능한데 거래량 확인 필수임."
         elif bb_pos > 0.6:
-            return f"밴드 상단 쪽에 위치해 있습니다. 추세가 강하면 계속 상승, 모멘텀이 약하면 조정 올 수 있어요."
+            return f"밴드 상단 쪽에 있음. 추세 강하면 계속 가고, 모멘텀 약하면 조정 올 수 있음."
         elif bb_pos < 0.4:
-            return f"밴드 하단 쪽에 위치해 있습니다. 지지선 역할을 하는지, 아래로 뚫리는지 주시하세요."
+            return f"밴드 하단 쪽에 있음. 여기서 지지되는지 아래로 뚫리는지 봐야 함."
         else:
-            return f"밴드 중간 구간에서 안정적으로 움직이고 있습니다 (ATR {atr_pct:.1f}%). 특별한 신호가 없는 상태예요."
+            return f"밴드 중간에서 안정적으로 움직이는 중 (ATR {atr_pct:.1f}%). 특별한 신호 없는 상태임."
 
     elif axis_name == "volume":
         v_ratio = d.get("v_ratio", 1.0)
@@ -170,17 +170,17 @@ def _friendly_axis_text(axis_name: str, axis) -> str:
         price_up = d.get("price_up", True)
         vwap_txt = "VWAP 위에서" if above_vwap else "VWAP 아래에서"
         if v_ratio >= 1.5 and obv_slope > 0 and above_vwap:
-            return f"거래량이 평균의 {v_ratio:.1f}배로 강하고, {vwap_txt} OBV도 상승 중입니다. 기관·외국인 매집 가능성이 있어요."
+            return f"거래량 평균의 {v_ratio:.1f}배로 강하고, {vwap_txt} OBV도 올라가는 중임. 기관·외국인 매집 가능성 있음."
         elif price_up and obv_slope < 0:
-            return f"가격은 올랐지만 OBV는 하락 중입니다. 거래량이 받쳐주지 않는 상승은 지속력이 약할 수 있어요."
+            return f"가격은 올랐는데 OBV는 빠지는 중임. 거래량 안 따라오는 상승은 지속력 약할 수 있음."
         elif not above_vwap and obv_slope < 0:
-            return f"VWAP 아래에서 OBV마저 하락 중입니다. 매도 우위 흐름이 우세한 구간이에요."
+            return f"VWAP 아래에서 OBV마저 하락 중임. 매도 우위 흐름 우세한 구간임."
         elif above_vwap and obv_slope > 0:
-            return f"{vwap_txt} OBV가 상승 중입니다. 기관 투자자 우위의 긍정적인 수급 흐름이에요."
+            return f"{vwap_txt} OBV 상승 중임. 기관 우위의 긍정적 수급 흐름임."
         elif v_ratio < 0.7:
-            return f"거래량이 평균의 {v_ratio:.1f}배로 저조합니다. 시장 관심이 낮은 구간입니다. 거래량이 늘어날 때 진입을 검토하세요."
+            return f"거래량 평균의 {v_ratio:.1f}배로 저조함. 시장 관심 낮은 구간임. 거래량 늘어날 때 다시 봐야 함."
         else:
-            return f"거래량은 보통 수준(×{v_ratio:.1f})이며 {vwap_txt} 거래되고 있습니다. 수급 중립 구간이에요."
+            return f"거래량 보통 수준(×{v_ratio:.1f})이고 {vwap_txt} 거래되는 중임. 수급 중립 구간임."
 
     return ""
 
@@ -443,21 +443,21 @@ def build_four_axis_card(parent: tk.Widget, ticker: str, hist: pd.DataFrame,
         cmte = None
 
     if weak_trend and result.signal_stars >= 3:
-        entry_note = "  ⚠ 추세 약함. 진입 보류 권장"
+        entry_note = "  ⚠ 추세 약함 — 관망 구간"
         entry_color = C["GOLD"]
     elif cmte is not None:
         canslim_total = float(canslim.get("TotalScore", 50)) if canslim else 50
         if cmte.gate_pass and result.signal_stars >= 4:
-            entry_note = f"  · 진입 우호 (위원회 {cmte.buy_count}/7 ✓, CANSLIM {canslim_total:.0f}점)"
+            entry_note = f"  · 우호적 환경 (위원회 {cmte.buy_count}/7 ✓, CANSLIM {canslim_total:.0f}점)"
             entry_color = C["GREEN"]
         elif canslim_total < 40:
-            entry_note = f"  ⚠ CANSLIM {canslim_total:.0f}점 부족 — 펀더멘털 미달, 진입 불가"
+            entry_note = f"  ⚠ CANSLIM {canslim_total:.0f}점 부족 — 펀더멘털 미달"
             entry_color = C["RED"]
         elif canslim_total < 55:
-            entry_note = f"  ⚠ CANSLIM {canslim_total:.0f}점 미흡 — 진입 보류 (위원회 {cmte.buy_count}/7)"
+            entry_note = f"  ⚠ CANSLIM {canslim_total:.0f}점 미흡 — 관망 (위원회 {cmte.buy_count}/7)"
             entry_color = C["GOLD"]
         elif cmte.weak_trend_warning:
-            entry_note = f"  ⚠ 별점만 높음. 위원회 {cmte.buy_count}/7, 진입 보류"
+            entry_note = f"  ⚠ 별점만 높음 — 위원회 {cmte.buy_count}/7, 관망"
             entry_color = C["GOLD"]
         elif cmte.buy_count >= 5:
             entry_note = f"  · 위원회 통과 {cmte.buy_count}/7 (CANSLIM {canslim_total:.0f}점), 추가 트리거 대기"

@@ -1,12 +1,10 @@
 """
-app.py — 종목분석기 Flask 웹 서버
+app.py — (.)(.)분석기 Flask 웹 서버
 engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더링한다.
 
 실행: python web_app/app.py
 접속: http://localhost:5000
 """
-from __future__ import annotations
-
 import sys
 import os
 import io
@@ -14,16 +12,15 @@ import base64
 import json
 import html
 import logging
-import subprocess
 import threading
 import queue
 import time
 import urllib.request
-import urllib.parse
-
-os.environ.setdefault("QN_HEADLESS", "1")
 
 sys.path.insert(0, os.path.dirname(__file__))
+
+# 웹앱 모드: tkinter GUI 스킵 — quant_nexus_v20 import 0.3~1초 단축
+os.environ.setdefault("QN_HEADLESS", "1")
 
 # 프로젝트 루트 경로 (four_axis_analyzer, handdrawn_renderer 접근용)
 _BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -90,6 +87,7 @@ def _inject_asset_versions():
     return {
         "v_app_js": _asset_mtime("app.js"),
         "v_theme_css": _asset_mtime("theme.css"),
+        "v_scanner_css": _asset_mtime("scanner.css"),
     }
 
 
@@ -151,7 +149,7 @@ def _render_deployment() -> bool:
 # ── 4축 차트 / 컨센서스 캐시 (성능 최적화) ──
 _FOUR_AXIS_TTL_SEC = 1800  # 30분
 _FOUR_AXIS_MAX = 200
-# OrderedDict LRU — 유저가 실제 조회한 hot entry를 오래 보존한다.
+# OrderedDict LRU — move_to_end로 hot entry 보존, popitem(last=False)로 cold eviction
 from collections import OrderedDict as _OrderedDict
 _four_axis_cache: "_OrderedDict[str, dict]" = _OrderedDict()
 _four_axis_cache_lock = threading.Lock()
@@ -176,11 +174,17 @@ _scan_results_cache: dict[tuple[str, str, str], dict] = {}
 _scan_results_cache_lock = threading.Lock()
 
 # 스캔 JSON 응답에서 제거할 무거운 필드 (상세 패널은 /api/ticker 에서 별도 제공)
+# Breakdown: 점수 분해 배열 (detail에서 /api/ticker로 재취득)
+# Scores: 멀티 전략 점수 dict (Tkinter 전용, web frontend 미사용)
+# Reason: 한줄 사유 문자열 (web frontend 미사용)
+# About: 기업 설명 (~300자/종목, 상세 패널에서만 사용)
 _SCAN_STRIP_FIELDS: frozenset = frozenset({"Breakdown", "Scores", "Reason", "About"})
+# EntryPlan 서브필드 중 리스트 뷰에서 사용되는 것만 보존 (나머지는 /api/ticker에서 제공)
 _ENTRY_PLAN_KEEP: frozenset = frozenset({
     "entry", "entry_discount", "atr_pct", "as_of_ts", "headline_action",
     "current", "stop", "t1", "t2", "rr", "rr_now",
 })
+# MoatData 서브필드 중 리스트 뷰 미사용 (scores=111B/종목, 상세 패널에서만 사용)
 _MOAT_DATA_STRIP: frozenset = frozenset({"scores", "evidence_source", "story_risk"})
 
 def _strip_heavy(rows: list) -> list:
@@ -397,9 +401,10 @@ def _override_kr_day_chg(results: list) -> list:
             pct = q.get("change_pct")
             if pct is not None:
                 r["DayChg"] = float(pct) / 100.0
-            price = q.get("price")
-            if price is not None and price > 0:
-                r["Price"] = float(price)
+            # 현재가도 실시간 반영 — pickle 캐시의 어제 종가를 오늘 시세로 교체
+            _p = q.get("price")
+            if _p is not None and _p > 0:
+                r["Price"] = float(_p)
         except Exception as _e:
             logging.debug("silent except (app.py): %s", _e)
         return r
@@ -418,6 +423,7 @@ def _render_static_template(name: str, replacements: dict[str, str] | None = Non
         content
         .replace("{{ v_app_js }}", _asset_mtime("app.js"))
         .replace("{{ v_theme_css }}", _asset_mtime("theme.css"))
+        .replace("{{ v_scanner_css }}", _asset_mtime("scanner.css"))
     )
     for src, dst in (replacements or {}).items():
         content = content.replace(src, dst)
@@ -483,10 +489,11 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
             # Phase-3: moat 주입 후 투기주 졸업 재평가
             from speculative_themes import apply_speculative_correction as _spec_reeval_batch
             _spec_reeval_batch(results)
+            # GreedZone batch enrichment
             try:
                 results = _enrich_greedzone_batch(results)
-            except Exception as ge:
-                logging.warning("background GreedZone enrichment failed: %s", ge)
+            except Exception as _e:
+                logging.warning("background GreedZone enrichment failed: %s", _e)
             # 스캔 결과 전체 캐시 갱신 (Breakdown 제거 + 사전 압축)
             if results:
                 _cached_results = _strip_heavy(results)
@@ -572,7 +579,7 @@ _kr_warmup_started = False
 _kr_warmup_lock = threading.Lock()
 
 
-def _acquire_warmer_file_lock(lock_path: str | None = None):
+def _acquire_warmer_file_lock(lock_path=None):
     """non-blocking 파일 잠금 획득. 성공 시 (file_handle, 'win'|'posix'), 실패 시 None.
     반환된 핸들은 워밍 종료까지 open 상태 유지 필요 (finally에서 release+close)."""
     lock_path = lock_path or _KR_WARMUP_LOCK_PATH
@@ -648,22 +655,22 @@ def _populate_sector_caches(market: str, strategy: str, results: list, ts: int) 
 
 
 def _enrich_greedzone_batch(results: list) -> list:
-    """GreedZone 필드가 없는 결과에 yfinance batch download로 GreedZone을 주입한다."""
-    if not results:
-        return results
-    missing = [r for r in results if isinstance(r, dict) and "GreedZone" not in r and r.get("Ticker")]
-    if not missing:
-        return results
-
+    """GreedZone 필드가 없는 결과에 batch yf.download()로 GreedZone을 주입한다."""
     from greedzone import calc_greedzone
     import yfinance as yf
 
+    missing = [r for r in results if "GreedZone" not in r]
+    if not missing:
+        return results
+
     tickers = [r["Ticker"] for r in missing]
-    ticker_gz: dict[str, dict] = {}
-    batch_size = 200
     logging.info("GreedZone batch enrichment: %d tickers", len(tickers))
-    for i in range(0, len(tickers), batch_size):
-        batch = tickers[i:i + batch_size]
+
+    # 200개씩 배치로 다운로드 (rate-limit 완화)
+    BATCH = 200
+    ticker_gz: dict[str, dict] = {}
+    for i in range(0, len(tickers), BATCH):
+        batch = tickers[i:i + BATCH]
         try:
             data = yf.download(batch, period="1y", group_by="ticker",
                                progress=False, threads=True, auto_adjust=True)
@@ -671,24 +678,27 @@ def _enrich_greedzone_batch(results: list) -> list:
                 try:
                     hist = data[t].dropna() if len(batch) > 1 else data.dropna()
                     if len(hist) >= 182:
-                        ticker_gz[t] = calc_greedzone(hist, low_period=112, stdev_period=50)
+                        gz = calc_greedzone(hist, low_period=112, stdev_period=50)
+                        ticker_gz[t] = gz
                 except Exception:
                     pass
         except Exception as e:
             logging.warning("GreedZone batch download failed (batch %d): %s", i, e)
 
+    # 결과에 주입
     for r in results:
-        if not isinstance(r, dict) or "GreedZone" in r:
-            continue
-        gz = ticker_gz.get(r.get("Ticker", ""))
-        if gz:
-            r["GreedZone"] = gz["in_zone"]
-            r["GreedZoneEntry"] = gz["new_entry"]
-            r["GreedZoneDays"] = gz["days_in_zone"]
-        else:
-            r["GreedZone"] = False
-            r["GreedZoneEntry"] = False
-            r["GreedZoneDays"] = 0
+        t = r.get("Ticker", "")
+        if "GreedZone" not in r:
+            gz = ticker_gz.get(t)
+            if gz:
+                r["GreedZone"] = gz["in_zone"]
+                r["GreedZoneEntry"] = gz["new_entry"]
+                r["GreedZoneDays"] = gz["days_in_zone"]
+            else:
+                r["GreedZone"] = False
+                r["GreedZoneEntry"] = False
+                r["GreedZoneDays"] = 0
+
     logging.info("GreedZone batch done: %d enriched, %d in zone",
                  len(ticker_gz), sum(1 for g in ticker_gz.values() if g.get("in_zone")))
     return results
@@ -712,20 +722,23 @@ def _warmup_fill_cache(market: str) -> None:
                 results = _annotate_one_liners(results)
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
+            # 캐시 즉시 저장 — 네이버 오버레이/GreedZone 없이도 첫 API 응답 즉시 가능
             results = _strip_heavy(results)
             ts = int(time.time())
             _store_scan_cache((market, "BALANCED", ""), ts, results)
             _populate_sector_caches(market, "BALANCED", results, ts)
             logging.info("%s quick-warm done: %d tickers (from pickle)", market, len(results))
-            # 네이버 실시간 + GreedZone 보강은 첫 API 응답을 막지 않도록 뒤에서 갱신한다.
+            # 네이버 실시간 + GreedZone — BG에서 순차 실행 후 캐시 갱신
             def _bg_enrich(_res=list(results), _mkt=market):
                 try:
+                    # KR 장중이면 네이버 실시간 시세로 Price/DayChg 교체
                     if _mkt == "KR" and _is_kr_market_open_window():
                         try:
                             _override_kr_day_chg(_res)
                             logging.info("KR quick-warm: naver realtime overlay applied (bg)")
                         except Exception as _e:
                             logging.warning("KR quick-warm naver overlay failed: %s", _e)
+                    # GreedZone batch enrichment
                     try:
                         _res = _enrich_greedzone_batch(_res)
                     except Exception as _e:
@@ -759,7 +772,9 @@ def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> Non
 
     KRX 휴장 시간엔 호출 자체를 건너뛴다(yfinance/KRX 호출 0). 첫 실행은
     캐시 채우기 위해 항상 1회 수행.
-    initial_delay는 quick-warm 직후 slow-refresh만 늦춰 US와의 동시 yfinance 호출을 줄인다.
+
+    initial_delay: quick-warm 즉시 실행 후, slow-refresh(yfinance API) 전 대기 시간.
+    US warmup과 동시 yfinance 429 회피용.
     """
     first_run = True
     while True:
@@ -771,7 +786,7 @@ def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> Non
             logging.info("KR warm-up skipped: another worker holds lock")
         else:
             try:
-                # 첫 실행 시 quick-warm으로 캐시를 빠르게 채운 후 slow-refresh
+                # 첫 실행 시 quick-warm(pickle만)은 즉시, slow-refresh 전 지연
                 if first_run:
                     _warmup_fill_cache("KR")
                     first_run = False
@@ -790,6 +805,7 @@ def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> Non
                             results = _annotate_one_liners(results)
                         except Exception as _e:
                             logging.debug("silent except (app.py): %s", _e)
+                        # yfinance KR은 장중 전일 종가로 고착 → 네이버 실시간으로 교정
                         if _is_kr_market_open_window():
                             try:
                                 results = _override_kr_day_chg(results)
@@ -819,6 +835,9 @@ def _start_kr_warmup_once() -> None:
     if os.environ.get("DISABLE_KR_WARMUP", "").strip() in ("1", "true", "yes"):
         logging.info("KR warm-up disabled by env DISABLE_KR_WARMUP")
         return
+    # KR quick-warm(pickle)은 즉시 시작, slow-refresh(yfinance)만 10초 지연
+    # — US와 동시에 yfinance를 두드려 429를 유발하던 문제 회피하면서
+    #   quick-warm 60초 공백을 제거.
     def _fast_kr():
         _kr_warmup_loop(initial_delay=10.0)
     threading.Thread(target=_fast_kr, daemon=True, name="kr-warmup").start()
@@ -871,78 +890,43 @@ def _is_us_market_open_window() -> bool:
 
 
 def _us_warmup_loop(interval_sec: int = 1800) -> None:
-    """US 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지.
-
-    장 닫혀 있을 땐 어차피 시세가 안 움직이니 외부 호출을 건너뛴다
-    (yfinance 호출 절감 + 라이브 로그 깔끔). 첫 실행만 캐시 채우기.
-    """
+    """US 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지."""
     first_run = True
     while True:
-        handle = None
-        # 장 외 시간엔 스캔 자체를 스킵 (yfinance 호출 0).
-        # 단, 캐시가 아직 비어있는 첫 실행은 한 번 채워둔다.
         if not first_run and not _is_us_market_open_window():
             time.sleep(interval_sec)
             continue
-        try:
-            os.makedirs(os.path.dirname(_US_WARMUP_LOCK_PATH), exist_ok=True)
-            fh = open(_US_WARMUP_LOCK_PATH, "a+b")
-            locked = False
+        handle = _acquire_warmer_file_lock(_US_WARMUP_LOCK_PATH)
+        if handle is None:
+            logging.info("US warm-up skipped: another worker holds lock")
+        else:
             try:
-                if os.name == "nt":
-                    import msvcrt
+                if first_run:
+                    _warmup_fill_cache("US")
+                    first_run = False
+                logging.info("US warm-up started (slow-refresh)")
+                adapter_cls = _get_scan_adapter_cls()
+                adapter = adapter_cls(market="US", strategy="BALANCED")
+                _wm_workers = _get_config_int("WARMUP_WORKERS", 8, minimum=1, maximum=16)
+                results = adapter.scan_all(max_workers=_wm_workers)
+                logging.info("US warm-up done: %d tickers", len(results) if results else 0)
+                if results:
                     try:
-                        msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
-                        handle = (fh, "win")
-                        locked = True
-                    except OSError:
-                        fh.close()
-                else:
-                    import fcntl
+                        results = _annotate_one_liners(results)
+                    except Exception as _e:
+                        logging.debug("silent except (app.py): %s", _e)
                     try:
-                        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        handle = (fh, "posix")
-                        locked = True
-                    except OSError:
-                        fh.close()
-            except Exception:
-                try:
-                    fh.close()
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
-            if not locked:
-                logging.info("US warm-up skipped: another worker holds lock")
-            else:
-                try:
-                    # 첫 실행 시 quick-warm으로 캐시를 빠르게 채운 후 slow-refresh
-                    if first_run:
-                        _warmup_fill_cache("US")
-                        first_run = False
-                    logging.info("US warm-up started (slow-refresh)")
-                    adapter_cls = _get_scan_adapter_cls()
-                    adapter = adapter_cls(market="US", strategy="BALANCED")
-                    _wm_workers = _get_config_int("WARMUP_WORKERS", 8, minimum=1, maximum=16)
-                    results = adapter.scan_all(max_workers=_wm_workers)
-                    logging.info("US warm-up done: %d tickers", len(results) if results else 0)
-                    if results:
-                        try:
-                            results = _annotate_one_liners(results)
-                        except Exception as _e:
-                            logging.debug("silent except (app.py): %s", _e)
-                        try:
-                            results = _enrich_greedzone_batch(results)
-                        except Exception as _e:
-                            logging.warning("US slow-refresh GreedZone enrichment failed: %s", _e)
-                        results = _strip_heavy(results)
-                        ts = int(time.time())
-                        _store_scan_cache(("US", "BALANCED", ""), ts, results)
-                        _populate_sector_caches("US", "BALANCED", results, ts)
-                except Exception as e:
-                    logging.warning("US warm-up failed: %s", e)
-                finally:
-                    _release_warmer_file_lock(handle)
-        except Exception as e:
-            logging.warning("US warm-up loop error: %s", e)
+                        results = _enrich_greedzone_batch(results)
+                    except Exception as _e:
+                        logging.warning("US slow-refresh GreedZone enrichment failed: %s", _e)
+                    results = _strip_heavy(results)
+                    ts = int(time.time())
+                    _store_scan_cache(("US", "BALANCED", ""), ts, results)
+                    _populate_sector_caches("US", "BALANCED", results, ts)
+            except Exception as e:
+                logging.warning("US warm-up failed: %s", e)
+            finally:
+                _release_warmer_file_lock(handle)
         time.sleep(interval_sec)
 
 
@@ -1037,73 +1021,6 @@ def _validate_ticker(ticker) -> str | None:
     if not _TICKER_RE.match(t):
         return None
     return t
-
-
-_KR_LOCAL_NAME_CACHE: dict[str, str] | None = None
-
-
-def _lookup_kr_name_local(code6: str) -> str:
-    """의존성 없이 repo 내 테마 종목표에서 한국 종목명을 찾는 가벼운 폴백."""
-    global _KR_LOCAL_NAME_CACHE
-    if _KR_LOCAL_NAME_CACHE is None:
-        names: dict[str, str] = {}
-        path = os.path.join(_BASE, "theme_stocks.txt")
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                for raw in f:
-                    parts = raw.strip().split()
-                    if len(parts) < 2:
-                        continue
-                    tk, nm = parts[0], parts[1]
-                    code = tk.split(".")[0].zfill(6)
-                    names.setdefault(code, nm)
-                    names.setdefault(tk.upper(), nm)
-        except OSError:
-            pass
-        _KR_LOCAL_NAME_CACHE = names
-    return _KR_LOCAL_NAME_CACHE.get(code6) or ""
-
-
-def _normalize_kr_display_fields(result: dict, ticker: str, adapter=None) -> dict:
-    """KR 상세 응답은 yfinance 영문명/대분류 대신 앱의 큐레이션 명칭을 우선 표시."""
-    if not isinstance(result, dict):
-        return result
-    code6 = _strip_kr_suffix(ticker).zfill(6)
-
-    fixed_name = ""
-    try:
-        from swing_scan.config import stock_names as _sn
-        nm = _sn.get_name(code6)
-        if nm and nm != code6:
-            fixed_name = str(nm)
-    except Exception as _e:
-        logging.debug("silent except (app.py): %s", _e)
-    if not fixed_name:
-        fixed_name = _lookup_kr_name_local(code6)
-    if not fixed_name:
-        try:
-            from quant_nexus_v20 import QuantNexusApp
-            fixed_name = (
-                QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
-                or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
-                or ""
-            )
-        except Exception as _e:
-            logging.debug("silent except (app.py): %s", _e)
-    if fixed_name:
-        result["Name"] = fixed_name
-
-    try:
-        if adapter is not None:
-            wanted = {code6.upper(), f"{code6}.KS", f"{code6}.KQ"}
-            for sector_name, tickers in adapter.get_sectors().items():
-                if any(str(t).upper() in wanted for t in tickers):
-                    result["Sector"] = sector_name
-                    break
-    except Exception as _e:
-        logging.debug("silent except (app.py): %s", _e)
-
-    return result
 
 
 @app.route("/detail/<ticker>")
@@ -1480,12 +1397,6 @@ def api_ticker(ticker: str):
                 _ol_annotate([fresh])
             except Exception:
                 fresh = _td_cached["data"]
-            if market_arg == "KR":
-                try:
-                    fresh = dict(fresh)
-                    _normalize_kr_display_fields(fresh, ticker, _make_adapter())
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
             return jsonify(fresh)
     try:
         adapter = _make_adapter()
@@ -1494,7 +1405,20 @@ def api_ticker(ticker: str):
         if result is None:
             return jsonify({"error": "해당 티커의 데이터를 찾을 수 없습니다."}), 404
         if market == "KR":
-            _normalize_kr_display_fields(result, ticker, adapter)
+            code6 = _strip_kr_suffix(ticker).zfill(6)
+            name_now = str(result.get("Name") or "").strip()
+            if not name_now or name_now in {ticker, code6, f"{code6}.KS", f"{code6}.KQ"}:
+                try:
+                    from quant_nexus_v20 import QuantNexusApp
+                    fixed = (
+                        QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
+                        or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
+                        or ""
+                    )
+                    if fixed:
+                        result["Name"] = fixed
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
         else:
@@ -2585,7 +2509,7 @@ def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> Non
     cache_key = f"{ticker}:{market}:{timeframe}"
     with _four_axis_cache_lock:
         if cache_key in _four_axis_cache:
-            return
+            return  # BG warm hit — move_to_end 호출 안 함 (cold entry가 hot으로 위장하는 것 방지)
     # 비블로킹 — 다른 BG warm이 실행 중이면 스킵 (유저 요청을 막지 않기 위해)
     if not _four_axis_render_lock.acquire(blocking=False):
         return
@@ -2597,7 +2521,7 @@ def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> Non
         if payload:
             with _four_axis_cache_lock:
                 if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
-                    _four_axis_cache.popitem(last=False)
+                    _four_axis_cache.popitem(last=False)  # LRU eviction
                 _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
             logging.info("4axis pre-warm: %s/%s OK", market, ticker)
         elif err:
@@ -2633,7 +2557,7 @@ def api_four_axis(ticker: str):
     with _four_axis_cache_lock:
         cached = _four_axis_cache.get(cache_key)
         if cached and (now - cached.get("_ts", 0)) < _FOUR_AXIS_TTL_SEC:
-            _four_axis_cache.move_to_end(cache_key)
+            _four_axis_cache.move_to_end(cache_key)  # LRU bump — 유저 요청 hit만 hot으로 보존
             return jsonify(cached["data"])
     # 유저 요청은 락 없이 즉시 실행 — BG warm과 경쟁해도 Agg 백엔드에서 안전
     payload, err = _compute_four_axis_payload(ticker, market)
@@ -2641,7 +2565,7 @@ def api_four_axis(ticker: str):
         return jsonify({"error": err or "생성 실패"}), (404 if "데이터 부족" in (err or "") else 500)
     with _four_axis_cache_lock:
         if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
-            _four_axis_cache.popitem(last=False)
+            _four_axis_cache.popitem(last=False)  # LRU eviction
         _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
     return jsonify(payload)
 
@@ -2694,24 +2618,11 @@ def api_dart_news(ticker: str):
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
             if not stock_name:
-                stock_name = _lookup_kr_name_local(code)
-            if not stock_name:
-                try:
-                    from quant_nexus_v20 import QuantNexusApp
-                    stock_name = (
-                        QuantNexusApp.KR_NAMES.get(f"{code}.KS")
-                        or QuantNexusApp.KR_NAMES.get(f"{code}.KQ")
-                        or ""
-                    )
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
-            if not stock_name:
                 try:
                     import dart_api as _da
                     s = _da.get_summary(code)
                     if s.get("available"):
-                        data = s.get("data") or {}
-                        stock_name = data.get("stock_name") or data.get("corp_name", "")
+                        stock_name = s["data"].get("corp_name", "")
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
             if stock_name:
@@ -2955,6 +2866,7 @@ def _warmup_search_index():
         logging.warning("search index warmup failed: %s", _e)
 
 
+
 def _warmup_moat_cache():
     try:
         import moat
@@ -2968,7 +2880,7 @@ def _warmup_moat_cache():
     except Exception:
         pass
 
-# search index + moat cache는 cold-start fill 뒤에 실행해 첫 API 응답 가능 시점을 앞당긴다.
+# search-idx + moat-cache는 _cold_start_fill 완료 후 단계적으로 실행됨
 
 
 def _cold_start_live_scan(market: str) -> None:
@@ -3002,13 +2914,13 @@ def _cold_start_fill():
     사용자가 30분 warmup 주기를 기다리지 않도록 한다.
     """
     time.sleep(0.1)  # Flask/SocketIO 초기화 완료 대기
+
     def _fill_market(market: str) -> None:
         try:
             with _scan_results_cache_lock:
                 _already = _scan_results_cache.get((market, "BALANCED", ""))
             if not _already:
                 _warmup_fill_cache(market)
-            # quick-warm 후에도 캐시가 비었으면(=pickle 없음) live scan 트리거
             with _scan_results_cache_lock:
                 _filled = _scan_results_cache.get((market, "BALANCED", ""))
             if not _filled:
@@ -3022,6 +2934,7 @@ def _cold_start_fill():
         except Exception as _e:
             logging.warning("cold-start-fill %s failed: %s", market, _e)
 
+    # US/KR 병렬 quick-warm — 순차 대비 ~50% 시간 단축
     threads = [
         threading.Thread(target=_fill_market, args=(m,), daemon=True, name=f"cold-fill-{m}")
         for m in ("US", "KR")
@@ -3031,6 +2944,7 @@ def _cold_start_fill():
     for t in threads:
         t.join()
 
+    # 캐시 채움 완료 후 2차 초기화 — 서버 응답 가능 시점을 앞당김
     _warmup_search_index()
     _warmup_moat_cache()
 

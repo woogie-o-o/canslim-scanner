@@ -1,9 +1,9 @@
 # 종목스캐너 성능 최적화 리포트
 
-**날짜:** 2026-05-26
-**커밋:** `7bfc8a4`
-**작업 범위:** `quant_nexus_v20.py` · `web_app/app.py` · `web_app/engine_adapter.py` · `naver_finance.py`
-**제약:** 결과 동일성 보장(점수·출력 변경 없음) · 회귀 테스트 통과 필수
+**날짜:** 2026-05-26  
+**커밋:** `7bfc8a4`  
+**작업 범위:** `quant_nexus_v20.py` · `web_app/app.py` · `web_app/engine_adapter.py` · `naver_finance.py`  
+**제약:** 결과 동일성 보장(점수·출력 변경 없음) · 회귀 테스트 통과 필수  
 **최종 테스트:** 151 passed / 10 pre-existing failures (변경 없음)
 
 ---
@@ -85,7 +85,7 @@ except Exception:
 ### F5 — 종목명 dict 사전 빌드
 **파일:** `quant_nexus_v20.py` (~line 4699) · `web_app/engine_adapter.py`
 
-스캔 전 모든 티커의 이름을 `_ticker_name_cache: dict[str, str]`에 미리 빌드.
+스캔 전 모든 티커의 이름을 `_ticker_name_cache: dict[str, str]`에 미리 빌드.  
 `_analyze_ticker` 내부 조회는 `dict.get()` O(1)으로 단순화.
 
 ```python
@@ -171,7 +171,7 @@ n_workers = 2 if total > 80 else 3 if total > 40 else 4
 n_workers = 4 if total > 80 else 6 if total > 40 else 8
 ```
 
-yfinance 스캔은 I/O-bound. GIL 영향 최소이므로 워커 수를 늘려도 CPU 경합 없음.
+yfinance 스캔은 I/O-bound. GIL 영향 최소이므로 워커 수를 늘려도 CPU 경합 없음.  
 동일 스캔 소요 시간 대비 처리량 **2배**.
 
 ---

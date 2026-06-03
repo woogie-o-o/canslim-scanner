@@ -15,7 +15,7 @@ yfinance>=0.2.40
 pyarrow>=14.0
 
 requests>=2.31
-urllib3>=1.26
+urllib3>=1.26  # PoolManager 사용 — 1.26/2.x 모두 호환 (현재 환경 1.26.20 검증됨)
 python-dotenv>=1.0
 finnhub-python>=2.4
 

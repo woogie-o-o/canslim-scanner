@@ -1,6 +1,6 @@
 <div align="center">
 
-# 종목 분석기
+# (.)(.) 분석기
 
 **CAN SLIM + Quant Factor + Entry Timing**
 
@@ -67,8 +67,8 @@
 ### 로컬 실행
 
 ```bash
-git clone https://github.com/woogie-o-o/canslim-scanner.git
-cd canslim-scanner
+git clone https://github.com/gunchinam/canslim-quant-scanner.git
+cd canslim-quant-scanner
 pip install -r requirements.txt
 python -m web_app.app
 ```

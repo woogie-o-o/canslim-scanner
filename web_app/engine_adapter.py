@@ -78,7 +78,8 @@ class ScanAdapter:
         # ── 네이버 캐시 파일 경로 (원본 엔진과 동일 위치) ──
         self._naver_cache_path = os.path.join(_BASE, "naver_target_cache.pkl")
         self._naver_fund_cache_path = os.path.join(_BASE, "naver_fund_cache.pkl")
-        # ── 병렬 초기화: pickle 로드 2건과 섹터 데이터 초기화는 독립적이다.
+
+        # ── 병렬 초기화: pickle 로드 2건 + 섹터 데이터는 독립적이므로 동시 실행 ──
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as _init_ex:
             _f1 = _init_ex.submit(_qn.QuantNexusApp._load_naver_cache, self)
             _f2 = _init_ex.submit(_qn.QuantNexusApp._load_naver_fund_cache, self)
@@ -222,6 +223,7 @@ class ScanAdapter:
                 _name_pre[_nt] = _nn
         self._ticker_name_cache = _name_pre
         # F2b: KR 재무 데이터 사전 병렬 로드
+        # F2b: cache_only 모드에서는 네트워크 I/O 스킵 — quick-warm 속도 향상
         if self._market == "KR" and not cache_only:
             _fetch_fund = _qn.QuantNexusApp._fetch_naver_fundamentals
             _kr_uncached = [
@@ -231,20 +233,13 @@ class ScanAdapter:
             ]
             if _kr_uncached:
                 logging.debug("[ScanAdapter] KR 재무 사전 로드 %d개", len(_kr_uncached))
+                # max_workers 12 — urllib3 PoolManager(maxsize=16) 한도 내, KR fundamentals 사전 로드 가속
                 with concurrent.futures.ThreadPoolExecutor(max_workers=12) as _nex:
                     list(_nex.map(lambda t: _fetch_fund(self, t), _kr_uncached))
-
-    def _fetch_naver_target(self, ticker: str):
-        """(DEPRECATED) DCF 목표가로 대체됨 — 호환성 유지용."""
-        return _qn.QuantNexusApp._fetch_naver_target(self, ticker)
 
     def _fetch_naver_fundamentals(self, ticker: str):
         """네이버 재무 데이터 — 원본 엔진 메서드 위임."""
         return _qn.QuantNexusApp._fetch_naver_fundamentals(self, ticker)
-
-    def _save_naver_cache(self):
-        """(DEPRECATED) DCF 목표가로 대체됨 — 호환성 유지용."""
-        _qn.QuantNexusApp._save_naver_cache(self)
 
     def _save_naver_fund_cache(self):
         """네이버 재무 캐시 저장 — 원본 엔진 메서드 위임."""
@@ -287,6 +282,7 @@ class ScanAdapter:
             # _analyze_ticker(quant_nexus_v20.py:4684)와 동일한 dated 키 포맷.
             # 키 포맷 불일치 시 cache_only 분기에서 종목이 대량 누락되어
             # /api/scan 이 일부 universe만 반환하던 버그를 잡는다.
+            # 오늘 캐시가 없으면 최대 7일 이전까지 fallback — 주말·공휴일 대응.
             from datetime import datetime as _dt, timedelta as _td
             for _days_back in range(8):
                 _date = (_dt.now() - _td(days=_days_back)).strftime("%Y%m%d")

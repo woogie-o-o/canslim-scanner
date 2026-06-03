@@ -259,7 +259,7 @@ class FourAxisAnalyzer:
             zone, verdict = "약세", "모멘텀 부진"
             score = 2
         else:
-            zone, verdict = "관망", "모멘텀 약함 — 진입 보류"
+            zone, verdict = "관망", "모멘텀 중립 — 방향성 부족"
             score = 3
 
         if macd_cross_up: score = min(5, score+1); verdict += " · MACD 골든크로스"
@@ -500,10 +500,10 @@ class FourAxisAnalyzer:
         if m.details.get("bear_div"):
             tips.append(
                 "하락 다이버전스 경고 — 모멘텀 약화 구간, "
-                "포지션 1/2 이하 축소 또는 신규 진입 보류 권장"
+                "모멘텀 약화 구간 — 포지션 축소 또는 관망 고려"
             )
         if not tips:
-            tips.append("현재 파라미터 유지 — 추가 튜닝 불필요. 기존 전략 그대로 운영 권장")
+            tips.append("현재 파라미터 유지 — 추가 튜닝 불필요")
         return tips[:3]
 
     # ---------- 지지/저항 플립 판단 --------------------------------
@@ -516,7 +516,7 @@ class FourAxisAnalyzer:
 
         if c > hi * 0.98:
             return (f"52주 신고가권 돌파 — {r1:,.2f} 이전 저항이 지지로 전환 확인, "
-                    f"신고가 유지 중에는 풀백 매수 유효")
+                    f"신고가 유지 중에는 풀백 구간 주목")
         if c > r1:
             return (f"저항 {r1:,.2f} 상향 돌파 — 지지 전환 확인 구간. "
                     f"해당 레벨 위에서 종가 마감 시 추세 지속 신호")
@@ -629,7 +629,7 @@ class FourAxisAnalyzer:
         elif vt.details.get("expand"):
             bb_txt = f"BB 확장 중 — 변동성 {bb_q:.0%} 분위, 추세 가속"
         else:
-            bb_txt = f"BB 관망 — 변동성 {bb_q:.0%} 분위, 진입 신호 미형성"
+            bb_txt = f"BB 관망 — 변동성 {bb_q:.0%} 분위, 방향성 미형성"
         notes.append(Annotation(N-4, _c(3), bb_txt, "note"))
 
         # ── 거래량 주석 ──────────────────────────────────────────────
@@ -719,44 +719,44 @@ class FourAxisAnalyzer:
         from_hi = lv["from_high_pct"]; from_lo = lv["from_low_pct"]
 
         if c >= hi * 0.97:
-            pos = "현재 주가는 52주 최고가 부근에 위치해 있습니다"
+            pos = "52주 최고가 바로 앞임"
         elif c <= lo * 1.05:
-            pos = "현재 주가는 52주 최저가 부근에 위치해 있습니다"
+            pos = "52주 최저가 부근 찍은 상태임"
         else:
-            pos = (f"현재 주가는 52주 고점에서 {abs(from_hi):.1f}% 아래, "
-                   f"저점에서 {from_lo:.1f}% 위에 있습니다")
+            pos = (f"52주 고점에서 {abs(from_hi):.1f}% 빠져있고 "
+                   f"저점에서는 {from_lo:.1f}% 위에 있음")
 
-        trend_desc = {5: "추세가 매우 강하고", 4: "추세가 강하며",
-                      3: "추세 신호가 미형성이며", 2: "추세가 약하며", 1: "추세가 매우 약합니다"
-                      }.get(t.score, "추세 신호가 미형성이며")
+        trend_desc = {5: "추세 개강인데", 4: "추세 쌘데",
+                      3: "방향 모르겠고", 2: "추세 약한데", 1: "추세 완전 죽었는데"
+                      }.get(t.score, "방향 모르겠고")
 
         rsi = m.details.get("rsi", 50)
-        if rsi >= 70:   mom_desc = f"RSI {rsi:.0f}로 과열 구간"
-        elif rsi <= 30: mom_desc = f"RSI {rsi:.0f}로 과매도 구간"
-        elif rsi >= 55: mom_desc = f"RSI {rsi:.0f}로 모멘텀 양호"
-        else:           mom_desc = f"RSI {rsi:.0f}로 모멘텀 미형성"
+        if rsi >= 70:   mom_desc = f"RSI {rsi:.0f} 과열 구간"
+        elif rsi <= 30: mom_desc = f"RSI {rsi:.0f} 과매도 구간"
+        elif rsi >= 55: mom_desc = f"RSI {rsi:.0f} 모멘텀 살아있음"
+        else:           mom_desc = f"RSI {rsi:.0f} 모멘텀 없음"
 
-        vol_desc = ("수급이 강합니다" if vl.score >= 4
-                    else ("수급이 약합니다" if vl.score <= 2 else "수급은 보통 수준입니다"))
+        vol_desc = ("수급 쌈" if vl.score >= 4
+                    else ("수급 약함" if vl.score <= 2 else "수급은 보통"))
 
-        return f"{pos}. {trend_desc}, {mom_desc}이며, {vol_desc}."
+        return f"{pos}. {trend_desc} {mom_desc}, {vol_desc}."
 
     def _breakout_point(self, t, vt, lv: dict) -> str:
         r1 = lv["resistance1"]; s1 = lv["support1"]; hi = lv["high_52w"]
         if vt.details.get("squeeze"):
-            return (f"가격이 좁은 구간으로 압축되어 있어 곧 큰 움직임이 나올 수 있습니다. "
-                    f"{r1:,.2f} 위에서 마감하면 상승 신호입니다.")
+            return (f"가격이 좁은 구간에 압축돼 있음. 곧 큰 움직임 나올 수 있음. "
+                    f"{r1:,.2f} 위 마감하면 상승 신호임.")
         if vt.details.get("upper_break"):
-            return (f"볼린저 밴드 상단을 돌파하며 강한 상승 흐름입니다. "
-                    f"다음 주요 저항선은 {hi:,.2f}입니다.")
+            return (f"BB 상단 돌파하면서 강한 상승 흐름임. "
+                    f"다음 저항선은 {hi:,.2f}.")
         if t.score >= 4:
-            return (f"상승 추세가 유지 중입니다. "
-                    f"{r1:,.2f}를 종가 기준으로 돌파하면 추가 상승 신호입니다.")
+            return (f"상승 추세 유지 중임. "
+                    f"{r1:,.2f} 종가 돌파하면 추가 상승 신호임.")
         if t.score <= 2:
-            return (f"현재는 뚜렷한 상승 신호가 없습니다. "
-                    f"{s1:,.2f}를 이탈하면 하락이 가속될 수 있어요.")
-        return (f"박스권({s1:,.2f}~{r1:,.2f}) 안에서 방향을 탐색 중입니다. "
-                f"어느 쪽을 이탈하는지 확인 후 대응하세요.")
+            return (f"뚜렷한 상승 신호 없음. "
+                    f"{s1:,.2f} 이탈하면 하락 가속될 수 있음.")
+        return (f"박스권({s1:,.2f}~{r1:,.2f}) 안에서 방향 탐색 중임. "
+                f"어느 쪽 이탈하는지 보고 대응해야 함.")
 
     def _risk_point(self, t, vt, lv: dict) -> str:
         h   = self.hist; last = h.iloc[-1]
@@ -764,13 +764,13 @@ class FourAxisAnalyzer:
         e20 = float(last["EMA20"]); e50 = float(last["EMA50"])
         fmt = lambda v: f"{v:,.0f}" if v >= 1000 else f"{v:,.2f}"
         if t.score <= 2 and vt.details.get("expand"):
-            return (f"변동성 확장 중 하락 압력 증가 — {fmt(s1)} 이탈 시 "
-                    f"{fmt(lo)}(52주 저점) 재테스트 가능")
+            return (f"변동성 확장 중 하락 압력 커지는 중 — {fmt(s1)} 깨지면 "
+                    f"{fmt(lo)}(52주 저점)까지 열림")
         if t.score >= 4:
-            return (f"20EMA({fmt(e20)}) 아래 종가 마감 시 {fmt(s1)}까지 조정 가능, "
-                    f"50EMA({fmt(e50)}) 이탈 시 추세 재점검")
-        return (f"{fmt(s1)} 지지 이탈 시 {fmt(lo)}까지 하락 공간 — "
-                f"20EMA({fmt(e20)}) 위 종가 유지가 핵심")
+            return (f"20EMA({fmt(e20)}) 아래 마감하면 {fmt(s1)}까지 조정 가능, "
+                    f"50EMA({fmt(e50)}) 이탈하면 추세 재점검해야 함")
+        return (f"{fmt(s1)} 지지 깨지면 {fmt(lo)}까지 열림 — "
+                f"20EMA({fmt(e20)}) 위 종가 유지가 핵심임")
 
     # ---------- 구조화 8섹션 텍스트 --------------------------------
     def _structured_analysis(self, t, m, vt, vl, lv: dict,
