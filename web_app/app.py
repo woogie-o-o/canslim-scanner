@@ -361,6 +361,33 @@ def _annotate_one_liners(results: list, force: bool = False):
     return results
 
 
+def _apply_scan_score_adjustments(results: list, *, reeval_speculative: bool = True) -> list:
+    """스캔 리스트 캐시에 저장하기 전 점수 후처리를 모든 경로에서 동일하게 적용."""
+    if not results:
+        return results
+    try:
+        _annotate_moats(results)
+    except Exception as e:
+        logging.warning("moat annotate before score adjust failed: %s", e)
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        bonus = r.get("MoatBonus", 0)
+        if bonus and isinstance(r.get("TotalScore"), (int, float)):
+            r["TotalScore"] = min(100.0, r["TotalScore"] + float(bonus))
+    if reeval_speculative:
+        try:
+            from speculative_themes import apply_speculative_correction as _spec_reeval
+            _spec_reeval(results)
+        except Exception as e:
+            logging.warning("speculative re-eval after score adjust failed: %s", e)
+    try:
+        results.sort(key=lambda x: x.get("TotalScore", 0) if isinstance(x, dict) else 0, reverse=True)
+    except Exception:
+        pass
+    return results
+
+
 def _annotate_moats(results: list, force: bool = False):
     """results에 Moat/MoatCategory/MoatData를 채운다.
     캐시(cache_v19/moat/{ticker}.json, TTL 30일)로 중복 호출 차단."""
@@ -483,14 +510,7 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
                 results = _annotate_one_liners(results, force=True)
             except Exception as oe:
                 logging.warning("background one_liner annotate failed: %s", oe)
-            # 해자(Moat) 가산점 → TotalScore 반영
-            for r in results:
-                bonus = r.get("MoatBonus", 0)
-                if bonus and isinstance(r.get("TotalScore"), (int, float)):
-                    r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
-            # Phase-3: moat 주입 후 투기주 졸업 재평가
-            from speculative_themes import apply_speculative_correction as _spec_reeval_batch
-            _spec_reeval_batch(results)
+            results = _apply_scan_score_adjustments(results)
             # GreedZone batch enrichment
             try:
                 results = _enrich_greedzone_batch(results)
@@ -724,6 +744,7 @@ def _warmup_fill_cache(market: str) -> None:
                 results = _annotate_one_liners(results)
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
+            results = _apply_scan_score_adjustments(results)
             # 캐시 즉시 저장 — 네이버 오버레이/GreedZone 없이도 첫 API 응답 즉시 가능
             results = _strip_heavy(results)
             ts = int(time.time())
@@ -746,6 +767,7 @@ def _warmup_fill_cache(market: str) -> None:
                     except Exception as _e:
                         logging.warning("%s GreedZone bg failed: %s", _mkt, _e)
                     if _res:
+                        _res.sort(key=lambda x: x.get("TotalScore", 0) if isinstance(x, dict) else 0, reverse=True)
                         _s = _strip_heavy(_res)
                         _t = int(time.time())
                         _store_scan_cache((_mkt, "BALANCED", ""), _t, _s)
@@ -817,6 +839,7 @@ def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> Non
                             results = _enrich_greedzone_batch(results)
                         except Exception as _e:
                             logging.warning("KR slow-refresh GreedZone enrichment failed: %s", _e)
+                        results = _apply_scan_score_adjustments(results)
                         results = _strip_heavy(results)
                         ts = int(time.time())
                         _store_scan_cache(("KR", "BALANCED", ""), ts, results)
@@ -921,6 +944,7 @@ def _us_warmup_loop(interval_sec: int = 1800) -> None:
                         results = _enrich_greedzone_batch(results)
                     except Exception as _e:
                         logging.warning("US slow-refresh GreedZone enrichment failed: %s", _e)
+                    results = _apply_scan_score_adjustments(results)
                     results = _strip_heavy(results)
                     ts = int(time.time())
                     _store_scan_cache(("US", "BALANCED", ""), ts, results)
@@ -1238,14 +1262,7 @@ def api_scan():
             results = _annotate_one_liners(results)
         except Exception as oe:
             logging.warning("one_liner annotate failed: %s", oe)
-        # 해자(Moat) 가산점 → TotalScore 반영
-        for r in results:
-            bonus = r.get("MoatBonus", 0)
-            if bonus and isinstance(r.get("TotalScore"), (int, float)):
-                r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
-        # Phase-3: moat 주입 후 투기주 졸업 재평가
-        from speculative_themes import apply_speculative_correction as _spec_reeval_sync
-        _spec_reeval_sync(results)
+        results = _apply_scan_score_adjustments(results)
         # AgentQuant 융합 (상위 N개)
         if aq_top > 0:
             try:
@@ -2936,6 +2953,7 @@ def _cold_start_live_scan(market: str) -> None:
             results = _annotate_one_liners(results)
         except Exception:
             pass
+        results = _apply_scan_score_adjustments(results)
         results = _strip_heavy(results)
         ts = int(time.time())
         _store_scan_cache((market, "BALANCED", ""), ts, results)
