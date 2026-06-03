@@ -1535,6 +1535,7 @@ class DataCache:
     - max_age_minutes 를 초과한 항목은 만료 처리합니다.
     """
     REQUIRED_KEYS = {"Ticker", "Name", "Price", "TotalScore", "Signal", "_AvgVol20"}
+    KR_EPS_SOURCE_VERSION = 2
     NAME_FIXUPS = {
         "LITE": "루멘텀"}
 
@@ -1595,6 +1596,13 @@ class DataCache:
                 logging.warning(f"[Cache] 무결성 실패: {ticker}")
                 os.remove(path)
                 return None
+            data_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
+            if data_ticker.endswith((".KS", ".KQ")) or data_ticker.split(".")[0].isdigit():
+                eps_ver = int(data.get("_EPSSourceVersion") or 0)
+                if eps_ver < self.KR_EPS_SOURCE_VERSION:
+                    logging.info("[Cache] KR EPS source schema stale: %s", ticker)
+                    os.remove(path)
+                    return None
             base_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
             fixed_name = self.NAME_FIXUPS.get(base_ticker)
             if fixed_name and data.get("Name") != fixed_name:
@@ -5015,7 +5023,7 @@ class QuantNexusApp:
             _today = datetime.now().strftime("%Y%m%d")
             strategy_key = f"{ticker}__{self._scan_strategy}__{_today}"
             # rate-limit 회피: 캐시 TTL 4시간 (KR 풀스캔 부하 경감)
-            cached = self.cache.get(strategy_key, max_age_minutes=240)
+            cached = None if getattr(self, "_force_fresh_analysis", False) else self.cache.get(strategy_key, max_age_minutes=240)
             if cached:
                 with self._stats_lock:
                     self.stats["cache_hits"] += 1
@@ -6427,6 +6435,8 @@ class QuantNexusApp:
                 "_MarketCap":       safe_get(info.get("marketCap"), 0)
                                     or ((cur or 0) * (info.get("sharesOutstanding") or 0)),
                 "_RevenueGrowth":   safe_get(info.get("revenueGrowth"), 0.0),
+                "_EPSGrowthSource":  earn.get("eps_src", ""),
+                "_EPSSourceVersion": DataCache.KR_EPS_SOURCE_VERSION if _is_kr else 0,
                 "_MACDHist":        mr.get("macd_hist", 0),
                 "_DivYield":        _normalize_div_yield(info.get("dividendYield")),
                 "_AvgVol20":        float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else 0.0,

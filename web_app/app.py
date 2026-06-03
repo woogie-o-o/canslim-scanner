@@ -162,7 +162,7 @@ _consensus_cache: dict[str, dict] = {}
 _consensus_cache_lock = threading.Lock()
 
 # ── 티커 상세 응답 캐시 (드로어 재오픈 시 즉시 응답) ──
-_TICKER_DETAIL_TTL_SEC = 1800  # 30분
+_TICKER_DETAIL_TTL_SEC = int(os.environ.get("TICKER_DETAIL_TTL_SEC", "120"))  # 기본 2분
 _TICKER_DETAIL_MAX = 200
 _ticker_detail_cache: dict[str, dict] = {}
 _ticker_detail_cache_lock = threading.Lock()
@@ -1492,26 +1492,28 @@ def api_ticker(ticker: str):
         return jsonify({"error": "invalid ticker"}), 400
     market_arg = (request.args.get("market") or "US").upper()
     strategy_arg = request.args.get("strategy", "BALANCED")
+    force_refresh = (request.args.get("refresh") or "").strip().lower() in {"1", "true", "yes"}
     # ── 응답 캐시 조회 (동일 종목 재오픈 시 즉시 반환) ──
     _td_key = f"{ticker}:{market_arg}:{strategy_arg}"
     _td_now = int(time.time())
-    with _ticker_detail_cache_lock:
-        _td_cached = _ticker_detail_cache.get(_td_key)
-        if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
-            # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
-            try:
-                from one_liner import annotate as _ol_annotate
-                fresh = dict(_td_cached["data"])
-                _ol_annotate([fresh])
-            except Exception:
-                fresh = dict(_td_cached["data"])
-            if market_arg == "KR":
-                _normalize_kr_display_fields(fresh, ticker)
-                fresh["_Investor_Available"] = False
-            return jsonify(fresh)
+    if not force_refresh:
+        with _ticker_detail_cache_lock:
+            _td_cached = _ticker_detail_cache.get(_td_key)
+            if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
+                # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
+                try:
+                    from one_liner import annotate as _ol_annotate
+                    fresh = dict(_td_cached["data"])
+                    _ol_annotate([fresh])
+                except Exception:
+                    fresh = dict(_td_cached["data"])
+                if market_arg == "KR":
+                    _normalize_kr_display_fields(fresh, ticker)
+                    fresh["_Investor_Available"] = False
+                return jsonify(fresh)
     try:
         adapter = _make_adapter()
-        result  = adapter.analyze_ticker(ticker, prefer_cache=True)
+        result  = adapter.analyze_ticker(ticker, prefer_cache=True, force_refresh=force_refresh)
         market = market_arg
         if result is None:
             return jsonify({"error": "해당 티커의 데이터를 찾을 수 없습니다."}), 404
