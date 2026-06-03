@@ -595,6 +595,66 @@ def _fetch_us_fallback_history(ticker: str) -> pd.DataFrame | None:
         _add_delisted(ticker)
     return None
 
+
+def _fetch_naver_kr_price_history(ticker: str) -> pd.DataFrame | None:
+    """KR 일봉 폴백: 네이버 모바일 price API."""
+    code = str(ticker or "").upper().replace(".KS", "").replace(".KQ", "").zfill(6)
+    if not code.isdigit():
+        return None
+    rows = []
+    for page in range(1, 13):
+        url = f"https://m.stock.naver.com/api/stock/{code}/price?pageSize=60&page={page}"
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": _FALLBACK_UA,
+                "Accept": "application/json,*/*",
+                "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                chunk = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            if not isinstance(chunk, list) or not chunk:
+                break
+            rows.extend(chunk)
+            if len(chunk) < 60:
+                break
+        except Exception as e:
+            if page == 1:
+                logging.warning("[naver-price] history failed %s: %s", ticker, e)
+            break
+    if len(rows) < 30:
+        return None
+
+    def _num(v):
+        try:
+            return float(str(v).replace(",", "").strip())
+        except Exception:
+            return None
+
+    data = []
+    for r in rows:
+        dt = r.get("localTradedAt")
+        close = _num(r.get("closePrice"))
+        if not dt or close is None:
+            continue
+        data.append({
+            "Date": dt,
+            "Open": _num(r.get("openPrice")) or close,
+            "High": _num(r.get("highPrice")) or close,
+            "Low": _num(r.get("lowPrice")) or close,
+            "Close": close,
+            "Volume": _num(r.get("accumulatedTradingVolume")) or 0.0,
+        })
+    if len(data) < 30:
+        return None
+    df = pd.DataFrame(data)
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.dropna(subset=["Date"]).set_index("Date").sort_index()
+    for col in ["Open", "High", "Low", "Close", "Volume"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df = df.dropna(subset=["Close"])
+    if df.empty or len(df) < 30:
+        return None
+    return df
+
 # ============================================================
 # Toss Design System 컬러 팔레트
 #   베이스: 화이트/라이트그레이 플랫 디자인
@@ -5119,6 +5179,8 @@ class QuantNexusApp:
                             if _is_rate_limit_error(_fe2):
                                 _yf_mark_rate_limited(30.0)
                             hist = None
+                    if hist is None or hist.empty or len(hist) < 30:
+                        hist = _fetch_naver_kr_price_history(ticker)
                 if hist is None or hist.empty or len(hist) < 30:
                     return None
 
