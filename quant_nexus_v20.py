@@ -28,6 +28,8 @@ v20.0 주요 변경:
   - 슈퍼 그로스 승수 / Fail-Safe Ceiling / Hurst + Kalman 필터
 """
 
+from __future__ import annotations
+
 import warnings
 # matplotlib/pyparsing 버전 불일치 DeprecationWarning 억제
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -5263,6 +5265,7 @@ class QuantNexusApp:
             # 단위 혼동을 막기 위해 변수명에 통화 표기.
             avg_vol_20 = float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else float(hist["Volume"].mean())
             _is_kr = self._scan_market == "KR"
+            _is_kr_t = _is_kr or bool(ticker) and (ticker.endswith(".KS") or ticker.endswith(".KQ"))
             avg_turnover = avg_vol_20 * cur  # KR: 원, US: 달러
             avg_dollar_vol = avg_turnover    # (호환용 alias — 기존 변수명 유지)
             _liq_cap_thr     = 20_000_000_000 if _is_kr else 20_000_000  # KR 200억 / US $20M
