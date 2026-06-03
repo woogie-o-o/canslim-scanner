@@ -1598,11 +1598,24 @@ class DataCache:
                 return None
             data_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
             if data_ticker.endswith((".KS", ".KQ")) or data_ticker.split(".")[0].isdigit():
-                eps_ver = int(data.get("_EPSSourceVersion") or 0)
+                try:
+                    eps_ver = int(data.get("_EPSSourceVersion") or 0)
+                except (TypeError, ValueError):
+                    eps_ver = 0
                 if eps_ver < self.KR_EPS_SOURCE_VERSION:
-                    logging.info("[Cache] KR EPS source schema stale: %s", ticker)
-                    os.remove(path)
-                    return None
+                    try:
+                        import naver_quarter as _nq
+                        fin = _nq.get_ttm_financials(data_ticker)
+                        eps_q = fin.get("eps_qoq_growth") if fin.get("available") else None
+                        if eps_q is not None:
+                            data["_EPSGrowth"] = eps_q
+                            data["_EPSGrowthSource"] = "quarterly_eps"
+                            data["_EPSSourceVersion"] = self.KR_EPS_SOURCE_VERSION
+                            if eps_q >= 0.25:
+                                data["EPSAcceleration"] = True
+                            self.set(ticker, data)
+                    except Exception as _e:
+                        logging.debug("[Cache] KR EPS cache upgrade failed for %s: %s", ticker, _e)
             base_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
             fixed_name = self.NAME_FIXUPS.get(base_ticker)
             if fixed_name and data.get("Name") != fixed_name:

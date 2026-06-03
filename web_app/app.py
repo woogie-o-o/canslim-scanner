@@ -1514,6 +1514,8 @@ def api_ticker(ticker: str):
     try:
         adapter = _make_adapter()
         result  = adapter.analyze_ticker(ticker, prefer_cache=True, force_refresh=force_refresh)
+        if result is None and force_refresh:
+            result = adapter.analyze_ticker(ticker, prefer_cache=True, force_refresh=False)
         market = market_arg
         if result is None:
             return jsonify({"error": "해당 티커의 데이터를 찾을 수 없습니다."}), 404
