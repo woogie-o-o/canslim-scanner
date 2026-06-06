@@ -184,7 +184,13 @@ _SCAN_STRIP_FIELDS: frozenset = frozenset({"Breakdown", "Scores", "Reason", "Abo
 # EntryPlan 서브필드 중 리스트 뷰에서 사용되는 것만 보존 (나머지는 /api/ticker에서 제공)
 _ENTRY_PLAN_KEEP: frozenset = frozenset({
     "entry", "entry_discount", "atr_pct", "as_of_ts", "headline_action",
-    "current", "stop", "t1", "t2", "rr", "rr_now",
+    "current", "stop", "t1", "t2", "rr", "rr_now", "vol_regime", "drawdown_pct",
+    "mdd_current", "mdd_risk", "mdd_recovery", "size_suggestion", "cvar_95",
+    "dd_velocity_5d", "dd_velocity_20d", "underwater_days", "calmar_ratio",
+    "skewness", "excess_kurtosis", "downside_beta",
+    "stress_2008", "stress_2020", "stress_2022",
+    "composite_risk", "ac1", "halflife", "amihud", "liquidity_score",
+    "factor_contrib",
 })
 # MoatData 서브필드 중 리스트 뷰 미사용 (scores=111B/종목, 상세 패널에서만 사용)
 _MOAT_DATA_STRIP: frozenset = frozenset({"scores", "evidence_source", "story_risk"})
@@ -685,6 +691,11 @@ def _enrich_greedzone_batch(results: list) -> list:
     from greedzone import calc_greedzone
     import yfinance as yf
 
+    # 기존 캐시에 GreedZone은 있지만 Score가 없는 경우 → days 기반 간이 점수 보조
+    for r in results:
+        if r.get("GreedZone") and "GreedZoneScore" not in r:
+            r["GreedZoneScore"] = max(1, min(99, r.get("GreedZoneDays", 1) * 5 + 10))
+
     missing = [r for r in results if "GreedZone" not in r]
     if not missing:
         return results
@@ -720,10 +731,12 @@ def _enrich_greedzone_batch(results: list) -> list:
                 r["GreedZone"] = gz["in_zone"]
                 r["GreedZoneEntry"] = gz["new_entry"]
                 r["GreedZoneDays"] = gz["days_in_zone"]
+                r["GreedZoneScore"] = gz.get("greed_score", 0)
             else:
                 r["GreedZone"] = False
                 r["GreedZoneEntry"] = False
                 r["GreedZoneDays"] = 0
+                r["GreedZoneScore"] = 0
 
     logging.info("GreedZone batch done: %d enriched, %d in zone",
                  len(ticker_gz), sum(1 for g in ticker_gz.values() if g.get("in_zone")))

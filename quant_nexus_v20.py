@@ -788,13 +788,13 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "smart_money":    0.10,   # +0.02 (cs_i 흡수)
         # 보조 퀀트 (합 0.33 — sentiment 포함, volume/rs 흡수분 포함)
         "mtf":            0.04,
-        "drawdown":       0.03,
+        "drawdown":       0.07,   # ★ 상향 (리스크 게이트 강화)
         "volume":         0.08,   # +0.04 (cs_s 흡수)
         "rs":             0.08,   # +0.04 (cs_l 흡수)
-        "price_target":   0.03,
-        "short_int":      0.02,
-        "math":           0.02,
-        "sentiment":      0.03,
+        "price_target":   0.02,
+        "short_int":      0.01,
+        "math":           0.01,
+        "sentiment":      0.02,
         # CAN SLIM (합 0.11) — 독립 신호 cs_c·cs_n만 유지
         "cs_c":           0.06,
         "cs_a":           0.00,   # 중복 제거 → fama_french 흡수
@@ -817,13 +817,13 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "smart_money":    0.09,   # +0.01 (cs_i 흡수)
         # 보조 퀀트 (합 0.33 — sentiment 포함)
         "mtf":            0.05,   # 멀티타임프레임 모멘텀
-        "drawdown":       0.02,
+        "drawdown":       0.06,   # ★ 상향 (리스크 게이트 강화)
         "volume":         0.12,   # +0.06 (cs_s 흡수)
         "rs":             0.08,   # +0.03 (cs_l 흡수)
-        "price_target":   0.02,
-        "short_int":      0.01,
-        "math":           0.01,
-        "sentiment":      0.02,
+        "price_target":   0.01,
+        "short_int":      0.00,
+        "math":           0.00,
+        "sentiment":      0.01,
         # CAN SLIM (합 0.14) — 독립 신호만
         "cs_c":           0.05,
         "cs_a":           0.00,   # 중복 제거
@@ -845,13 +845,13 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "smart_money":    0.05,   # +0.02 (cs_i 흡수)
         # 보조 퀀트 (합 0.31 — sentiment 포함)
         "mtf":            0.02,
-        "drawdown":       0.04,   # 리스크 관리
+        "drawdown":       0.08,   # ★ 상향 (리스크 게이트 강화)
         "volume":         0.04,   # +0.02 (cs_s 흡수)
         "rs":             0.06,   # +0.04 (cs_l 흡수)
-        "price_target":   0.07,   # ★ DCF 적정가 상승여력
-        "short_int":      0.03,
-        "math":           0.02,
-        "sentiment":      0.03,
+        "price_target":   0.06,   # ★ DCF 적정가 상승여력
+        "short_int":      0.02,
+        "math":           0.01,
+        "sentiment":      0.02,
         # CAN SLIM (합 0.04) — 독립 신호만
         "cs_c":           0.02,
         "cs_a":           0.00,   # 중복 제거
@@ -873,13 +873,13 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "smart_money":    0.06,   # +0.02 (cs_i 흡수)
         # 보조 퀀트 (합 0.32 — sentiment 포함)
         "mtf":            0.03,
-        "drawdown":       0.02,
+        "drawdown":       0.06,   # ★ 상향 (리스크 게이트 강화)
         "volume":         0.10,   # +0.05 (cs_s/S원칙 흡수)
         "rs":             0.11,   # +0.07 (cs_l/L원칙 흡수)
-        "price_target":   0.01,
-        "short_int":      0.01,
-        "math":           0.02,
-        "sentiment":      0.02,
+        "price_target":   0.00,
+        "short_int":      0.00,
+        "math":           0.01,
+        "sentiment":      0.01,
         # CAN SLIM (합 0.19) — 독립 신호 cs_c·cs_n만 유지
         "cs_c":           0.12,   # ★★★ C: EPS 가속도
         "cs_a":           0.00,   # 중복 제거 → fama_french
@@ -901,13 +901,13 @@ STRATEGY_WEIGHTS: dict[str, dict[str, float]] = {
         "smart_money":    0.09,   # +0.01 (cs_i 흡수)
         # 보조 퀀트 (합 0.29)
         "mtf":            0.03,
-        "drawdown":       0.02,
+        "drawdown":       0.06,   # ★ 상향 (리스크 게이트 강화)
         "volume":         0.13,   # +0.05 (cs_s 흡수)
         "rs":             0.06,   # +0.03 (cs_l 흡수)
-        "price_target":   0.01,
-        "short_int":      0.01,
-        "math":           0.01,
-        "sentiment":      0.03,
+        "price_target":   0.00,
+        "short_int":      0.00,
+        "math":           0.00,
+        "sentiment":      0.02,
         # CAN SLIM (합 0.08) — 독립 신호만
         "cs_c":           0.03,
         "cs_a":           0.00,   # 중복 제거
@@ -2662,16 +2662,24 @@ class WallStreetQuantStrategies:
             logging.error(f"[Strategy] mtf_confluence: {e}")
         return result
 
-    # ── 10. Drawdown Risk (Bridgewater) ───────────────────────────────────
-    def drawdown_risk(self, hist: pd.DataFrame) -> dict:
+    # ── 10. Drawdown Risk (P0-P12: Bridgewater+Renaissance+Citadel+GS+BlackRock) ─
+    def drawdown_risk(self, hist: pd.DataFrame, benchmark_hist: pd.DataFrame = None,
+                      macro_regime: str = None) -> dict:
         """
-        레이 달리오 Bridgewater 스타일 낙폭 분석.
-        현재 MDD 크기에 따라 페널티 부과, 회복 중이면 보너스.
-
-        페널티: MDD > 30% → -20점
+        P0-P12 드로다운 리스크 종합 분석.
+        P4: velocity, P5: CVaR+skew, P6: TUW, P7: Calmar,
+        P9: downside beta, P10: macro-conditional, P12: stress test.
         """
+        import math
         result = {"max_dd": 0.0, "current_dd": 0.0, "recovery": 0.0,
-                  "score": 0, "risk": "NORMAL"}
+                  "cvar_95": 0.0, "score": 0, "risk": "NORMAL",
+                  "dd_velocity_5d": 0.0, "dd_velocity_20d": 0.0,
+                  "underwater_days": 0, "calmar_ratio": 0.0,
+                  "skewness": 0.0, "excess_kurtosis": 0.0,
+                  "downside_beta": None,
+                  "stress_2008": None, "stress_2020": None, "stress_2022": None,
+                  "composite_risk": None, "ac1": None, "halflife": None,
+                  "amihud": None, "liquidity_score": None}
         try:
             if len(hist) < 50:
                 return result
@@ -2685,15 +2693,138 @@ class WallStreetQuantStrategies:
                 if d.iloc[-1] > d.iloc[0]:
                     result["recovery"] = float(d.iloc[-1] - d.iloc[0])
 
-            score = 0
+            # P4: Drawdown Velocity (5일/20일 낙폭 속도)
+            if len(dds) >= 6:
+                result["dd_velocity_5d"] = round(float(dds.iloc[-1] - dds.iloc[-6]), 4)
+            if len(dds) >= 21:
+                result["dd_velocity_20d"] = round(float(dds.iloc[-1] - dds.iloc[-21]), 4)
+
+            # P6: Time-Under-Water (수면하 체류 일수)
+            tuw = 0
+            for i in range(len(dds) - 1, -1, -1):
+                if float(dds.iloc[i]) < -0.001:
+                    tuw += 1
+                else:
+                    break
+            result["underwater_days"] = tuw
+
+            # P7: Calmar Ratio (연수익률 / |MDD|)
+            if len(c) >= 252 and abs(result["max_dd"]) > 0.001:
+                annual_ret = float(c.iloc[-1] / c.iloc[-252]) - 1.0
+                result["calmar_ratio"] = round(annual_ret / abs(result["max_dd"]), 2)
+
+            # CVaR 95% + P5: Skew/Kurtosis
+            daily_ret = c.pct_change().dropna()
+            if len(daily_ret) >= 30:
+                var_95 = float(daily_ret.quantile(0.05))
+                tail = daily_ret[daily_ret <= var_95]
+                result["cvar_95"] = round(float(tail.mean()) if len(tail) > 0 else var_95, 4)
+                result["skewness"] = round(float(daily_ret.skew()), 2)
+                result["excess_kurtosis"] = round(float(daily_ret.kurtosis()), 2)
+
+            # P9: Downside Beta + P12: Stress Scenarios
+            if benchmark_hist is not None and len(daily_ret) >= 60:
+                try:
+                    bench_ret = benchmark_hist["Close"].pct_change().dropna()
+                    common = daily_ret.index.intersection(bench_ret.index)
+                    if len(common) >= 60:
+                        sr, br = daily_ret.loc[common], bench_ret.loc[common]
+                        down = br < 0
+                        if down.sum() >= 15:
+                            sd, bd = sr[down], br[down]
+                            cov_d = float((sd * bd).mean() - sd.mean() * bd.mean())
+                            var_d = float(bd.var())
+                            if var_d > 1e-10:
+                                beta = round(cov_d / var_d, 2)
+                                result["downside_beta"] = beta
+                                result["stress_2008"] = round(beta * -0.568, 3)
+                                result["stress_2020"] = round(beta * -0.339, 3)
+                                result["stress_2022"] = round(beta * -0.254, 3)
+                except Exception:
+                    pass
+
+            # P-AC: Autocorrelation(1) + Mean-Reversion Half-life
+            if len(daily_ret) >= 60:
+                try:
+                    ac1 = float(daily_ret.iloc[-60:].autocorr(lag=1))
+                    if not (ac1 != ac1):  # NaN check
+                        result["ac1"] = round(ac1, 3)
+                        if ac1 < -0.01:
+                            result["halflife"] = round(-0.6931 / float(np.log(1 + ac1)), 1)
+                except Exception:
+                    pass
+
+            # P-LIQ: Amihud Illiquidity + Liquidity Score
+            if len(hist) >= 20:
+                try:
+                    _vol = hist["Volume"].iloc[-20:]
+                    _cls = hist["Close"].iloc[-20:]
+                    _ret = _cls.pct_change().abs().iloc[1:]
+                    _tvol = (_cls.iloc[1:].values * _vol.iloc[1:].values)
+                    _valid = _tvol > 0
+                    if _valid.sum() >= 10:
+                        _amihud = float((_ret.values[_valid] / _tvol[_valid]).mean()) * 1e6
+                        result["amihud"] = round(_amihud, 4)
+                        # Liquidity score: 0(illiquid) ~ 100(liquid)
+                        _lscore = max(0, min(100, 100 - min(100, _amihud * 20)))
+                        result["liquidity_score"] = round(_lscore, 0)
+                except Exception:
+                    pass
+
+            # ── Scoring ──
             cdd = abs(result["current_dd"])
-            if cdd > 0.30:   score -= 20; result["risk"] = "EXTREME"
-            elif cdd > 0.20: score -= 15; result["risk"] = "HIGH"
-            elif cdd > 0.10: score -= 8;  result["risk"] = "ELEVATED"
-            elif cdd > 0.05: score -= 3;  result["risk"] = "MODERATE"
-            else:            score += 5;  result["risk"] = "LOW"
-            if result["recovery"] > 0.05: score += 5
-            result["score"] = score
+            # P10: Macro-conditional sigmoid center
+            center = 0.12
+            if macro_regime == "Risk-Off":
+                center = 0.18   # 1.5x tolerant (시장 전체 하락)
+            elif macro_regime == "Risk-On":
+                center = 0.084  # 0.7x strict (저변동 환경에서 혼자 하락)
+            score = 5.0 - 25.0 / (1.0 + math.exp(-18.0 * (cdd - center)))
+
+            # risk 등급 (라벨용)
+            if cdd > 0.30:   result["risk"] = "EXTREME"
+            elif cdd > 0.20: result["risk"] = "HIGH"
+            elif cdd > 0.10: result["risk"] = "ELEVATED"
+            elif cdd > 0.05: result["risk"] = "MODERATE"
+            else:            result["risk"] = "LOW"
+
+            # Recovery 보너스 + P6 TUW 시간 감쇄
+            rec = result["recovery"]
+            if rec > 0:
+                tuw_decay = max(0.2, 1.0 - result["underwater_days"] / 200)
+                score += min(5.0, rec / 0.05) * tuw_decay
+
+            # P5: CVaR penalty (활성화)
+            if result["cvar_95"] < 0:
+                score += max(-5.0, result["cvar_95"] * 50)
+
+            # P4: Velocity penalty (급락 속도 감쇄)
+            vel5 = result["dd_velocity_5d"]
+            if vel5 < -0.10:       # 5일간 -10%p 이상 급락
+                score *= 0.80
+            elif vel5 < -0.05:     # 5일간 -5%p 이상
+                score *= 0.90
+
+            result["score"] = round(score, 1)
+
+            # Composite Risk Score (0=안전 ~ 99=극위험) — BlackRock Aladdin 방식
+            # 6개 메트릭 가중합산: MDD(25%) + CVaR(20%) + Velocity(15%) + TUW(15%) + DownBeta(15%) + SkewKurt(10%)
+            try:
+                _mdd_r = min(1.0, abs(result["current_dd"]) / 0.50)        # 50%=max
+                _cvar_r = min(1.0, abs(result["cvar_95"]) / 0.08)          # 8%=max
+                _vel_r = min(1.0, abs(min(0, result["dd_velocity_5d"])) / 0.15)  # 15%p=max
+                _tuw_r = min(1.0, result["underwater_days"] / 200)          # 200일=max
+                _db = result["downside_beta"]
+                _db_r = min(1.0, (max(0, (_db or 1.0) - 0.5)) / 2.0)     # 0.5~2.5→0~1
+                _sk = abs(result["skewness"])
+                _ek = max(0, result["excess_kurtosis"])
+                _sk_r = min(1.0, (_sk + _ek * 0.3) / 4.0)
+                _cr = (_mdd_r * 0.25 + _cvar_r * 0.20 + _vel_r * 0.15
+                       + _tuw_r * 0.15 + _db_r * 0.15 + _sk_r * 0.10)
+                result["composite_risk"] = round(min(99, _cr * 99), 0)
+            except Exception:
+                pass
+
         except Exception as e:
             logging.error(f"[Strategy] drawdown_risk: {e}")
         return result
@@ -4868,6 +4999,24 @@ class QuantNexusApp:
                 _name_pre[_nt] = _nn
         self._ticker_name_cache = _name_pre
 
+        # P9/P10/P12: 벤치마크 히스토리 + 매크로 레짐 사전 캐싱 (스캔당 1회)
+        self._scan_benchmark = None
+        self._scan_macro_regime = None
+        try:
+            import yfinance as yf
+            _bench_tk = "^KS11" if self._scan_market == "KR" else "SPY"
+            _bh = yf.Ticker(_bench_tk).history(period="1y", auto_adjust=True)
+            if len(_bh) >= 60:
+                self._scan_benchmark = _bh
+        except Exception as _e:
+            logging.debug(f"[Benchmark] {_e}")
+        try:
+            if _macro_gate is not None:
+                _ms = _macro_gate.get_regime()
+                self._scan_macro_regime = _ms.get("regime")
+        except Exception:
+            pass
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=n_workers) as ex:
             fmap = {ex.submit(self._analyze_ticker, t): t for t in tickers}
             for fut in concurrent.futures.as_completed(fmap):
@@ -5301,7 +5450,9 @@ class QuantNexusApp:
             qual   = self.engine.quality_factor(info)
             flow   = self.engine.smart_money_flow(hist)
             mtf    = self.engine.mtf_confluence(hist)
-            dd     = self.engine.drawdown_risk(hist)
+            dd     = self.engine.drawdown_risk(hist,
+                       benchmark_hist=getattr(self, '_scan_benchmark', None),
+                       macro_regime=getattr(self, '_scan_macro_regime', None))
             vol_a  = self.engine.volume_anomaly(hist)
             rs     = self.engine.relative_strength(hist)
             # earnings_momentum 은 KR 재무 보강(Naver) 이후 호출한다.
@@ -5856,6 +6007,16 @@ class QuantNexusApp:
             if low_liquidity:
                 final = min(final, 55.0)
                 canslim_tags.append("[LIQ⚠️] 거래대금 부족 → 최대 55점")
+
+            # ── STEP 10.6 — Drawdown Risk Gate (multiplicative dampening) ──
+            # EXTREME MDD → ×0.65, HIGH → ×0.80 (가중합과 독립적인 하드 게이트)
+            _dd_risk = dd.get("risk", "NORMAL")
+            if _dd_risk == "EXTREME":
+                final *= 0.65
+                canslim_tags.append(f"[DD⚠️] MDD {dd['current_dd']:.0%} 극단적 낙폭 → ×0.65 감쇄")
+            elif _dd_risk == "HIGH":
+                final *= 0.80
+                canslim_tags.append(f"[DD⚠️] MDD {dd['current_dd']:.0%} 고위험 낙폭 → ×0.80 감쇄")
 
             # ════════════════════════════════════════════════════════════
             # STEP 10.7 — 전략 통합 점수 (5개 전략 동시 산출)
@@ -6421,7 +6582,41 @@ class QuantNexusApp:
                 # 파생 표시 필드 (프론트는 그대로 표시만)
                 "headline_action": headline_action,
                 "confidence_band": confidence_band,
-                "one_reason": one_reason}
+                "one_reason": one_reason,
+                "vol_regime": atr.get("vol_regime", "NORMAL"),
+                "drawdown_pct": round(-float(mom.get("dist_from_52w_high", 0.0) or 0.0) * 100, 1),
+                "mdd_current": round(float(dd.get("current_dd", 0.0) or 0.0) * 100, 1),
+                "mdd_risk": dd.get("risk", "NORMAL"),
+                "mdd_recovery": round(float(dd.get("recovery", 0.0) or 0.0) * 100, 1),
+                "size_suggestion": atr.get("size_suggestion", "NORMAL"),
+                "cvar_95": round(float(dd.get("cvar_95", 0.0) or 0.0) * 100, 2),
+                # P4: velocity
+                "dd_velocity_5d": round(float(dd.get("dd_velocity_5d", 0.0) or 0.0) * 100, 2),
+                "dd_velocity_20d": round(float(dd.get("dd_velocity_20d", 0.0) or 0.0) * 100, 2),
+                # P6: time under water
+                "underwater_days": dd.get("underwater_days", 0),
+                # P7: calmar ratio
+                "calmar_ratio": dd.get("calmar_ratio", 0.0),
+                # P5: skew/kurtosis
+                "skewness": dd.get("skewness", 0.0),
+                "excess_kurtosis": dd.get("excess_kurtosis", 0.0),
+                # P9: downside beta + P12: stress scenarios
+                "downside_beta": dd.get("downside_beta"),
+                "stress_2008": dd.get("stress_2008"),
+                "stress_2020": dd.get("stress_2020"),
+                "stress_2022": dd.get("stress_2022"),
+                # Composite Risk Score + AC + Liquidity
+                "composite_risk": dd.get("composite_risk"),
+                "ac1": dd.get("ac1"),
+                "halflife": dd.get("halflife"),
+                "amihud": dd.get("amihud"),
+                "liquidity_score": dd.get("liquidity_score"),
+                # Factor contributions (워터폴 차트용)
+                "factor_contrib": {
+                    "모멘텀": round(s_mom, 1), "밸류": round(s_ff, 1),
+                    "평균회귀": round(s_mr, 1), "퀄리티": round(s_qual, 1),
+                    "레짐": round(s_reg, 1), "수급": round(s_flow, 1),
+                }}
 
             result = {
                 "Ticker":           ticker,
@@ -6526,10 +6721,12 @@ class QuantNexusApp:
                 result["GreedZone"]      = _gz["in_zone"]
                 result["GreedZoneEntry"] = _gz["new_entry"]
                 result["GreedZoneDays"]  = _gz["days_in_zone"]
+                result["GreedZoneScore"] = _gz.get("greed_score", 0)
             except Exception:
                 result["GreedZone"]      = False
                 result["GreedZoneEntry"] = False
                 result["GreedZoneDays"]  = 0
+                result["GreedZoneScore"] = 0
 
             # 한국 종목: 네이버 증권 재무 데이터로 보강
             if _is_kr:

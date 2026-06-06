@@ -70,6 +70,41 @@ function _renderHtmlInBatches(container, items, renderItem, initialBatch, batchS
   _scheduleDeferredRender(appendBatch);
 }
 
+let _tableXScrollBound = false;
+function _applyTableXScroll() {
+  const bar = document.querySelector('.stock-table-x-scroll');
+  const table = document.querySelector('.stock-table');
+  if (!bar || !table) return;
+  const x = Math.max(0, bar.scrollLeft || 0);
+  table.style.transform = x ? `translateX(${-x}px)` : '';
+}
+
+function _syncTableXScroll() {
+  const wrap = document.querySelector('.stock-table-wrap');
+  const table = document.querySelector('.stock-table');
+  const bar = document.querySelector('.stock-table-x-scroll');
+  const spacer = document.querySelector('.stock-table-x-spacer');
+  if (!wrap || !table || !bar || !spacer) return;
+
+  const tableW = Math.ceil(table.scrollWidth || table.offsetWidth || 0);
+  const viewW = Math.ceil(wrap.clientWidth || 0);
+  spacer.style.width = Math.max(tableW, viewW) + 'px';
+  bar.style.display = tableW > viewW + 1 ? 'block' : 'none';
+  const maxLeft = Math.max(0, tableW - viewW);
+  if (bar.scrollLeft > maxLeft) bar.scrollLeft = maxLeft;
+  _applyTableXScroll();
+
+  if (!_tableXScrollBound) {
+    _tableXScrollBound = true;
+    bar.addEventListener('scroll', _applyTableXScroll, { passive: true });
+    window.addEventListener('resize', () => requestAnimationFrame(_syncTableXScroll), { passive: true });
+  }
+}
+
+function _syncTableXScrollSoon() {
+  requestAnimationFrame(() => requestAnimationFrame(_syncTableXScroll));
+}
+
 // html2canvas lazy-loader — 캡쳐/공유 카드 클릭 시에만 430KB 로드
 let _html2canvasLoading = null;
 function _ensureHtml2Canvas() {
@@ -224,27 +259,46 @@ const _ENTRY_COLOR = { STRONG: 'green', NEUTRAL: 'yellow', AVOID: 'red',
                        GREEN: 'green', YELLOW: 'yellow', RED: 'red' };
 const _ENTRY_ICON  = { STRONG: '🟢', NEUTRAL: '🟡', AVOID: '🔴',
                        GREEN: '🟢', YELLOW: '🟡', RED: '🔴' };
-const _ENTRY_LABEL = { STRONG: '저변동 구간', NEUTRAL: '눌림대기', AVOID: '부적합',
-                       GREEN: '저변동 구간', YELLOW: '눌림대기', RED: '부적합' };
+const _ENTRY_LABEL = { STRONG: '근접 구간', NEUTRAL: '눌림대기', AVOID: '부적합',
+                       GREEN: '근접 구간', YELLOW: '눌림대기', RED: '부적합' };
 
 // STRONG/GREEN 라벨을 entry_discount(%) 와 atrPct(%) 에 따라 분기.
 // disc<0 → '풀백대기' (현재가가 entry 위, 추격),
-// atrPct 있으면 disc/atrPct 비율로 — <0.5 저변동 구간, <1.0 변동 확대 구간, 그 외 풀백대기.
+// atrPct 있으면 disc/atrPct 비율로 — <0.5 근접 구간, <1.0 이격 구간, 그 외 풀백대기.
 // atrPct null/0 이면 절대값 fallback (1.5%/5%).
 // asOfTs (epoch sec) 가 5분 초과 stale 면 라벨에 ' (stale)' 접미사 (EG-005).
-function _entryLabel(st, disc, atrPct, asOfTs) {
+function _entryLabel(st, disc, atrPct, asOfTs, ddPct, headlineAction, mddCurrent, mddRisk, volRegime, ddVelocity5d) {
   let label;
   if (st === 'STRONG' || st === 'GREEN') {
     if (disc == null || isNaN(disc)) {
-      label = '저변동 구간';
+      label = '데이터 부족';
     } else if (disc < 0) {
       label = '풀백대기';
     } else if (atrPct != null && !isNaN(atrPct) && atrPct > 0) {
       const r = disc / atrPct;
-      label = (r < 0.5) ? '저변동 구간' : (r < 1.0) ? '변동 확대 구간' : '풀백대기';
+      label = (r < 0.5) ? '근접 구간' : (r < 1.0) ? '이격 구간' : '풀백대기';
     } else {
-      label = (disc < 1.5) ? '저변동 구간' : (disc < 5.0) ? '변동 확대 구간' : '풀백대기';
+      label = (disc < 1.5) ? '근접 구간' : (disc < 5.0) ? '이격 구간' : '풀백대기';
     }
+    // P13: 경고 피로 방지 — 가장 심각한 배지 1개만 (급락 > 고위험 > 경고 > 주의)
+    if (label !== '데이터 부족') {
+      // P4: 급락 속도 경보 (5일간 -5%p 이상 급락)
+      const vel = (ddVelocity5d != null && !isNaN(ddVelocity5d)) ? ddVelocity5d : 0;
+      // 복합 드로다운: 52주/MDD 중 나쁜 쪽
+      const dd52w = (ddPct != null && !isNaN(ddPct)) ? ddPct : 0;
+      const ddMdd = (mddCurrent != null && !isNaN(mddCurrent)) ? mddCurrent : 0;
+      const worstDd = Math.min(dd52w, ddMdd);
+      const vScale = (volRegime === 'LOW') ? 0.6 : (volRegime === 'HIGH') ? 1.6 : 1.0;
+      const t1 = -15 * vScale, t2 = -20 * vScale, t3 = -30 * vScale;
+      if (vel < -5)                label += ' [급락]';
+      else if (worstDd <= t3)      label += ' [고위험]';
+      else if (worstDd <= t2)      label += ' [경고]';
+      else if (worstDd <= t1)      label += ' [주의]';
+    }
+  } else if (headlineAction) {
+    label = headlineAction;
+    if (mddRisk === 'EXTREME') label += ' [고위험]';
+    else if (mddRisk === 'HIGH') label += ' [경고]';
   } else {
     label = _ENTRY_LABEL[st] || '';
   }
@@ -303,6 +357,19 @@ function _renderQuadrant(d) {
 }
 
 
+// 변동성 체제 독립 배지 (진입 라벨과 분리)
+function _volRegimeBadge(stock) {
+  const vr = stock.EntryPlan && stock.EntryPlan.vol_regime;
+  if (!vr || vr === 'NORMAL') return '';
+  const atrPct = (stock.EntryPlan && stock.EntryPlan.atr_pct != null) ? stock.EntryPlan.atr_pct : null;
+  const atrTip = atrPct != null ? `일평균 변동폭 ${atrPct.toFixed(1)}%` : '';
+  if (vr === 'HIGH')
+    return `<span class="vol-regime-badge vol-high" title="${esc(atrTip)}">고변동</span>`;
+  if (vr === 'LOW')
+    return `<span class="vol-regime-badge vol-low" title="${esc(atrTip)}">저변동</span>`;
+  return '';
+}
+
 function _entryLight(stock) {
   if (!stock || !stock.EntryStatus) return '';
   const st = stock.EntryStatus;
@@ -310,11 +377,25 @@ function _entryLight(stock) {
   const _disc = (stock.EntryPlan && stock.EntryPlan.entry_discount != null) ? stock.EntryPlan.entry_discount : null;
   const _atrPct = (stock.EntryPlan && stock.EntryPlan.atr_pct != null) ? stock.EntryPlan.atr_pct : null;
   const _asOf = (stock.EntryPlan && stock.EntryPlan.as_of_ts != null) ? stock.EntryPlan.as_of_ts : null;
-  const lbl = _entryLabel(st, _disc, _atrPct, _asOf);
+  const _ddPct = (stock.EntryPlan && stock.EntryPlan.drawdown_pct != null) ? stock.EntryPlan.drawdown_pct : null;
+  const _headline = (stock.EntryPlan && stock.EntryPlan.headline_action) ? stock.EntryPlan.headline_action : null;
+  const _mddCur = (stock.EntryPlan && stock.EntryPlan.mdd_current != null) ? stock.EntryPlan.mdd_current : null;
+  const _mddRisk = (stock.EntryPlan && stock.EntryPlan.mdd_risk) ? stock.EntryPlan.mdd_risk : null;
+  const _volRegime = (stock.EntryPlan && stock.EntryPlan.vol_regime) ? stock.EntryPlan.vol_regime : null;
+  const _vel5d = (stock.EntryPlan && stock.EntryPlan.dd_velocity_5d != null) ? stock.EntryPlan.dd_velocity_5d : null;
+  const lbl = _entryLabel(st, _disc, _atrPct, _asOf, _ddPct, _headline, _mddCur, _mddRisk, _volRegime, _vel5d);
   const cls = _ENTRY_COLOR[st] || 'neutral';
   const phr = stock.EntryPhrase || '';
   const sc  = stock.EntryScore != null ? `진입 타이밍 ${stock.EntryScore}/100` : '';
   let tip = phr ? `${phr}${sc ? ' (' + sc + ')' : ''}` : sc;
+  // P4-P8 리치 툴팁: 드로다운 메트릭스
+  const ep = stock.EntryPlan || {};
+  const _tipParts = [];
+  if (ep.underwater_days > 0) _tipParts.push(`수면하 ${ep.underwater_days}일`);
+  if (ep.calmar_ratio != null && ep.calmar_ratio !== 0) _tipParts.push(`Calmar ${ep.calmar_ratio}`);
+  if (ep.cvar_95 != null && ep.cvar_95 !== 0) _tipParts.push(`CVaR95 ${ep.cvar_95.toFixed(1)}% (100만원→${Math.round(ep.cvar_95*10000).toLocaleString()}원)`);
+  if (ep.downside_beta != null) _tipParts.push(`하방β ${ep.downside_beta}`);
+  if (_tipParts.length) tip += ' | ' + _tipParts.join(' · ');
   let aqBadge = '';
   if (stock.AQ_Verdict || stock.EntryScore_aq != null) {
     const vc = stock.AQ_VerdictCode;
@@ -324,7 +405,8 @@ function _entryLight(stock) {
     tip += ` | AgentQuant: ${stock.AQ_Verdict || '—'}${reg}${aqSc}`;
     aqBadge = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${col};margin-left:2px;vertical-align:middle;" title="${esc(stock.AQ_Verdict||'')}"></span>`;
   }
-  return `<span class="entry-badge entry-${cls}" title="${esc(tip)}">${ico}${lbl ? `<span class="entry-badge-label">${esc(lbl)}</span>` : ''}${aqBadge}</span>`;
+  const volBadge = _volRegimeBadge(stock);
+  return `<span class="entry-badge entry-${cls}" title="${esc(tip)}">${ico}${lbl ? `<span class="entry-badge-label">${esc(lbl)}</span>` : ''}${aqBadge}</span>${volBadge}`;
 }
 
 function _renderSignalHtml(signal, stock) {
@@ -588,12 +670,17 @@ async function runScan() {
 // 퀵필터 적용 (다중 선택 AND)
 function _matchesFilter(s, f) {
   switch (f) {
-    case 'watchlist':  return _watchlist.has(s.Ticker);
+    case 'watchlist':   return _watchlist.has(s.Ticker);
     case 'entry_green': return s.EntryStatus === 'STRONG' || s.EntryStatus === 'GREEN';
-    case 'strong': { const g = _stockGrade(s.TotalScore); return g === 'S' || g === 'A'; }
-    case 'near_high':  return !!s.NearHighPass;
-    case 'oversold':   return s.RSI != null && s.RSI < 30;
-    case 'greedzone':  return !!s.GreedZone;
+    case 'strong':      { const g = _stockGrade(s.TotalScore); return g === 'S' || g === 'A'; }
+    case 'rs_leader':   return (s.RSRating ?? 0) >= 80;
+    case 'breakout':    return typeof s.Signal === 'string' && /BREAKOUT|PIVOT/.test(s.Signal);
+    case 'eps_accel':   return !!s.EPSAcceleration;
+    case 'vol_surge':   return (s.VolRatio ?? 0) >= 2.0;
+    case 'near_high':   return !!s.NearHighPass;
+    case 'pullback':    return s.RSI != null && s.RSI <= 40;
+    case 'greedzone':   return !!s.GreedZone;
+    case 'laggard':     return (s.RSRating ?? 99) < 40 || _signalTier(s.Signal) === 'sell';
     default: return true;
   }
 }
@@ -1215,6 +1302,28 @@ function _renderMoatBadge(stock) {
   return `<span class="moat-badge moat-${esc(cat)}" title="${esc(titleTxt)}">🛡 ${esc(stock.Moat)}${confSpan}</span>`;
 }
 
+// P11: 섹터 집중도 경고 — 한 섹터 비중 40% 초과 시 배너
+function _renderSectorConcentration(stocks) {
+  const el = document.getElementById('sector-concentration-banner');
+  if (!el) return;
+  if (!stocks || stocks.length < 5) { el.style.display = 'none'; return; }
+  const counts = {};
+  stocks.forEach(s => { const sec = s.Sector || 'Unknown'; counts[sec] = (counts[sec] || 0) + 1; });
+  const total = stocks.length;
+  let worst = null, worstPct = 0;
+  for (const [sec, cnt] of Object.entries(counts)) {
+    const pct = cnt / total;
+    if (pct > worstPct) { worstPct = pct; worst = sec; }
+  }
+  if (worstPct > 0.4) {
+    const pctStr = (worstPct * 100).toFixed(0);
+    el.innerHTML = `<div style="margin:4px 12px;padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:8px;font-size:13px;color:#664d03;">⚠️ 분산 부족 — <b>${esc(worst)}</b> 섹터 ${pctStr}% 집중. 포트폴리오 분산 권장</div>`;
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function renderStockTable(stocks) {
   const renderToken = ++_renderToken;
   const tbody = document.getElementById('stock-list');
@@ -1235,6 +1344,7 @@ function renderStockTable(stocks) {
   const strong = filtered.filter(s => _signalTier(s.Signal) === 'strong').length;
   setStatHTML('stat-total',  `${filtered.length}<span class="unit">개</span>`);
   setStatHTML('stat-strong', `${strong}<span class="unit">개</span>`);
+  _renderSectorConcentration(filtered);
 
   if (filtered.length === 0) {
     const emptyMsg = (_activeFilters.size === 1 && _activeFilters.has('watchlist'))
@@ -1306,6 +1416,7 @@ function renderStockTable(stocks) {
   // 전체 뷰 저장 (더 보기 클릭 시 사용)
   window._pendingFullView = remaining > 0 ? view : null;
   window._pendingRenderToken = renderToken;
+  _syncTableXScrollSoon();
 }
 
 // "더 보기" 클릭 시 나머지 종목 렌더링
@@ -1329,6 +1440,7 @@ function _renderAllStocks() {
       while (frag.firstChild) tbody.appendChild(frag.firstChild);
     }
   }
+  _syncTableXScrollSoon();
 }
 
 function _deltaBadge(stock) {
@@ -1410,7 +1522,7 @@ function renderStockRow(stock, rank) {
   <td class="center"><input type="checkbox" ${checked ? 'checked' : ''} onclick="toggleSelectStock('${t}', event)" style="cursor:pointer;width:16px;height:16px;accent-color:#3182F6;"></td>
   <td class="center"><span class="rank-cell ${rankClass}">${rank}</span></td>
   <td class="name-cell" onmouseenter="showStockPopup('${t}', event)" onmouseleave="hideStockPopup()">
-    <span class="stock-name">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠ 테마</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬 마이크로 이상</span>` : ''}${stock.GreedZone ? ` <span class="greed-badge" title="GreedZone 진입${stock.GreedZoneDays ? ' (' + stock.GreedZoneDays + '일)' : ''}${stock.GreedZoneEntry ? ' — 오늘 신규 진입!' : ''}">🟡 탐욕</span>` : ''}</span>
+    <span class="stock-name">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠ 테마</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬 마이크로 이상</span>` : ''}${stock.GreedZone ? ` <span class="greed-badge" title="탐욕 강도 ${stock.GreedZoneScore || 0}pt · ${stock.GreedZoneDays || 0}일 연속${stock.GreedZoneEntry ? ' · 오늘 신규 진입!' : ''}">🟡 ${stock.GreedZoneScore || 0}pt</span>` : ''}</span>
     <span class="stock-code">${t}</span>
   </td>
   <td class="desc-cell">${esc(stock.Desc || '')}</td>
@@ -1459,7 +1571,7 @@ function renderMobileCard(stock, rank) {
     <div class="stock-card-main">
       <span class="stock-card-rank">${rank}</span>
       <div class="stock-card-name">
-        <span class="stock-card-name-main">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬</span>` : ''}</span>
+        <span class="stock-card-name-main">${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬</span>` : ''}${stock.GreedZone ? ` <span class="greed-badge">🟡 ${stock.GreedZoneScore || 0}pt</span>` : ''}</span>
         <span class="stock-card-ticker">${t}${stock.Sector ? ` · ${esc(stock.Sector)}` : ''}</span>
       </div>
     </div>
@@ -1550,7 +1662,7 @@ const _STOCK_TRIVIA = [
   '워런 버핏의 자산 99%는 50세 이후에 만들어졌다. 복리의 힘.',
   '일본의 트레이더 BNF는 데이트레이딩만으로 160만 엔을 2005년까지 약 153억 엔으로 불렸다.',
   '캔슬림(CAN SLIM)을 만든 윌리엄 오닐은 30살에 NYSE 최연소 회원석을 샀다.',
-  'NYSE 개장벨을 울린 유명인 중에는 스누프 독, 마사 스튜어트, 스파이더맨(코스프레)이 있다.',
+  '스눕 독, 마사 스튜어트, 심지어 스파이더맨 코스프레까지 NYSE 개장벨을 울린 적 있다.',
   '주식 "틱(tick)"의 어원은 시세 표시기(ticker tape)가 "틱틱" 소리를 내며 인쇄하던 것에서 유래.',
   '한국 코스피 역사상 최대 일일 상승률은 2008년 10월 30일의 11.95%다.',
   '"주식을 사면 그 회사의 화장실도 내 것" — 이론적으로는 맞다. 지분율만큼.',
@@ -1602,6 +1714,130 @@ const _STOCK_TRIVIA = [
   '"주식 시장은 자금을 인내심 없는 사람에게서 인내심 있는 사람에게로 이전하는 장치다." — 워런 버핏.',
   '선물(Futures)은 미래의 특정 시점에 특정 가격으로 사고팔기로 약속하는 계약이다. 보험과 투기에 모두 쓰인다.',
   '한국 개인 투자자들이 "개미"로 불리게 된 건 외국인·기관이라는 "큰 손"에 대비되는 표현에서 비롯됐다.',
+  '2010년 5월 6일 "플래시 크래시" — 다우존스가 몇 분 만에 약 1,000포인트 급락했다 회복했다. 알고리즘 거래의 연쇄 반응이 원인이었다.',
+  '1637년 네덜란드 튤립 투기 때 희귀 품종 구근 하나가 암스테르담 운하변 저택 한 채 값과 맞먹었다는 기록이 있다.',
+  '아마존 주가는 닷컴 버블 붕괴로 1999년 고점 대비 94% 폭락했다. 거기서 버틴 사람은 나중에 수천 배를 벌었다.',
+  '2020년 코로나 폭락 때 한국 개인투자자들이 대거 매수에 나서며 "동학개미운동"이라 불렸다.',
+  '아이작 뉴턴도 1720년 남해회사 버블에 투자했다가 큰돈을 잃었다. "천체의 움직임은 계산할 수 있지만 인간의 광기는 못 한다"고 말했다 전해진다.',
+  '조지 소로스는 1992년 영국 파운드화 공매도로 하루에 약 10억 달러를 벌었다. "영란은행을 무너뜨린 사나이"라 불린다.',
+  '워런 버핏과의 점심 경매 최고 낙찰가는 2022년 1,900만 달러(약 250억 원)였다. 2000년 첫 경매 낙찰가는 2만 5천 달러.',
+  '158년 역사의 투자은행 리먼 브라더스는 2008년 9월 15일 파산했다. 부채 6,130억 달러, 당시 미국 역사상 최대 파산.',
+  '코스피가 3,000을 처음 돌파한 건 2021년 1월 7일이다. 2,000 돌파(2007년)로부터 약 13년 걸렸다.',
+  '닌텐도는 1889년 화투 제조사로 시작했다. 창업 후 100년 넘게 지나 세계적 게임 회사가 됐다.',
+  '래리 윌리엄스는 1987년 선물 트레이딩 대회에서 1만 달러를 1년 만에 약 114만 달러로 불렸다. 수익률 11,376%.',
+  '존 템플턴은 2차 세계대전 직전, 뉴욕 증시에서 1달러 미만 주식 104종을 100달러어치씩 샀다. 34개가 망했지만 전체 수익은 4배였다.',
+  'VIX(공포지수)는 S&P 500 옵션의 변동성을 측정한다. 20 이하면 안정, 30 이상이면 공포 국면. 2020년 3월에는 82.69까지 치솟았다.',
+  '엔비디아는 원래 게임용 그래픽카드 회사였다. AI 붐으로 2024년 시가총액 세계 1위에 오르기도 했다.',
+  '구글은 2004년 IPO를 네덜란드식 경매로 진행했다. 공모가 85달러. 월가의 전통 방식을 거부해 화제가 됐다.',
+  '미국에는 50년 이상 연속으로 배당을 늘린 "배당왕(Dividend King)" 기업이 50개 가까이 된다.',
+  '한국 주식 계좌 수는 2020년 이후 급증해 6,000만 개를 넘겼다. 인구(약 5,200만)보다 계좌가 더 많다.',
+  '2000년 시가총액 세계 1위는 GE(제너럴 일렉트릭)였다. 2024년에는 애플·엔비디아·마이크로소프트가 다투고 있다.',
+  '마이크로소프트는 1986년 IPO 당시 공모가 21달러. 빌 게이츠는 31살에 억만장자가 됐다.',
+  '일본 도쿄증권거래소 상장사 중 마쓰이건설(松井建設)은 1586년 창업이다. 430년 넘게 살아남은 기업.',
+  '조지 소로스의 퀀텀 펀드는 1969~2000년 연평균 약 30% 수익률을 기록했다.',
+  '짐 사이먼스의 메달리온 펀드는 1988~2018년 수수료 차감 전 연평균 약 66% 수익률을 냈다. 수학자 출신 퀀트 투자의 전설.',
+  '앙드레 코스톨라니는 "주식을 사고 수면제를 먹고 자라. 몇 년 뒤 깨면 부자가 돼 있을 것"이라 했다.',
+  '벤저민 그레이엄의 《현명한 투자자》는 1949년 초판이 나왔다. 버핏은 이 책을 "투자서 중 최고"라 평했다.',
+  '필립 피셔는 《위대한 기업에 투자하라》(1958)에서 성장주 투자를 체계화했다. 버핏에게 큰 영향을 줬다.',
+  '레이 달리오는 1975년 아파트에서 브리지워터를 창업해 세계 최대 헤지펀드로 키웠다.',
+  '에드워드 소프는 블랙잭 카드 카운팅을 발명한 수학자다. 이후 월가로 전향해 퀀트 헤지펀드에서도 성공했다.',
+  '니콜라스 다바스는 전업 댄서였지만 독자적인 "박스 이론"으로 1950년대에 200만 달러를 벌었다.',
+  '폴 튜더 존스는 1987년 블랙먼데이를 예측하고 공매도로 큰 수익을 올렸다.',
+  '데이비드 테퍼는 2009년 금융위기 직후 은행주에 집중 투자해 한 해에 약 70억 달러를 벌었다.',
+  '존 폴슨은 2007년 서브프라임 모기지 붕괴에 베팅해 약 150억 달러를 벌었다. "역사상 가장 위대한 트레이드"로 불린다.',
+  '마이클 버리는 서브프라임 붕괴를 예측하고 CDS에 투자해 큰 수익을 올렸다. 영화 《빅쇼트》의 실제 인물.',
+  '워런 버핏은 2008년 금융위기 때 골드만삭스에 50억 달러를 투자했다. 우선주 + 워런트 조건으로 큰 수익을 거뒀다.',
+  '버핏이 처음 버크셔 해서웨이 주식을 산 건 1962년, 주당 7.50달러였다.',
+  '버크셔 해서웨이는 원래 섬유 회사였다. 버핏은 이 인수를 자신의 최대 실수라 말했다.',
+  '버핏은 유언장에 "아내 재산의 90%를 S&P 500 인덱스 펀드에 넣으라"고 적었다.',
+  '워런 버핏의 주주서한은 1965년부터 매년 발표됐다. 투자의 교과서로 불린다.',
+  '마크 미너비니는 US 인베스팅 챔피언십에서 연 155% 수익률로 우승한 적 있다.',
+  '1997년 아시아 금융위기 때 한국 원화는 달러당 약 900원에서 약 1,960원까지 폭락했다.',
+  '1997년 IMF 외환위기 당시 한국인들은 금 모으기 운동으로 약 227톤의 금을 모았다.',
+  '2008년 금융위기 때 S&P 500은 고점 대비 약 57% 하락했다.',
+  '역사상 가장 긴 미국 강세장은 2009년 3월~2020년 2월로, 약 11년간 지속됐다.',
+  '2001년 9·11 테러 후 뉴욕증권거래소는 4거래일 연속 휴장했다. 1933년 이후 가장 긴 휴장.',
+  '1998년 LTCM은 노벨상 수상자 2명이 참여한 헤지펀드였지만, 과도한 레버리지로 파산 위기에 처해 연준이 구제에 나섰다.',
+  '2011년 S&P가 미국 국채 신용등급을 AAA에서 AA+로 강등했다. 미국 역사상 처음.',
+  '1971년 닉슨 대통령이 금본위제를 폐지한 "닉슨 쇼크" 이후 달러는 변동환율제로 전환됐다.',
+  '2015년 중국 상하이종합지수는 6월 고점에서 두 달 만에 약 40% 폭락했다.',
+  '1987년 블랙먼데이 여파로 홍콩증시는 4거래일 휴장 후 재개장일에 33.3% 폭락했다.',
+  '2020년 코로나 폭락 때 S&P 500은 최고점에서 -34%까지 단 23거래일 만에 떨어졌다. 역사상 가장 빠른 약세장 진입.',
+  '1636년 네덜란드 튤립 버블 때 이미 선물 거래가 존재했다. 구근이 땅에 있을 때 미래 인도 약속으로 거래됐다.',
+  '영국 "사우스 시 버블"(1720년)과 프랑스 "미시시피 버블"(1720년)은 같은 해에 터졌다.',
+  '158년 역사의 투자은행 리먼 브라더스는 2008년 9월 15일 파산했다. 부채 6,130억 달러.',
+  '한국 코스닥 시장은 1996년 7월 1일 개장했다.',
+  '코스피 지수는 1983년 도입됐으며, 1980년 1월 4일을 기준일(100)로 산출한다.',
+  '한국 코스피에서 개인 투자자의 거래 비중은 약 60~70%로, 미국(약 20~25%)보다 훨씬 높다.',
+  '한국 증시에서 "따상"이란 공모주가 상장 첫날 시초가(공모가 2배)에 상한가(+30%)까지 달성하는 것이다.',
+  '한국 상장사의 배당성향은 미국·유럽에 비해 낮은 편이다. "코리아 디스카운트"의 한 원인으로 꼽힌다.',
+  '한국 국민연금은 세계 3위권의 대형 연기금이다. 국내외 주식에 수백조 원을 투자하고 있다.',
+  '한국에서 ETF 거래에는 증권거래세가 면제된다.',
+  '한국 코스피 시가총액 1·2위 모두 반도체 기업이다(삼성전자, SK하이닉스).',
+  '한국에서 상장주식 매매 차익은 대주주가 아닌 한 양도소득세가 비과세다(2024년 기준).',
+  '한국 증시에서 "테마주"란 특정 이슈에 엮여 급등하는 종목군이다. 선거철에 특히 기승을 부린다.',
+  '한국 투자자의 해외주식 투자가 2020년 이후 급증하며 "서학개미"라는 신조어가 생겼다.',
+  '코스피200 야간선물은 한국시간 새벽까지 거래된다. 미국장 동향을 실시간으로 반영한다.',
+  '한국 주식 매매 수수료는 증권사 간 경쟁으로 0.01% 이하까지 내려간 곳도 있다.',
+  '한국 공모주 청약에서 경쟁률이 수백 대 1을 넘기는 건 흔한 일이다.',
+  '한국 주식 계좌 수는 인구(약 5,200만)보다 많다. 한 사람이 여러 증권사 계좌를 갖고 있어서.',
+  '코스피가 3,000을 처음 돌파한 건 2021년 1월 7일이다. 2,000 돌파(2007년)로부터 약 13년 걸렸다.',
+  '애플은 1997년 파산 직전이었다. 마이크로소프트가 1.5억 달러를 투자해 살렸다.',
+  '테슬라는 2010년 상장 후 10년 만인 2020년에야 첫 연간 흑자를 냈다.',
+  '넷플릭스는 2000년 블록버스터에 5,000만 달러에 인수를 제안했지만 거절당했다. 블록버스터는 2010년 파산.',
+  '알리바바는 2014년 뉴욕증시 상장으로 250억 달러를 조달했다. 당시 세계 최대 IPO.',
+  '야후는 1998년 구글을 100만 달러에 인수할 기회를 놓쳤다.',
+  '메타(구 페이스북)는 2012년 IPO 첫날 시가총액 약 1,040억 달러였다. 당시 기술기업 IPO 사상 최대 규모.',
+  '아마존의 원래 회사명은 "카다브라(Cadabra)"였다. "시체(cadaver)" 발음과 비슷해서 바꿨다.',
+  'TSMC는 1987년 모리스 창이 설립했다. 반도체 위탁 생산(파운드리) 사업 모델의 원조.',
+  '스타벅스는 1992년 IPO 당시 시가총액이 약 2.5억 달러였다.',
+  '엔비디아의 젠슨 황은 1993년 공동 창업자 두 명과 데니스 레스토랑에서 사업 구상을 했다.',
+  '손정의는 닷컴 버블 붕괴로 개인 자산의 약 99%를 잃었다고 알려져 있다.',
+  'JP모건은 1907년 금융 패닉 때 개인 자금으로 시장을 안정시켰다. 미국 연준(Fed) 설립의 계기가 됐다.',
+  '알렉산더 해밀턴은 미국 초대 재무장관이자 뉴욕은행(현 BNY멜론)의 창립자다. 10달러 지폐 인물.',
+  '캔들스틱 차트(봉차트)는 18세기 일본 쌀 시장에서 혼마 무네히사가 개발한 것으로 알려져 있다.',
+  '"골든 크로스"란 단기 이동평균선이 장기를 위로 뚫는 것. 반대는 "데드 크로스".',
+  '"윈도 드레싱"이란 펀드 매니저가 분기 말에 수익률을 좋게 보이려고 포트폴리오를 단장하는 행위다.',
+  '"감자(減資)"란 주식 수나 액면가를 줄이는 것이다. 무상감자는 보통 악재로 받아들여진다.',
+  '"보호예수(lockup)"란 IPO 직후 대주주 등이 일정 기간 주식을 못 팔게 하는 제도다. 해제일에 매도 물량이 쏟아지기도 한다.',
+  '세계 최초의 증권거래소는 1602년 암스테르담에 설립됐다. 네덜란드 동인도회사 주식을 거래하기 위해서.',
+  '영국 런던증권거래소(LSE)는 1698년 조나단의 커피하우스에서 시작됐다.',
+  '세계 최초의 뮤추얼 펀드는 1924년 설립된 매사추세츠 투자 신탁(MIT)이다.',
+  '다우존스 지수는 "가격 가중"이라 비싼 주식이 지수에 더 큰 영향을 미친다. S&P 500은 "시가총액 가중".',
+  'S&P 500에 편입되면 인덱스 펀드의 매수 수요로 주가가 단기 상승하는 "인덱스 효과"가 있다.',
+  '인도 센섹스(Sensex) 지수는 1979년 기준 100에서 출발해 2024년 80,000을 넘겼다.',
+  '세계 최대 국부펀드는 노르웨이 정부연금펀드로, 운용 자산이 약 1.7조 달러를 넘긴다.',
+  '세계 최대 자산운용사는 블랙록이다. 운용 자산이 약 10조 달러(2024년 기준)를 넘긴다.',
+  '독일 DAX 지수는 "총수익" 지수다. 배당을 재투자한 것으로 가정해 산출한다. 대부분의 주가지수와 다르다.',
+  '"산타 랠리"란 12월 말~1월 초에 주가가 오르는 경향이다. 미국 시장에서 통계적으로 관찰된다.',
+  '"셀 인 메이(Sell in May)" — 5월에 팔고 10월에 다시 사라는 격언. 5~10월 수익률이 통계적으로 낮은 경향에 근거한다.',
+  'S&P 500의 역사적 연평균 수익률은 약 10%(명목)다. 인플레이션을 빼면 약 7%.',
+  '"72의 법칙" — 투자금이 2배가 되는 데 걸리는 햇수 ≈ 72 ÷ 연수익률(%). 연 10%면 약 7.2년.',
+  '"FOMO(Fear Of Missing Out)"란 놓칠까봐 뒤늦게 뛰어드는 심리. 고점 매수의 흔한 원인.',
+  '"공포탐욕지수(Fear & Greed Index)"는 CNN이 만든 시장 심리 지표다. 0이면 극도의 공포, 100이면 극도의 탐욕.',
+  '미국 증시의 "트리플 위칭데이"는 분기마다 주가지수 선물·옵션과 개별주식 옵션이 동시 만기되는 날. 변동성이 커진다.',
+  '"밈 주식(Meme Stock)"이란 소셜미디어에서 개인 투자자들이 집단 매수하는 종목. 2021년 게임스톱이 원조 격.',
+  'SPAC(기업인수목적회사)은 사업 없이 먼저 상장한 뒤 비상장 기업을 인수하는 빈 껍데기 회사다.',
+  '"피보나치 되돌림"은 기술적 분석에서 38.2%, 50%, 61.8% 수준의 지지·저항을 찾는 데 쓰인다.',
+  '"EPS 서프라이즈"란 실적이 시장 예상치를 웃도는 것. 주가 상승의 강력한 촉매다.',
+  '미국 10년물 국채 금리는 금융시장의 기준금리로 통한다. 주식 밸류에이션에도 직접 영향을 미친다.',
+  '"대통령 선거 주기 이론" — 미국 대선 전해(3년차)에 주식 수익률이 좋은 경향이 있다.',
+  '미국 401(k) 퇴직연금은 1978년 세법 개정으로 탄생했다. 미국인의 주식 투자 참여율을 높인 제도.',
+  '한국 증시 거래시간은 오전 9시~오후 3시 30분으로, 미국(6시간 30분)보다 30분 짧다.',
+  '한국 코스피200 옵션 만기일은 매월 둘째 주 목요일이다.',
+  '중국 본토 주식시장(A주)의 일일 가격 제한폭은 ±10%다. 한국(±30%)의 3분의 1.',
+  '일본 닛케이225 지수도 다우존스처럼 "가격 가중" 방식이다.',
+  '"무상증자"란 회사가 주주에게 공짜로 추가 주식을 나눠주는 것. 호재로 받아들여지는 경우가 많다.',
+  '"자사주 매입·소각"은 유통 주식 수를 줄여 주당 가치를 높이는 효과가 있다.',
+  '"블록딜"이란 대량의 주식을 시장 밖에서 한꺼번에 거래하는 것. 대주주 지분 매각에 자주 쓰인다.',
+  'NYSE의 트레이딩 플로어는 영화에 자주 나오지만, 실제 거래 대부분은 전자 시스템으로 처리된다.',
+  '미국에서 "페니 스톡"이란 주당 5달러 미만 주식을 말한다. 고위험·고변동성으로 유명.',
+  '"차익거래(Arbitrage)"란 같은 자산의 가격 차이를 이용해 무위험 수익을 얻는 전략. 기회는 순식간에 사라진다.',
+  '구글은 2004년 IPO를 네덜란드식 경매로 진행했다. 공모가 85달러. 월가의 전통 방식을 거부해 화제가 됐다.',
+  '한국 주식시장에서 "공시"는 DART(dart.fss.or.kr)에서 확인할 수 있다.',
+  '한국 증시 "작전주"란 특정 세력이 주가를 인위적으로 올린 뒤 물량을 떠넘기는 종목이다.',
+  '버크셔 해서웨이 A주는 2024년 주당 60만 달러를 넘기며 세계에서 가장 비싼 주식 기록을 경신했다.',
+  '한국의 "변동성 완화장치(VI)"는 개별 종목 가격이 급변하면 2분간 단일가 매매로 전환하는 제도다.',
 ];
 let _triviaTimer = null;
 let _triviaIdx = 0;
@@ -2494,6 +2730,12 @@ function _clearPanelDetail() {
   if (cc) cc.style.display = 'none';
   const ec = document.getElementById('dp-earnings-card');
   if (ec) ec.style.display = 'none';
+  // 새 카드 초기화
+  ['dp-risk-summary','dp-factor-waterfall','dp-drawdown-risk','dp-ac-card','dp-liquidity-card'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.innerHTML = '';
+  });
+  const rg = document.getElementById('dp-risk-gauge');
+  if (rg) rg.style.display = 'none';
 }
 
 function _populatePanelDetail(d, skipFourAxis) {
@@ -2630,6 +2872,12 @@ function _populatePanelDetail(d, skipFourAxis) {
   _renderTechTab(d);
   _renderFinanceTab(d);
   _renderDetailFeatures(d);
+  _renderRiskGauge(d);
+  _renderRiskSummary(d);
+  _renderFactorWaterfall(d);
+  _renderDrawdownRisk(d);
+  _renderACCard(d);
+  _renderLiquidityCard(d);
 
   if (Array.isArray(d.Breakdown)) renderBreakdown(d.Breakdown);
 
@@ -2976,6 +3224,152 @@ function _renderDetailFeatures(d) {
     }
   }
 
+}
+
+// P4-P12: 드로다운 리스크 메트릭 카드 (상세 패널)
+function _renderDrawdownRisk(d) {
+  const host = document.getElementById('dp-drawdown-risk');
+  if (!host) return;
+  const ep = (d && d.EntryPlan) || {};
+  const mdd = ep.mdd_current;
+  if (mdd == null && ep.cvar_95 == null) { host.innerHTML = ''; return; }
+  const rows = [];
+  // 기본 낙폭
+  if (mdd != null) {
+    const col = mdd < -20 ? '#DC2626' : mdd < -10 ? '#F59E0B' : 'var(--text-primary)';
+    rows.push(`<tr><td>현재 MDD</td><td style="color:${col};font-weight:600">${mdd.toFixed(1)}%</td></tr>`);
+  }
+  // P6: 수면하 체류
+  if (ep.underwater_days > 0) {
+    const col = ep.underwater_days > 120 ? '#DC2626' : ep.underwater_days > 60 ? '#F59E0B' : 'var(--text-secondary)';
+    rows.push(`<tr><td>수면하 체류</td><td style="color:${col}">${ep.underwater_days}일</td></tr>`);
+  }
+  // P4: 급락 속도
+  if (ep.dd_velocity_5d != null && ep.dd_velocity_5d < -2) {
+    rows.push(`<tr><td>5일 낙폭 속도</td><td style="color:#DC2626;font-weight:600">${ep.dd_velocity_5d.toFixed(1)}%p</td></tr>`);
+  }
+  // P7: Calmar
+  if (ep.calmar_ratio != null && ep.calmar_ratio !== 0) {
+    const col = ep.calmar_ratio > 1.5 ? '#16A34A' : ep.calmar_ratio > 0.5 ? 'var(--text-primary)' : '#F59E0B';
+    const lbl = ep.calmar_ratio > 1.5 ? '우수' : ep.calmar_ratio > 0.5 ? '보통' : '부진';
+    rows.push(`<tr><td>고통 대비 보상</td><td style="color:${col}">${ep.calmar_ratio.toFixed(2)} (${lbl})</td></tr>`);
+  }
+  // P8: CVaR 금액 번역
+  if (ep.cvar_95 != null && ep.cvar_95 !== 0) {
+    const won = Math.round(Math.abs(ep.cvar_95) * 10000);
+    rows.push(`<tr><td>최악의 날 예상</td><td style="color:#DC2626">${ep.cvar_95.toFixed(2)}% (100만원→-${won.toLocaleString()}원)</td></tr>`);
+  }
+  // P9: 하방 베타
+  if (ep.downside_beta != null) {
+    const col = ep.downside_beta > 1.5 ? '#DC2626' : ep.downside_beta > 1.0 ? '#F59E0B' : '#16A34A';
+    rows.push(`<tr><td>하방 민감도(β)</td><td style="color:${col}">${ep.downside_beta.toFixed(2)}×</td></tr>`);
+  }
+  // P12: 체감형 스트레스 시나리오 (Goldman P3)
+  if (ep.stress_2008 != null) {
+    const inv = 100; // 100만원 기준
+    rows.push(`<tr><td colspan="2" style="padding-top:6px;font-size:10px;color:var(--text-tertiary);font-weight:600;">과거 위기 재현 시 (100만원 투자 기준)</td></tr>`);
+    const _stress = (label, v) => {
+      const pct = (v * 100).toFixed(0);
+      const remain = Math.round(inv * (1 + v));
+      const barW = Math.min(100, Math.abs(v) * 200);
+      return `<tr><td>${label}</td><td><div style="display:flex;align-items:center;gap:4px;"><div style="width:60px;height:6px;background:var(--bg-secondary);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${barW}%;background:#DC2626;border-radius:3px;"></div></div><span style="color:#DC2626;font-weight:600;">${pct}%</span><span style="font-size:10px;color:var(--text-tertiary);">${remain}만원</span></div></td></tr>`;
+    };
+    rows.push(_stress('2008 금융위기', ep.stress_2008));
+    rows.push(_stress('2020 코로나', ep.stress_2020));
+    rows.push(_stress('2022 금리인상', ep.stress_2022));
+  }
+  if (!rows.length) { host.innerHTML = ''; return; }
+  host.innerHTML = `<table style="width:100%;font-size:12px;line-height:1.8;border-collapse:collapse;">${rows.join('')}</table>`;
+}
+
+// P1: Composite Risk Score — Hero 카드 내 Dual Display
+function _renderRiskGauge(d) {
+  const el = document.getElementById('dp-risk-gauge');
+  if (!el) return;
+  const ep = (d && d.EntryPlan) || {};
+  const cr = ep.composite_risk;
+  if (cr == null) { el.style.display = 'none'; return; }
+  const col = cr >= 60 ? '#DC2626' : cr >= 35 ? '#F59E0B' : '#16A34A';
+  const lbl = cr >= 60 ? '고위험' : cr >= 35 ? '주의' : '양호';
+  el.style.display = 'inline-flex';
+  el.style.background = col + '18';
+  el.style.color = col;
+  el.innerHTML = `🛡 Risk <span style="font-size:14px;">${Math.round(cr)}</span>/99 <span style="font-weight:500;">${lbl}</span>`;
+}
+
+// P2: Risk Summary Card — 리스크 핵심 3줄 요약 (Goldman P1)
+function _renderRiskSummary(d) {
+  const host = document.getElementById('dp-risk-summary');
+  if (!host) return;
+  const ep = (d && d.EntryPlan) || {};
+  if (ep.composite_risk == null && ep.mdd_current == null) { host.innerHTML = ''; return; }
+  const parts = [];
+  if (ep.composite_risk != null) {
+    const cr = ep.composite_risk;
+    const col = cr >= 60 ? '#DC2626' : cr >= 35 ? '#F59E0B' : '#16A34A';
+    const lbl = cr >= 60 ? '고위험' : cr >= 35 ? '주의' : '양호';
+    parts.push(`<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:20px;font-weight:800;color:${col};">${Math.round(cr)}</span><span style="font-size:11px;color:${col};font-weight:600;">/99 ${lbl}</span><span style="flex:1;height:4px;background:var(--border);border-radius:2px;position:relative;overflow:hidden;"><span style="position:absolute;left:0;top:0;height:100%;width:${cr}%;background:${col};border-radius:2px;"></span></span></div>`);
+  }
+  const chips = [];
+  if (ep.mdd_current != null) chips.push(`MDD ${ep.mdd_current.toFixed(1)}%`);
+  if (ep.cvar_95 != null && ep.cvar_95 !== 0) chips.push(`CVaR ${ep.cvar_95.toFixed(1)}%`);
+  if (ep.downside_beta != null) chips.push(`하방β ${ep.downside_beta.toFixed(2)}×`);
+  if (ep.liquidity_score != null) {
+    const lc = ep.liquidity_score >= 60 ? '#16A34A' : ep.liquidity_score >= 30 ? '#F59E0B' : '#DC2626';
+    chips.push(`<span style="color:${lc}">유동성 ${Math.round(ep.liquidity_score)}</span>`);
+  }
+  if (chips.length) parts.push(`<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);">${chips.map(c => `<span style="background:var(--bg-secondary);padding:2px 8px;border-radius:4px;">${c}</span>`).join('')}</div>`);
+  if (!parts.length) { host.innerHTML = ''; return; }
+  host.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;"><div style="font-size:11px;font-weight:700;color:var(--text-tertiary);">🛡 통합 리스크 스코어</div>${parts.join('')}</div>`;
+}
+
+// P2: Factor Attribution Waterfall (시타델 P1 + 르네상스 P2)
+function _renderFactorWaterfall(d) {
+  const host = document.getElementById('dp-factor-waterfall');
+  if (!host) return;
+  const ep = (d && d.EntryPlan) || {};
+  const fc = ep.factor_contrib;
+  if (!fc || typeof fc !== 'object') { host.innerHTML = ''; return; }
+  const entries = Object.entries(fc).filter(([,v]) => v !== 0).sort((a,b) => b[1] - a[1]);
+  if (!entries.length) { host.innerHTML = ''; return; }
+  const maxAbs = Math.max(...entries.map(([,v]) => Math.abs(v)), 1);
+  const bars = entries.map(([k, v]) => {
+    const pct = Math.abs(v) / maxAbs * 100;
+    const col = v >= 0 ? '#16A34A' : '#DC2626';
+    const dir = v >= 0 ? 'right' : 'left';
+    return `<div style="display:flex;align-items:center;gap:6px;font-size:11px;"><span style="width:48px;text-align:right;color:var(--text-secondary);flex-shrink:0;">${esc(k)}</span><div style="flex:1;height:14px;background:var(--bg-secondary);border-radius:3px;position:relative;overflow:hidden;display:flex;justify-content:${v >= 0 ? 'flex-start' : 'flex-end'};"><div style="height:100%;width:${pct}%;background:${col};border-radius:3px;opacity:0.7;"></div></div><span style="width:36px;font-weight:600;color:${col};">${v >= 0 ? '+' : ''}${v.toFixed(1)}</span></div>`;
+  }).join('');
+  host.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;"><div style="font-size:11px;font-weight:700;color:var(--text-tertiary);">📊 점수 기여도 (100점 중)</div>${bars}</div>`;
+}
+
+// P5: Autocorrelation + Mean-Reversion Half-life (르네상스 P3)
+function _renderACCard(d) {
+  const host = document.getElementById('dp-ac-card');
+  if (!host) return;
+  const ep = (d && d.EntryPlan) || {};
+  if (ep.ac1 == null) { host.innerHTML = ''; return; }
+  const ac = ep.ac1;
+  const regime = ac < -0.10 ? '평균회귀 유효' : ac > 0.08 ? '추세추종 유효' : '중립 구간';
+  const col = ac < -0.10 ? '#7C3AED' : ac > 0.08 ? '#16A34A' : 'var(--text-secondary)';
+  let hlText = '';
+  if (ep.halflife != null && ep.halflife > 0 && ep.halflife < 200) {
+    hlText = ` · 반감기 ${ep.halflife.toFixed(0)}일`;
+  }
+  host.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;display:flex;align-items:center;gap:8px;"><span style="font-weight:700;color:var(--text-tertiary);">🔄 AC(1)</span><span style="font-weight:700;color:${col};">${ac.toFixed(3)}</span><span style="color:${col};font-weight:600;">${regime}${hlText}</span></div>`;
+}
+
+// P6: Liquidity Score (블랙록 P3)
+function _renderLiquidityCard(d) {
+  const host = document.getElementById('dp-liquidity-card');
+  if (!host) return;
+  const ep = (d && d.EntryPlan) || {};
+  if (ep.liquidity_score == null) { host.innerHTML = ''; return; }
+  const ls = ep.liquidity_score;
+  const col = ls >= 60 ? '#16A34A' : ls >= 30 ? '#F59E0B' : '#DC2626';
+  const lbl = ls >= 60 ? '양호' : ls >= 30 ? '주의' : '유동성 부족';
+  let detail = '';
+  if (ep.amihud != null) detail = ` · Amihud ${ep.amihud.toFixed(2)}`;
+  host.innerHTML = `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:12px;display:flex;align-items:center;gap:8px;"><span style="font-weight:700;color:var(--text-tertiary);">💧 유동성</span><span style="font-weight:700;color:${col};">${Math.round(ls)}/100</span><span style="color:${col};font-weight:600;">${lbl}${detail}</span></div>`;
 }
 
 function _renderFinanceTab(d) {
@@ -4065,6 +4459,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initOneLinerFilter();
     initSort();
     updateCompareActions();
+    _syncTableXScrollSoon();
     document.getElementById('btn-scan')?.addEventListener('click', runScan);
     // 핵심 fetch를 최우선 실행: runScan → scan 완료 후 나머지 로드
     loadSectors();

@@ -95,16 +95,24 @@
     <div class="stat-item" style="border-right:none;flex:1;justify-content:flex-end;">
       <div id="filter-chips" class="filter-chips">
         <button class="chip active" data-filter="all">전체</button>
+        <button class="chip" data-filter="watchlist" title="내가 추가한 관심종목만 표시">💎 관심종목</button>
         <button class="chip" data-filter="entry_green" title="타점점수 70점 이상 — 6가지 기술 신호(RSI·볼린저밴드·VWAP·52주 위치·MACD·시장 국면)가 모두 양호한 종목">🟢 기회 탐색</button>
         <button class="chip" data-filter="strong" title="종합점수 60점 이상 — S등급(75+)·A등급(60+) 해당 종목만 표시">🔥 S·A등급</button>
+        <button class="chip" data-filter="rs_leader" title="RS Rating 80 이상 — 시장 대비 상대강도 상위 종목 (CAN SLIM 주도주)">⭐ RS주도주</button>
+        <button class="chip" data-filter="breakout" title="시그널에 BREAKOUT 또는 PIVOT 포함 — 추세 돌파 감지 종목">🚀 돌파</button>
+        <button class="chip" data-filter="eps_accel" title="EPS(주당순이익) 분기별 가속 성장 중인 종목">⚡ EPS가속</button>
+        <button class="chip" data-filter="vol_surge" title="거래량 비율 2배 이상 — 평소 대비 거래 급증 (기관 참여 가능성)">📊 거래량급증</button>
         <button class="chip" data-filter="near_high" title="52주 신고가에 근접한 종목 — 추세 돌파 후보">📈 신고가</button>
-        <button class="chip" data-filter="oversold" title="RSI 30 미만 — 과매도 반등 후보">📉 RSI&lt;30</button>
+        <button class="chip" data-filter="pullback" title="RSI 40 이하 — 눌림목 매수 후보 구간">📉 눌림목</button>
         <button class="chip" data-filter="greedzone" title="GreedZone 진입 — 저점 대비 과열 구간 (Zeiierman 지표)">🟡 탐욕구간</button>
+        <button class="chip" data-filter="laggard" title="RS Rating 40 미만 또는 SELL/AVOID 시그널 — 회피 대상 종목">⛔ 위험</button>
 
       </div>
     </div>
   </div>
 
+  <!-- P11: 섹터 집중도 경고 배너 -->
+  <div id="sector-concentration-banner" style="display:none;"></div>
 
   <!-- Content -->
   <div class="content">
@@ -143,6 +151,9 @@
             <tr><td colspan="14" class="state-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</td></tr>
           </tbody>
         </table>
+        <div class="stock-table-x-scroll" aria-hidden="true">
+          <div class="stock-table-x-spacer"></div>
+        </div>
       </div>
       <div id="mobile-stock-list" class="mobile-stock-list">
         <div class="mobile-stock-list-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</div>
@@ -403,6 +414,9 @@
             <span class="dp-score-unit">점</span>
           </div>
           <div id="dp-signal" class="dp-signal-badge">—</div>
+          <!-- P1: Composite Risk Score (Dual Display) -->
+          <div id="dp-risk-gauge" style="display:none;margin-top:6px;display:inline-flex;align-items:center;gap:6px;
+               padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;"></div>
           <div id="dp-leader-badge" style="display:none;margin-top:6px;display:inline-flex;align-items:center;gap:4px;
                background:rgba(22,163,74,0.12);color:#16A34A;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;"></div>
           <!-- 핸드드로잉 워터마크 차트 -->
@@ -499,6 +513,12 @@
             </div>
           </div>
         </div>
+        <!-- 리스크 서머리 + 팩터 워터폴 + 드로다운 + 시그널 카드 -->
+        <div id="dp-risk-summary" style="padding:0 16px 8px;"></div>
+        <div id="dp-factor-waterfall" style="padding:0 16px 8px;"></div>
+        <div id="dp-drawdown-risk" style="padding:0 16px 8px;"></div>
+        <div id="dp-ac-card" style="padding:0 16px 8px;"></div>
+        <div id="dp-liquidity-card" style="padding:0 16px 8px;"></div>
         <nav class="dp-tab-nav">
           <button class="dp-tab-btn active" data-tab="canslim" data-action="switchDpTab" data-arg="canslim">CAN SLIM 분석</button>
           <button class="dp-tab-btn" data-tab="tech" data-action="switchDpTab" data-arg="tech">기술 지표</button>

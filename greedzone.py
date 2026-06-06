@@ -115,10 +115,27 @@ def calc_greedzone(
             else:
                 break
 
+    # ── Greed Intensity Score (0-99) ──
+    # 편차 강도(0-60pt) + 연속 일수(0-40pt)
+    greed_score = 0
+    if in_zone:
+        gz1_val = float(gz1.iloc[-1])
+        gz1_lim = float(gz1_limit.iloc[-1])
+        gz2_val = float(gz2.iloc[-1])
+        gz2_lim = float(gz2_limit.iloc[-1])
+        # 각 조건이 임계값을 % 단위로 얼마나 초과했는지 (1% ≈ 10pt, 각 30pt 상한)
+        g1_pct = max(0, (gz1_lim - gz1_val) / max(abs(gz1_lim), 1e-8)) * 100
+        g2_pct = max(0, (gz2_val - gz2_lim) / max(abs(gz2_lim), 1e-8)) * 100
+        dev_score = min(30, g1_pct * 10) + min(30, g2_pct * 10)
+        # 연속 일수 보너스 (1일=5pt, 8일 이상=40pt 상한)
+        dur_score = min(40, days * 5)
+        greed_score = max(1, min(99, int(dev_score + dur_score)))
+
     return {
         "in_zone": in_zone,
         "new_entry": new_entry,
         "days_in_zone": days,
+        "greed_score": greed_score,
         "gz1": float(gz1.iloc[-1]) if not gz1.empty else 0.0,
         "gz1_limit": float(gz1_limit.iloc[-1]) if not gz1_limit.empty else 0.0,
         "gz2": float(gz2.iloc[-1]) if not gz2.empty else 0.0,
