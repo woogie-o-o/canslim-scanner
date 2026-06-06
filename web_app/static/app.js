@@ -70,41 +70,6 @@ function _renderHtmlInBatches(container, items, renderItem, initialBatch, batchS
   _scheduleDeferredRender(appendBatch);
 }
 
-let _tableXScrollBound = false;
-function _applyTableXScroll() {
-  const bar = document.querySelector('.stock-table-x-scroll');
-  const table = document.querySelector('.stock-table');
-  if (!bar || !table) return;
-  const x = Math.max(0, bar.scrollLeft || 0);
-  table.style.transform = x ? `translateX(${-x}px)` : '';
-}
-
-function _syncTableXScroll() {
-  const wrap = document.querySelector('.stock-table-wrap');
-  const table = document.querySelector('.stock-table');
-  const bar = document.querySelector('.stock-table-x-scroll');
-  const spacer = document.querySelector('.stock-table-x-spacer');
-  if (!wrap || !table || !bar || !spacer) return;
-
-  const tableW = Math.ceil(table.scrollWidth || table.offsetWidth || 0);
-  const viewW = Math.ceil(wrap.clientWidth || 0);
-  spacer.style.width = Math.max(tableW, viewW) + 'px';
-  bar.style.display = tableW > viewW + 1 ? 'block' : 'none';
-  const maxLeft = Math.max(0, tableW - viewW);
-  if (bar.scrollLeft > maxLeft) bar.scrollLeft = maxLeft;
-  _applyTableXScroll();
-
-  if (!_tableXScrollBound) {
-    _tableXScrollBound = true;
-    bar.addEventListener('scroll', _applyTableXScroll, { passive: true });
-    window.addEventListener('resize', () => requestAnimationFrame(_syncTableXScroll), { passive: true });
-  }
-}
-
-function _syncTableXScrollSoon() {
-  requestAnimationFrame(() => requestAnimationFrame(_syncTableXScroll));
-}
-
 // html2canvas lazy-loader — 캡쳐/공유 카드 클릭 시에만 430KB 로드
 let _html2canvasLoading = null;
 function _ensureHtml2Canvas() {
@@ -1416,7 +1381,6 @@ function renderStockTable(stocks) {
   // 전체 뷰 저장 (더 보기 클릭 시 사용)
   window._pendingFullView = remaining > 0 ? view : null;
   window._pendingRenderToken = renderToken;
-  _syncTableXScrollSoon();
 }
 
 // "더 보기" 클릭 시 나머지 종목 렌더링
@@ -1440,7 +1404,6 @@ function _renderAllStocks() {
       while (frag.firstChild) tbody.appendChild(frag.firstChild);
     }
   }
-  _syncTableXScrollSoon();
 }
 
 function _deltaBadge(stock) {
@@ -4459,7 +4422,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initOneLinerFilter();
     initSort();
     updateCompareActions();
-    _syncTableXScrollSoon();
     document.getElementById('btn-scan')?.addEventListener('click', runScan);
     // 핵심 fetch를 최우선 실행: runScan → scan 완료 후 나머지 로드
     loadSectors();
