@@ -2,8 +2,6 @@
 engine_adapter.py — quant_nexus_v20.py 엔진을 tkinter 없이 사용하는 어댑터
 Flask 웹앱이 이 클래스를 통해 스캔 기능을 호출한다.
 """
-from __future__ import annotations
-
 import sys
 import os
 import time
@@ -26,9 +24,6 @@ _VIX_BG_LOCK = threading.Lock()
 _BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _BASE not in sys.path:
     sys.path.insert(0, _BASE)
-_WEB_APP_DIR = os.path.dirname(os.path.abspath(__file__))
-if _WEB_APP_DIR not in sys.path:
-    sys.path.insert(0, _WEB_APP_DIR)
 
 # quant_nexus_v20 import
 # Windows에서 tkinter는 import만으로 GUI를 띄우지 않음 — 안전하게 import 가능
@@ -37,6 +32,9 @@ from speculative_themes import apply_speculative_correction, apply_to_row
 from micro_outlier import annotate as _annotate_micro_outlier
 try:
     # web_app 디렉토리 보장 (engine_adapter 가 외부에서 import 될 때 대비)
+    _WEB_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+    if _WEB_APP_DIR not in sys.path:
+        sys.path.insert(0, _WEB_APP_DIR)
     from symbol_alias import filter_symbols as _filter_symbols  # type: ignore
 except Exception as _e:  # pragma: no cover
     logging.warning("[Adapter] symbol_alias import failed → DELISTED filter disabled: %s", _e)
@@ -278,9 +276,9 @@ class ScanAdapter:
             result[translated_cat] = [sub_kr.get(s, s) for s in subsectors.keys()]
         return result
 
-    def analyze_ticker(self, ticker: str, *, prefer_cache: bool = False, cache_only: bool = False, force_refresh: bool = False) -> dict | None:
+    def analyze_ticker(self, ticker: str, *, prefer_cache: bool = False, cache_only: bool = False) -> dict | None:
         """단일 종목 분석 — 캐시 우선/캐시 전용 모드를 지원한다."""
-        if prefer_cache and not force_refresh:
+        if prefer_cache:
             # _analyze_ticker(quant_nexus_v20.py:4684)와 동일한 dated 키 포맷.
             # 키 포맷 불일치 시 cache_only 분기에서 종목이 대량 누락되어
             # /api/scan 이 일부 universe만 반환하던 버그를 잡는다.
@@ -294,12 +292,7 @@ class ScanAdapter:
                     return apply_to_row(cached)
             if cache_only:
                 return None
-        old_force = getattr(self, "_force_fresh_analysis", False)
-        self._force_fresh_analysis = bool(force_refresh)
-        try:
-            result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
-        finally:
-            self._force_fresh_analysis = old_force
+        result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
         return apply_to_row(result) if result else result
 
     def scan_sector(self, sector: str, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "8")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:

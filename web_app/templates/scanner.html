@@ -143,7 +143,7 @@
               <th class="right sortable" data-sort="RSI">RSI <span class="sort-arrow"></span></th>
               <th class="right sortable" data-sort="_AvgVol20" title="최근 20거래일 평균 거래량 — 진입 시 유동성 확인용">평균거래량 <span class="sort-arrow"></span></th>
               <th class="right sortable" data-sort="_MarketCap" title="시가총액 — 기업 규모">시총 <span class="sort-arrow"></span></th>
-              <th class="right sortable" data-sort="BrokerTarget" title="증권사 목표가 — 컨센서스가 있으면 우선 표시하고, 없으면 DCF/섹터 밸류에이션 목표가를 표시">증권사 목표가 <span class="sort-arrow"></span></th>
+              <th class="right sortable" data-sort="BrokerTarget" title="증권사 컨센서스 목표가 — KR: 네이버 증권 국내 증권사 평균 / US: Yahoo Finance Analyst Mean Target">증권사 목표가 <span class="sort-arrow"></span></th>
               <th class="reason-col">핵심 이유</th>
             </tr>
           </thead>
@@ -700,7 +700,7 @@
 </div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- html2canvas: lazy-loaded on first capture (430KB 초기 로드 제거) -->
 <script src="/static/app.js?v={{ v_app_js }}" defer></script>
 <script>
 /* ── Card Group Toggle + Section Nav ─────────────────────── */

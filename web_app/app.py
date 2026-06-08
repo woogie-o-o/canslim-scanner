@@ -5,8 +5,6 @@ engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더�
 실행: python web_app/app.py
 접속: http://localhost:5000
 """
-from __future__ import annotations
-
 import sys
 import os
 import io
@@ -162,7 +160,7 @@ _consensus_cache: dict[str, dict] = {}
 _consensus_cache_lock = threading.Lock()
 
 # ── 티커 상세 응답 캐시 (드로어 재오픈 시 즉시 응답) ──
-_TICKER_DETAIL_TTL_SEC = int(os.environ.get("TICKER_DETAIL_TTL_SEC", "120"))  # 기본 2분
+_TICKER_DETAIL_TTL_SEC = 1800  # 30분
 _TICKER_DETAIL_MAX = 200
 _ticker_detail_cache: dict[str, dict] = {}
 _ticker_detail_cache_lock = threading.Lock()
@@ -367,37 +365,6 @@ def _annotate_one_liners(results: list, force: bool = False):
     return results
 
 
-def _apply_scan_score_adjustments(results: list, *, reeval_speculative: bool = True) -> list:
-    """스캔 리스트 캐시에 저장하기 전 점수 후처리를 모든 경로에서 동일하게 적용."""
-    if not results:
-        return results
-    try:
-        _annotate_moats(results)
-    except Exception as e:
-        logging.warning("moat annotate before score adjust failed: %s", e)
-    for r in results:
-        if not isinstance(r, dict):
-            continue
-        try:
-            _normalize_kr_display_fields(r, str(r.get("Ticker") or ""))
-        except Exception as e:
-            logging.debug("KR display normalize failed: %s", e)
-        bonus = r.get("MoatBonus", 0)
-        if bonus and isinstance(r.get("TotalScore"), (int, float)):
-            r["TotalScore"] = min(100.0, r["TotalScore"] + float(bonus))
-    if reeval_speculative:
-        try:
-            from speculative_themes import apply_speculative_correction as _spec_reeval
-            _spec_reeval(results)
-        except Exception as e:
-            logging.warning("speculative re-eval after score adjust failed: %s", e)
-    try:
-        results.sort(key=lambda x: x.get("TotalScore", 0) if isinstance(x, dict) else 0, reverse=True)
-    except Exception:
-        pass
-    return results
-
-
 def _annotate_moats(results: list, force: bool = False):
     """results에 Moat/MoatCategory/MoatData를 채운다.
     캐시(cache_v19/moat/{ticker}.json, TTL 30일)로 중복 호출 차단."""
@@ -520,7 +487,14 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
                 results = _annotate_one_liners(results, force=True)
             except Exception as oe:
                 logging.warning("background one_liner annotate failed: %s", oe)
-            results = _apply_scan_score_adjustments(results)
+            # 해자(Moat) 가산점 → TotalScore 반영
+            for r in results:
+                bonus = r.get("MoatBonus", 0)
+                if bonus and isinstance(r.get("TotalScore"), (int, float)):
+                    r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
+            # Phase-3: moat 주입 후 투기주 졸업 재평가
+            from speculative_themes import apply_speculative_correction as _spec_reeval_batch
+            _spec_reeval_batch(results)
             # GreedZone batch enrichment
             try:
                 results = _enrich_greedzone_batch(results)
@@ -761,7 +735,6 @@ def _warmup_fill_cache(market: str) -> None:
                 results = _annotate_one_liners(results)
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
-            results = _apply_scan_score_adjustments(results)
             # 캐시 즉시 저장 — 네이버 오버레이/GreedZone 없이도 첫 API 응답 즉시 가능
             results = _strip_heavy(results)
             ts = int(time.time())
@@ -784,7 +757,6 @@ def _warmup_fill_cache(market: str) -> None:
                     except Exception as _e:
                         logging.warning("%s GreedZone bg failed: %s", _mkt, _e)
                     if _res:
-                        _res.sort(key=lambda x: x.get("TotalScore", 0) if isinstance(x, dict) else 0, reverse=True)
                         _s = _strip_heavy(_res)
                         _t = int(time.time())
                         _store_scan_cache((_mkt, "BALANCED", ""), _t, _s)
@@ -856,7 +828,6 @@ def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> Non
                             results = _enrich_greedzone_batch(results)
                         except Exception as _e:
                             logging.warning("KR slow-refresh GreedZone enrichment failed: %s", _e)
-                        results = _apply_scan_score_adjustments(results)
                         results = _strip_heavy(results)
                         ts = int(time.time())
                         _store_scan_cache(("KR", "BALANCED", ""), ts, results)
@@ -961,7 +932,6 @@ def _us_warmup_loop(interval_sec: int = 1800) -> None:
                         results = _enrich_greedzone_batch(results)
                     except Exception as _e:
                         logging.warning("US slow-refresh GreedZone enrichment failed: %s", _e)
-                    results = _apply_scan_score_adjustments(results)
                     results = _strip_heavy(results)
                     ts = int(time.time())
                     _store_scan_cache(("US", "BALANCED", ""), ts, results)
@@ -1066,7 +1036,7 @@ def _validate_ticker(ticker) -> str | None:
     return t
 
 
-_KR_LOCAL_NAME_CACHE: dict[str, str] | None = None
+_KR_LOCAL_NAME_CACHE = None
 
 
 def _lookup_kr_name_local(code6: str) -> str:
@@ -1089,66 +1059,6 @@ def _lookup_kr_name_local(code6: str) -> str:
             pass
         _KR_LOCAL_NAME_CACHE = names
     return _KR_LOCAL_NAME_CACHE.get(code6) or ""
-
-
-def _lookup_kr_display_name(code6: str) -> str:
-    """한국 종목 코드를 화면 표시용 한글명으로 변환한다."""
-    code6 = str(code6 or "").split(".")[0].zfill(6)
-    if not code6.isdigit():
-        return ""
-
-    # stock_names가 이미 로드되어 있으면 KRX/FDR 공식명을 우선 사용한다.
-    # 미로드 상태에서 스캔 응답 후처리가 네트워크 로드로 막히지 않도록 한다.
-    try:
-        from swing_scan.config import stock_names as _sn
-        if getattr(_sn, "_loaded", False):
-            nm = _sn.get_name(code6)
-            if nm and nm != code6:
-                return str(nm)
-    except Exception as _e:
-        logging.debug("silent except (app.py): %s", _e)
-
-    fixed = _lookup_kr_name_local(code6)
-    if fixed:
-        return fixed
-
-    try:
-        from quant_nexus_v20 import QuantNexusApp
-        fixed = (
-            QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
-            or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
-            or ""
-        )
-        if fixed:
-            return str(fixed)
-    except Exception as _e:
-        logging.debug("silent except (app.py): %s", _e)
-
-    return ""
-
-
-def _normalize_kr_display_fields(result: dict, ticker: str, adapter=None) -> dict:
-    """KR 상세/스캔 응답에서 영문 yfinance명을 한글 표시명으로 고정한다."""
-    if not isinstance(result, dict):
-        return result
-    code6 = _strip_kr_suffix(ticker or result.get("Ticker") or "").zfill(6)
-    if not code6.isdigit():
-        return result
-
-    fixed_name = _lookup_kr_display_name(code6)
-    if fixed_name:
-        result["Name"] = fixed_name
-
-    if adapter is not None:
-        try:
-            wanted = {code6.upper(), f"{code6}.KS", f"{code6}.KQ"}
-            for sector_name, tickers in adapter.get_sectors().items():
-                if any(str(t).upper() in wanted for t in tickers):
-                    result["Sector"] = sector_name
-                    break
-        except Exception as _e:
-            logging.debug("silent except (app.py): %s", _e)
-    return result
 
 
 @app.route("/detail/<ticker>")
@@ -1339,7 +1249,14 @@ def api_scan():
             results = _annotate_one_liners(results)
         except Exception as oe:
             logging.warning("one_liner annotate failed: %s", oe)
-        results = _apply_scan_score_adjustments(results)
+        # 해자(Moat) 가산점 → TotalScore 반영
+        for r in results:
+            bonus = r.get("MoatBonus", 0)
+            if bonus and isinstance(r.get("TotalScore"), (int, float)):
+                r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
+        # Phase-3: moat 주입 후 투기주 졸업 재평가
+        from speculative_themes import apply_speculative_correction as _spec_reeval_sync
+        _spec_reeval_sync(results)
         # AgentQuant 융합 (상위 N개)
         if aq_top > 0:
             try:
@@ -1505,35 +1422,41 @@ def api_ticker(ticker: str):
         return jsonify({"error": "invalid ticker"}), 400
     market_arg = (request.args.get("market") or "US").upper()
     strategy_arg = request.args.get("strategy", "BALANCED")
-    force_refresh = (request.args.get("refresh") or "").strip().lower() in {"1", "true", "yes"}
     # ── 응답 캐시 조회 (동일 종목 재오픈 시 즉시 반환) ──
     _td_key = f"{ticker}:{market_arg}:{strategy_arg}"
     _td_now = int(time.time())
-    if not force_refresh:
-        with _ticker_detail_cache_lock:
-            _td_cached = _ticker_detail_cache.get(_td_key)
-            if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
-                # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
-                try:
-                    from one_liner import annotate as _ol_annotate
-                    fresh = dict(_td_cached["data"])
-                    _ol_annotate([fresh])
-                except Exception:
-                    fresh = dict(_td_cached["data"])
-                if market_arg == "KR":
-                    _normalize_kr_display_fields(fresh, ticker)
-                    fresh["_Investor_Available"] = False
-                return jsonify(fresh)
+    with _ticker_detail_cache_lock:
+        _td_cached = _ticker_detail_cache.get(_td_key)
+        if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
+            # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
+            try:
+                from one_liner import annotate as _ol_annotate
+                fresh = dict(_td_cached["data"])
+                _ol_annotate([fresh])
+            except Exception:
+                fresh = _td_cached["data"]
+            return jsonify(fresh)
     try:
         adapter = _make_adapter()
-        result  = adapter.analyze_ticker(ticker, prefer_cache=True, force_refresh=force_refresh)
-        if result is None and force_refresh:
-            result = adapter.analyze_ticker(ticker, prefer_cache=True, force_refresh=False)
+        result  = adapter.analyze_ticker(ticker, prefer_cache=True)
         market = market_arg
         if result is None:
             return jsonify({"error": "해당 티커의 데이터를 찾을 수 없습니다."}), 404
         if market == "KR":
-            _normalize_kr_display_fields(result, ticker, adapter)
+            code6 = _strip_kr_suffix(ticker).zfill(6)
+            name_now = str(result.get("Name") or "").strip()
+            if not name_now or name_now in {ticker, code6, f"{code6}.KS", f"{code6}.KQ"}:
+                try:
+                    from quant_nexus_v20 import QuantNexusApp
+                    fixed = (
+                        QuantNexusApp.KR_NAMES.get(f"{code6}.KS")
+                        or QuantNexusApp.KR_NAMES.get(f"{code6}.KQ")
+                        or ""
+                    )
+                    if fixed:
+                        result["Name"] = fixed
+                except Exception as _e:
+                    logging.debug("silent except (app.py): %s", _e)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
         else:
@@ -3024,7 +2947,6 @@ def _cold_start_live_scan(market: str) -> None:
             results = _annotate_one_liners(results)
         except Exception:
             pass
-        results = _apply_scan_score_adjustments(results)
         results = _strip_heavy(results)
         ts = int(time.time())
         _store_scan_cache((market, "BALANCED", ""), ts, results)

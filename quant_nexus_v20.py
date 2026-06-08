@@ -28,8 +28,6 @@ v20.0 주요 변경:
   - 슈퍼 그로스 승수 / Fail-Safe Ceiling / Hurst + Kalman 필터
 """
 
-from __future__ import annotations
-
 import warnings
 # matplotlib/pyparsing 버전 불일치 DeprecationWarning 억제
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -596,66 +594,6 @@ def _fetch_us_fallback_history(ticker: str) -> pd.DataFrame | None:
         # yahoo 가 확정적으로 404 + stooq 도 데이터 없음 → 상폐 확정
         _add_delisted(ticker)
     return None
-
-
-def _fetch_naver_kr_price_history(ticker: str) -> pd.DataFrame | None:
-    """KR 일봉 폴백: 네이버 모바일 price API."""
-    code = str(ticker or "").upper().replace(".KS", "").replace(".KQ", "").zfill(6)
-    if not code.isdigit():
-        return None
-    rows = []
-    for page in range(1, 13):
-        url = f"https://m.stock.naver.com/api/stock/{code}/price?pageSize=60&page={page}"
-        try:
-            req = urllib.request.Request(url, headers={
-                "User-Agent": _FALLBACK_UA,
-                "Accept": "application/json,*/*",
-                "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7"})
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                chunk = json.loads(resp.read().decode("utf-8", errors="ignore"))
-            if not isinstance(chunk, list) or not chunk:
-                break
-            rows.extend(chunk)
-            if len(chunk) < 60:
-                break
-        except Exception as e:
-            if page == 1:
-                logging.warning("[naver-price] history failed %s: %s", ticker, e)
-            break
-    if len(rows) < 30:
-        return None
-
-    def _num(v):
-        try:
-            return float(str(v).replace(",", "").strip())
-        except Exception:
-            return None
-
-    data = []
-    for r in rows:
-        dt = r.get("localTradedAt")
-        close = _num(r.get("closePrice"))
-        if not dt or close is None:
-            continue
-        data.append({
-            "Date": dt,
-            "Open": _num(r.get("openPrice")) or close,
-            "High": _num(r.get("highPrice")) or close,
-            "Low": _num(r.get("lowPrice")) or close,
-            "Close": close,
-            "Volume": _num(r.get("accumulatedTradingVolume")) or 0.0,
-        })
-    if len(data) < 30:
-        return None
-    df = pd.DataFrame(data)
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-    df = df.dropna(subset=["Date"]).set_index("Date").sort_index()
-    for col in ["Open", "High", "Low", "Close", "Volume"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-    df = df.dropna(subset=["Close"])
-    if df.empty or len(df) < 30:
-        return None
-    return df
 
 # ============================================================
 # Toss Design System 컬러 팔레트
@@ -1597,7 +1535,6 @@ class DataCache:
     - max_age_minutes 를 초과한 항목은 만료 처리합니다.
     """
     REQUIRED_KEYS = {"Ticker", "Name", "Price", "TotalScore", "Signal", "_AvgVol20"}
-    KR_EPS_SOURCE_VERSION = 2
     NAME_FIXUPS = {
         "LITE": "루멘텀"}
 
@@ -1658,26 +1595,6 @@ class DataCache:
                 logging.warning(f"[Cache] 무결성 실패: {ticker}")
                 os.remove(path)
                 return None
-            data_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
-            if data_ticker.endswith((".KS", ".KQ")) or data_ticker.split(".")[0].isdigit():
-                try:
-                    eps_ver = int(data.get("_EPSSourceVersion") or 0)
-                except (TypeError, ValueError):
-                    eps_ver = 0
-                if eps_ver < self.KR_EPS_SOURCE_VERSION:
-                    try:
-                        import naver_quarter as _nq
-                        fin = _nq.get_ttm_financials(data_ticker)
-                        eps_q = fin.get("eps_qoq_growth") if fin.get("available") else None
-                        if eps_q is not None:
-                            data["_EPSGrowth"] = eps_q
-                            data["_EPSGrowthSource"] = "quarterly_eps"
-                            data["_EPSSourceVersion"] = self.KR_EPS_SOURCE_VERSION
-                            if eps_q >= 0.25:
-                                data["EPSAcceleration"] = True
-                            self.set(ticker, data)
-                    except Exception as _e:
-                        logging.debug("[Cache] KR EPS cache upgrade failed for %s: %s", ticker, _e)
             base_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
             fixed_name = self.NAME_FIXUPS.get(base_ticker)
             if fixed_name and data.get("Name") != fixed_name:
@@ -3101,16 +3018,8 @@ class WallStreetQuantStrategies:
             #   2) earningsQuarterlyGrowth (분기 YoY 순이익 — C 원칙 정통)
             #   3) forwardEps vs trailingEps 파생 성장률
             #   4) revenueGrowth 보수적 프록시 (0.6× 할인)
-            prefer_quarterly = bool(info.get("_preferQuarterlyEPSGrowth"))
-            eg = None
-            src = ""
-            if prefer_quarterly:
-                eg = safe_get(info.get("earningsQuarterlyGrowth"), None)
-                if eg is not None:
-                    src = "quarterly_eps"
-            if eg is None:
-                eg = safe_get(info.get("earningsGrowth"), None)
-                src = "annual_eps"
+            eg  = safe_get(info.get("earningsGrowth"), None)
+            src = "annual_eps"
             if eg is None:
                 eg = safe_get(info.get("earningsQuarterlyGrowth"), None)
                 src = "quarterly_eps"
@@ -5247,7 +5156,7 @@ class QuantNexusApp:
             _today = datetime.now().strftime("%Y%m%d")
             strategy_key = f"{ticker}__{self._scan_strategy}__{_today}"
             # rate-limit 회피: 캐시 TTL 4시간 (KR 풀스캔 부하 경감)
-            cached = None if getattr(self, "_force_fresh_analysis", False) else self.cache.get(strategy_key, max_age_minutes=240)
+            cached = self.cache.get(strategy_key, max_age_minutes=240)
             if cached:
                 with self._stats_lock:
                     self.stats["cache_hits"] += 1
@@ -5330,8 +5239,6 @@ class QuantNexusApp:
                             if _is_rate_limit_error(_fe2):
                                 _yf_mark_rate_limited(30.0)
                             hist = None
-                    if hist is None or hist.empty or len(hist) < 30:
-                        hist = _fetch_naver_kr_price_history(ticker)
                 if hist is None or hist.empty or len(hist) < 30:
                     return None
 
@@ -5389,11 +5296,10 @@ class QuantNexusApp:
             #   4) 티커 코드 폴백
             # 주의: KR_NAMES 에는 재상장·코드재사용·사명변경으로 stale 된 항목이 91건 존재,
             # KRX 공식명을 항상 우선해 잘못된 한글명 매칭을 차단한다.
-            _fallback_name = info.get("longName") or info.get("shortName") or ""
-            try:
-                _name = self._resolve_display_name(ticker, _fallback_name)
-            except Exception:
-                _name = getattr(self, "_ticker_name_cache", {}).get(ticker) or _fallback_name
+            _is_kr_t = bool(ticker) and (ticker.endswith(".KS") or ticker.endswith(".KQ"))
+            _name = getattr(self, "_ticker_name_cache", {}).get(ticker)
+            if not _name:
+                _name = info.get("longName") or info.get("shortName")
             name = (_name or ticker)[:20]
             # regularMarketChangePercent를 우선 사용 (yfinance 원자값 — 캐시 지연 없음)
             _rt_chg_pct = info.get("regularMarketChangePercent")
@@ -5414,7 +5320,6 @@ class QuantNexusApp:
             # 단위 혼동을 막기 위해 변수명에 통화 표기.
             avg_vol_20 = float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else float(hist["Volume"].mean())
             _is_kr = self._scan_market == "KR"
-            _is_kr_t = _is_kr or bool(ticker) and (ticker.endswith(".KS") or ticker.endswith(".KQ"))
             avg_turnover = avg_vol_20 * cur  # KR: 원, US: 달러
             avg_dollar_vol = avg_turnover    # (호환용 alias — 기존 변수명 유지)
             _liq_cap_thr     = 20_000_000_000 if _is_kr else 20_000_000  # KR 200억 / US $20M
@@ -5506,7 +5411,6 @@ class QuantNexusApp:
                         info["earningsGrowth"] = annual_eg
                     if fin.get("eps_qoq_growth") is not None:
                         info["earningsQuarterlyGrowth"] = fin["eps_qoq_growth"]
-                        info["_preferQuarterlyEPSGrowth"] = True
                     src_tag = fin.get("source", "?")
                     target_source = f"DCF ({src_tag} {fin.get('fiscal_period','')})"
                 else:
@@ -6708,8 +6612,6 @@ class QuantNexusApp:
                 "_MarketCap":       safe_get(info.get("marketCap"), 0)
                                     or ((cur or 0) * (info.get("sharesOutstanding") or 0)),
                 "_RevenueGrowth":   safe_get(info.get("revenueGrowth"), 0.0),
-                "_EPSGrowthSource":  earn.get("eps_src", ""),
-                "_EPSSourceVersion": DataCache.KR_EPS_SOURCE_VERSION if _is_kr else 0,
                 "_MACDHist":        mr.get("macd_hist", 0),
                 "_DivYield":        _normalize_div_yield(info.get("dividendYield")),
                 "_AvgVol20":        float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else 0.0,

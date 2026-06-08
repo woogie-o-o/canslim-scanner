@@ -455,7 +455,6 @@ function onMarketChange(val) {
 // 중첩 키 접근 ("Scores.BALANCED" → obj.Scores?.BALANCED)
 function _getByPath(obj, path) {
   if (!obj || !path) return undefined;
-  if (path === 'BrokerTarget') return obj.BrokerTarget ?? obj.TargetPrice;
   return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
 }
 
@@ -1437,14 +1436,11 @@ function renderStockRow(stock, rank) {
   const avgVol     = _fmtAvgVol(stock._AvgVol20);
   const marketCap  = _fmtMarketCap(stock._MarketCap);
   const targetLabel = stock.NomuraUsed ? '섹터 밸류에이션 목표가' : 'DCF 메인 목표가';
-  const targetUpside = stock.TargetUpside != null
-    ? Number(stock.TargetUpside)
-    : (stock.TargetPrice && stock.Price ? (stock.TargetPrice - stock.Price) / stock.Price : null);
-  const upsidePct  = targetUpside != null
-    ? (targetUpside >= 0 ? '+' : '') + fmt(targetUpside * 100, 1) + '%'
+  const upsidePct  = stock.TargetUpside != null
+    ? (stock.TargetUpside >= 0 ? '+' : '') + fmt(stock.TargetUpside * 100, 1) + '%'
     : '—';
-  const upsideColor = targetUpside != null
-    ? (targetUpside >= 0 ? 'var(--success)' : 'var(--destructive)')
+  const upsideColor = stock.TargetUpside != null
+    ? (stock.TargetUpside >= 0 ? 'var(--success)' : 'var(--destructive)')
     : '';
   const upside     = stock.TargetPrice
     ? `<div class="target-price">${fmtPrice(stock.TargetPrice)}</div><div class="target-upside" style="color:${upsideColor}">${upsidePct}</div>`
@@ -1461,21 +1457,15 @@ function renderStockRow(stock, rank) {
   // TopReason 태그 HTML
   const reasonHtml = _renderReasonTags(stock.TopReason);
 
-  // 목표가 HTML: 증권사 컨센서스 우선, 없으면 내부 산출 목표가로 fallback.
-  let targetHtml;
-  let targetTitle;
+  // 증권사 컨센서스 목표가 HTML (IIFE 제거 — 500+ 종목 렌더 시 함수 생성 오버헤드 제거)
+  let brokerHtml;
   if (stock.BrokerTarget) {
     const bUp = stock.Price ? ((stock.BrokerTarget - stock.Price) / stock.Price) * 100 : null;
     const bColor = bUp != null && bUp >= 0 ? 'var(--success)' : 'var(--destructive)';
     const bPct = bUp != null ? (bUp >= 0 ? '+' : '') + fmt(bUp, 1) + '%' : '';
-    targetHtml = `<div class="target-price">${fmtPrice(stock.BrokerTarget)}</div><div class="target-upside" style="color:${bColor}">${bPct}</div>`;
-    targetTitle = stock.BrokerTargetSource ? esc(stock.BrokerTargetSource) : '증권사 컨센서스';
-  } else if (stock.TargetPrice) {
-    targetHtml = upside;
-    targetTitle = esc(`${targetLabel}${stock.TargetSource ? ' · ' + stock.TargetSource : ''}`);
+    brokerHtml = `<div class="target-price">${fmtPrice(stock.BrokerTarget)}</div><div class="target-upside" style="color:${bColor}">${bPct}</div>`;
   } else {
-    targetHtml = '<div class="target-empty">목표가 없음</div>';
-    targetTitle = '목표가 없음';
+    brokerHtml = '<div class="target-empty">컨센서스 없음</div>';
   }
 
   const checked = _selectedStocks.has(stock.Ticker);
@@ -1503,7 +1493,7 @@ function renderStockRow(stock, rank) {
   <td class="right">${rsi}</td>
   <td class="right">${avgVol}</td>
   <td class="right">${marketCap}</td>
-  <td class="right" title="${targetTitle}">${targetHtml}</td>
+  <td class="right" title="${stock.BrokerTargetSource ? esc(stock.BrokerTargetSource) : '증권사 컨센서스 없음'}">${brokerHtml}</td>
   <td class="reason-cell">${reasonHtml}</td>
 </tr>`;
 }
@@ -2534,22 +2524,6 @@ function closeCalcPopup() {
 
 // ── 디테일 드로어 ────────────────────────────────────────────────────────
 
-function _mergeCachedDetailSnapshot(data, cached) {
-  if (!data || !cached) return data;
-  const keep = [
-    'BrokerTarget', 'BrokerTargetSource', 'BrokerAnalystCount',
-    'TargetPrice', 'TargetUpside', 'TargetSource', 'TargetMethod', 'TargetView',
-    'DcfLow', 'DcfHigh', 'PerFair', 'PbrFair', 'EvEbitdaFair',
-    'NomuraTarget', 'NomuraMethod', 'NomuraUpside', 'NomuraBias', 'NomuraUsed'
-  ];
-  for (const key of keep) {
-    if (cached[key] !== undefined && cached[key] !== null && cached[key] !== '') {
-      data[key] = cached[key];
-    }
-  }
-  return data;
-}
-
 async function openDetail(ticker) {
   const overlay = document.getElementById('detail-overlay');
   const panel   = document.getElementById('detail-panel');
@@ -2596,7 +2570,6 @@ async function openDetail(ticker) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    _mergeCachedDetailSnapshot(data, cached);
     // 한줄평은 시드(score/RSI 양자화 + 시간 회전)에 따라 매번 달라질 수 있다.
     // 스캐너에서 본 한줄평이 패널 열 때 보였다가 API 응답 도착 시 다른 문구로
     // 바뀌는 깜빡임을 막기 위해, 캐시된 한줄평이 있으면 무조건 그대로 유지한다.
