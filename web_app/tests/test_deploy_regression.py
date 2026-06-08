@@ -94,7 +94,7 @@ def test_api_scan_response_carries_content_encoding():
     from web_app.app import app
     client = app.test_client()
     resp = client.get(
-        "/api/scan?market=US&strategy=BALANCED",
+        "/api/scan?market=KR&strategy=BALANCED",
         headers={"Accept-Encoding": "gzip, br"},
     )
     assert resp.status_code == 200
@@ -119,7 +119,7 @@ def test_flask_compress_excludes_zstd_for_browser_compatibility():
     client = app.test_client()
     # Chrome/Edge 가 보내는 기본 Accept-Encoding 그대로.
     resp = client.get(
-        "/api/scan?market=US&strategy=BALANCED",
+        "/api/scan?market=KR&strategy=BALANCED",
         headers={"Accept-Encoding": "gzip, deflate, br, zstd"},
     )
     assert resp.status_code == 200
@@ -134,6 +134,14 @@ def test_flask_compress_excludes_zstd_for_browser_compatibility():
     assert enc in ("br", "gzip", "deflate"), (
         f"안전한 인코딩만 허용 — got {enc!r}"
     )
+
+
+def test_us_scan_is_disabled():
+    """서버는 KR 전용으로 운영한다. US 스캔이 다시 열리면 yfinance 부하가 재발한다."""
+    from web_app.app import app
+    client = app.test_client()
+    resp = client.get("/api/scan?market=US&strategy=BALANCED")
+    assert resp.status_code == 410
 
 
 # ─────────────────────────────────────────────────────────────────────────────

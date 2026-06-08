@@ -441,6 +441,7 @@ function _setSegActive(groupId, val) {
 }
 
 function onMarketChange(val) {
+  if (val !== 'KR') val = 'KR';
   currentMarket = val;
   currentSector = '';
   allStocks     = [];
@@ -1912,17 +1913,9 @@ async function _lookupTicker(ticker) {
 
 async function _fetchSuggestions(q, box) {
   try {
-    // 한글이 섞이면 KR 우선, 그 외에는 currentMarket 우선 — 매칭 0건이면 반대 시장도 조회한다.
-    const hasHangul = /[ㄱ-힝]/.test(q);
-    const primary = hasHangul ? 'KR' : currentMarket;
-    const secondary = primary === 'KR' ? 'US' : 'KR';
-    const fetchOne = async (mkt) => {
-      const p = new URLSearchParams({ q, market: mkt });
-      const r = await fetch(`/api/search?${p}`);
-      return await r.json();
-    };
-    let hits = await fetchOne(primary);
-    if (!hits || !hits.length) hits = await fetchOne(secondary);
+    const p = new URLSearchParams({ q, market: 'KR' });
+    const r = await fetch(`/api/search?${p}`);
+    let hits = await r.json();
     if (!hits || !hits.length) { box.style.display = 'none'; return; }
     box.innerHTML = hits.map((h, i) =>
       `<div class="search-suggest-item" data-ticker="${esc(h.ticker)}" data-idx="${i}"
@@ -2124,26 +2117,6 @@ function populateDetail(d) {
       _detBrkSrc.title = '';
     }
   }
-
-  // 미장: '메인 목표가' 박스 + 'DCF 적정가' 줄을 숨기고 증권사 목표가만 노출.
-  // 단독 노출이라 점선 보조박스 대신 메인 박스처럼 강조. (한국장은 기존 그대로)
-  (function _usTargetLayout() {
-    const isUS = currentMarket === 'US';
-    const mainBox  = document.getElementById('detail-main-box');
-    const dcfLine  = document.getElementById('detail-dcf-line');
-    const auxLabel = document.getElementById('detail-aux-label');
-    const auxBox   = document.getElementById('detail-aux-box');
-    if (mainBox)  mainBox.style.display  = isUS ? 'none' : '';
-    if (dcfLine)  dcfLine.style.display  = isUS ? 'none' : '';
-    if (auxLabel) auxLabel.style.display = isUS ? 'none' : '';
-    if (auxBox) {
-      auxBox.style.border     = isUS ? '1px solid var(--border)'
-                                     : '1px dashed var(--border)';
-      auxBox.style.background = isUS
-        ? 'color-mix(in srgb, var(--brand) 6%, var(--card))'
-        : 'var(--bg-tertiary)';
-    }
-  })();
 
   const scoreEl = document.getElementById('detail-score');
   if (scoreEl) {
@@ -2685,7 +2658,7 @@ function _populatePanelDetail(d, skipFourAxis) {
   if (aboutEl)  aboutEl.textContent = aboutText;
   if (aboutBox) aboutBox.style.display = aboutText ? '' : 'none';
   try { _renderMoatDetail(d); } catch (e) { console.error('moat render failed:', e); }
-  try { _loadPeersCard(d.Ticker, (typeof currentMarket !== 'undefined' && currentMarket) || 'US'); } catch (e) { console.error('peers load failed:', e); }
+  try { _loadPeersCard(d.Ticker, 'KR'); } catch (e) { console.error('peers load failed:', e); }
 
   try { _loadSegmentsCard(d.Ticker); } catch (e) { console.error('segments load failed:', e); }
   try { _loadOwnershipCard(d.Ticker); } catch (e) { console.error('ownership load failed:', e); }
@@ -2695,9 +2668,8 @@ function _populatePanelDetail(d, skipFourAxis) {
   setText('dp-target',  d.TargetPrice ? fmtPrice(d.TargetPrice) : '—');
   setText('dp-broker-target', d.BrokerTarget ? fmtPrice(d.BrokerTarget) : '—');
 
-  // 미장: '메인 목표가' 행을 숨기고 증권사 목표가만 노출 (한국장은 기존 그대로)
   const _dpTgtRow = document.getElementById('dp-target-row');
-  if (_dpTgtRow) _dpTgtRow.style.display = currentMarket === 'US' ? 'none' : '';
+  if (_dpTgtRow) _dpTgtRow.style.display = '';
 
   // 메인 목표가 상승여력 (노무라식 우선, 없으면 DCF)
   const dpDcfUp = document.getElementById('dp-dcf-upside');
@@ -2824,9 +2796,6 @@ function _populatePanelDetail(d, skipFourAxis) {
   // KR이면 뉴스 바를 위해 즉시 fetch (탭 클릭 전에도 표시)
   if (currentMarket === 'KR' && d.Ticker) loadDpDartNews(d.Ticker);
 
-  // US 마켓일 때 US 인사이트 탭 표시
-  const usBtn = document.getElementById('dp-btn-usinsight');
-  if (usBtn) usBtn.style.display = currentMarket === 'US' ? '' : 'none';
   _dpUSInsightLoaded = false;
 
   // 투자자 동향 카드
@@ -3513,11 +3482,6 @@ function switchDpTab(tabId) {
     const tk = (document.getElementById('dp-ticker')?.textContent || '').trim();
     if (tk && tk !== '—' && tk !== '…') loadDpDartNews(tk);
   }
-  // US 인사이트 탭 lazy loading (드로어)
-  if (tabId === 'usinsight') {
-    const tk = (document.getElementById('dp-ticker')?.textContent || '').trim();
-    if (tk && tk !== '—' && tk !== '…') loadDpUSInsight(tk);
-  }
 }
 
 let _dpDartNewsLoaded = false;
@@ -3698,10 +3662,6 @@ function switchTab(tabId) {
   // 공시·뉴스 탭 lazy loading
   if (tabId === 'dartnews' && typeof TICKER !== 'undefined' && TICKER) {
     loadDartNews(TICKER);
-  }
-  // US 인사이트 탭 lazy loading
-  if (tabId === 'usinsight' && typeof TICKER !== 'undefined' && TICKER) {
-    loadUSInsight(TICKER);
   }
 }
 
@@ -4351,6 +4311,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const sp = new URLSearchParams(window.location.search);
   if (sp.has('market'))   currentMarket   = sp.get('market');
   if (sp.has('strategy')) currentStrategy = sp.get('strategy');
+  if (currentMarket !== 'KR') currentMarket = 'KR';
 
   // 오늘 날짜 표시
   const dateEl = document.getElementById('topbar-date');
@@ -4370,7 +4331,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetailBtn(); });
 
   if (typeof COMPARE_MARKET !== 'undefined' && COMPARE_MARKET) {
-    currentMarket = COMPARE_MARKET;
+    currentMarket = 'KR';
   }
 
   if (typeof COMPARE_TICKERS !== 'undefined' && Array.isArray(COMPARE_TICKERS)) {
@@ -4382,11 +4343,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentMarket === 'KR') {
       const dnBtn = document.getElementById('btn-dartnews');
       if (dnBtn) dnBtn.style.display = '';
-    }
-    // US 마켓일 때만 US 인사이트 탭 표시
-    if (currentMarket === 'US') {
-      const usBtn = document.getElementById('btn-usinsight');
-      if (usBtn) usBtn.style.display = '';
     }
   } else {
     // ── 스캐너 페이지
@@ -4990,8 +4946,6 @@ async function captureDetail() {
     { suffix: 'finance',  label: '재무 지표' },
     { suffix: 'dartnews', label: '공시·뉴스',
       visibleOnly: () => currentMarket === 'KR' },
-    { suffix: 'usinsight', label: 'US 인사이트',
-      visibleOnly: () => currentMarket !== 'KR' },
   ];
   for (const t of tabMeta) {
     const pane = clone.querySelector('#__cap_dp-tab-' + t.suffix);

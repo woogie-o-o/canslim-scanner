@@ -49,7 +49,7 @@ class ScanAdapter:
     unbound method 호출(_qn.QuantNexusApp.analyze_ticker(self, ticker))이 동작한다.
     """
 
-    def __init__(self, market: str = "US", strategy: str = "BALANCED") -> None:
+    def __init__(self, market: str = "KR", strategy: str = "BALANCED") -> None:
         self._market = market
         self._strategy = strategy
 

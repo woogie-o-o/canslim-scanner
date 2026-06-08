@@ -169,6 +169,7 @@ _ticker_detail_cache_lock = threading.Lock()
 
 _scan_refresh_lock = threading.Lock()
 _scan_refresh_inflight: set[tuple[str, str, str]] = set()
+_SUPPORTED_MARKETS = frozenset({"KR"})
 
 # ── 스캔 결과 전체 캐시 (API 레벨, pickle 재읽기 방지) ──
 _SCAN_RESULTS_TTL_SEC = 300  # 5분
@@ -239,6 +240,9 @@ _SEARCH_IDX_LOCK = threading.Lock()
 
 
 def _get_search_idx(market: str) -> list:
+    market = (market or "KR").upper()
+    if market not in _SUPPORTED_MARKETS:
+        return []
     if market in _SEARCH_IDX:
         return _SEARCH_IDX[market]
     with _SEARCH_IDX_LOCK:
@@ -305,7 +309,7 @@ def _resolve_kr_suffix(code6: str) -> str | None:
 
 def _build_yf_candidates(ticker: str, market: str) -> list[str]:
     raw = (ticker or "").strip()
-    market = (market or "US").upper()
+    market = (market or "KR").upper()
 
     if market == "US":
         tu = raw.upper()
@@ -462,8 +466,10 @@ _ADAPTER_POOL_MAX = 4
 
 
 def _make_adapter():
-    market   = request.args.get("market",   "US")
+    market   = request.args.get("market",   "KR")
     strategy = request.args.get("strategy", "BALANCED")
+    if market.upper() not in _SUPPORTED_MARKETS:
+        market = "KR"
     key = (market.upper(), strategy.upper())
     with _adapter_pool_lock:
         if key in _adapter_pool:
@@ -876,12 +882,6 @@ def _start_kr_warmup_once() -> None:
     threading.Thread(target=_fast_kr, daemon=True, name="kr-warmup").start()
 
 
-# ── US 캐시 워밍 (서버 기동 시 + 30분 주기) ───────────────────────────────
-_US_WARMUP_LOCK_PATH = os.path.join(_BASE, "cache_v19", ".warmer_us.lock")
-_us_warmup_started = False
-_us_warmup_lock = threading.Lock()
-
-
 # KR 공휴일(KRX 휴장일) — 시장 시간 가드용. 매년 1월 1주차 갱신 권장.
 # 출처: KRX 매년 12월 발표. 주말 외 KRX 휴장만 포함(임시휴장 X).
 _KR_HOLIDAYS_2026: frozenset = frozenset({
@@ -907,72 +907,6 @@ def _is_kr_market_open_window() -> bool:
     minutes = now_kst.hour * 60 + now_kst.minute
     # 08:30 ~ 16:00 (정규장 ± 30분)
     return 8 * 60 + 30 <= minutes <= 16 * 60
-
-
-def _is_us_market_open_window() -> bool:
-    """US 정규장 + 프리/애프터까지 넉넉히 — KST 기준 22:00~06:00, 토/일은 휴장."""
-    from datetime import datetime, timezone, timedelta
-    now_kst = datetime.now(timezone(timedelta(hours=9)))
-    # 토(5)/일(6) 휴장. 월요일 새벽까지 금요일 애프터 여진이 있을 수 있으나
-    # 한국 시간 기준 일요일 종일·토요일 종일은 확실히 휴장.
-    if now_kst.weekday() in (5, 6):
-        return False
-    h = now_kst.hour
-    # 정규장은 KST 22:30(서머타임) ~ 05:00, 여기에 프리·애프터 마진 ±2h
-    return h >= 22 or h < 6
-
-
-def _us_warmup_loop(interval_sec: int = 1800) -> None:
-    """US 전체 스캔을 주기적으로 BG 실행. 파일잠금으로 multi-process duplication 방지."""
-    first_run = True
-    while True:
-        if not first_run and not _is_us_market_open_window():
-            time.sleep(interval_sec)
-            continue
-        handle = _acquire_warmer_file_lock(_US_WARMUP_LOCK_PATH)
-        if handle is None:
-            logging.info("US warm-up skipped: another worker holds lock")
-        else:
-            try:
-                if first_run:
-                    _warmup_fill_cache("US")
-                    first_run = False
-                logging.info("US warm-up started (slow-refresh)")
-                adapter_cls = _get_scan_adapter_cls()
-                adapter = adapter_cls(market="US", strategy="BALANCED")
-                _wm_workers = _get_config_int("WARMUP_WORKERS", 8, minimum=1, maximum=16)
-                results = adapter.scan_all(max_workers=_wm_workers)
-                logging.info("US warm-up done: %d tickers", len(results) if results else 0)
-                if results:
-                    try:
-                        results = _annotate_one_liners(results)
-                    except Exception as _e:
-                        logging.debug("silent except (app.py): %s", _e)
-                    try:
-                        results = _enrich_greedzone_batch(results)
-                    except Exception as _e:
-                        logging.warning("US slow-refresh GreedZone enrichment failed: %s", _e)
-                    results = _strip_heavy(results)
-                    ts = int(time.time())
-                    _store_scan_cache(("US", "BALANCED", ""), ts, results)
-                    _populate_sector_caches("US", "BALANCED", results, ts)
-            except Exception as e:
-                logging.warning("US warm-up failed: %s", e)
-            finally:
-                _release_warmer_file_lock(handle)
-        time.sleep(interval_sec)
-
-
-def _start_us_warmup_once() -> None:
-    global _us_warmup_started
-    with _us_warmup_lock:
-        if _us_warmup_started:
-            return
-        _us_warmup_started = True
-    if os.environ.get("DISABLE_US_WARMUP", "").strip() in ("1", "true", "yes"):
-        logging.info("US warm-up disabled by env DISABLE_US_WARMUP")
-        return
-    threading.Thread(target=_us_warmup_loop, daemon=True, name="us-warmup").start()
 
 
 def _get_config_int(name: str, default: int, minimum: int | None = None, maximum: int | None = None) -> int:
@@ -1096,7 +1030,7 @@ def detail(ticker: str):
 def compare_page():
     raw = request.args.get("tickers", "")
     tickers = [tk.strip() for tk in raw.split(",") if tk.strip()][:4]
-    market = (request.args.get("market") or "US").upper()
+    market = "KR"
     return _render_static_template("compare.html", {
         "{{ tickers|tojson }}": json.dumps(tickers, ensure_ascii=False),
         "{{ market|tojson }}": json.dumps(market, ensure_ascii=False),
@@ -1107,8 +1041,11 @@ def compare_page():
 
 @app.route("/api/sectors")
 def api_sectors():
-    """GET /api/sectors?market=US ? {"sectors": {???: [ticker, ...]}}"""
+    """GET /api/sectors?market=KR → {"sectors": {...}}"""
     try:
+        market = (request.args.get("market") or "KR").upper()
+        if market not in _SUPPORTED_MARKETS:
+            return jsonify({"error": "US market is disabled; KR only"}), 410
         adapter = _make_adapter()
         return jsonify({
             "sectors": adapter.get_sectors(),
@@ -1173,10 +1110,12 @@ def _apply_aq_fusion(results: list, market: str, top_n: int = 30) -> list:
 
 @app.route("/api/scan")
 def api_scan():
-    """GET /api/scan?market=US&strategy=BALANCED&sector=SaaS → [{...}, ...]"""
+    """GET /api/scan?market=KR&strategy=BALANCED&sector=반도체 → [{...}, ...]"""
     try:
         sector  = request.args.get("sector", "")
-        market  = (request.args.get("market") or "US").upper()
+        market  = (request.args.get("market") or "KR").upper()
+        if market not in _SUPPORTED_MARKETS:
+            return jsonify({"error": "US market is disabled; KR only"}), 410
         strategy = (request.args.get("strategy") or "BALANCED").upper()
         # 기본 0 — 32-bit Python 환경 안정성 우선. ?aq_top=10 또는 env AQ_SCAN_TOP 로 활성화.
         try:
@@ -1216,7 +1155,7 @@ def api_scan():
         adapter = _make_adapter()
         results = []
         warming_in_progress = False
-        if market in ("US", "KR"):
+        if market == "KR":
             # pickle 캐시에서 빠르게 읽기 (동기 yfinance 풀스캔 없음)
             results = adapter.scan_sector(sector, prefer_cache=True, cache_only=True) if sector else adapter.scan_all(prefer_cache=True, cache_only=True)
             if results:
@@ -1344,17 +1283,14 @@ def _wl_db():
 @app.route("/api/watchlist", methods=["GET"])
 def api_watchlist_list():
     """GET /api/watchlist?market=KR|US → ["TICKER", ...]"""
-    market = (request.args.get("market") or "US").upper()
+    market = (request.args.get("market") or "KR").upper()
     with _wl_lock:
         db = _wl_db()
         try:
             tickers = db.list()
         finally:
             db.close()
-    if market == "KR":
-        out = [t for t in tickers if _wl_is_kr(t)]
-    else:
-        out = [t for t in tickers if not _wl_is_kr(t)]
+    out = [t for t in tickers if _wl_is_kr(t)]
     return jsonify(out)
 
 
@@ -1414,8 +1350,10 @@ def api_watchlist_bulk():
 def api_search():
     """GET /api/search?q=rf&market=KR → [{ticker, name}, ...] 이름/티커 부분매칭."""
     q = (request.args.get("q") or "").strip().lower()
-    market = (request.args.get("market") or "US").upper()
+    market = (request.args.get("market") or "KR").upper()
     if not q:
+        return jsonify([])
+    if market not in _SUPPORTED_MARKETS:
         return jsonify([])
     hits = []
     try:
@@ -1436,11 +1374,13 @@ def api_search():
 
 @app.route("/api/ticker/<ticker>")
 def api_ticker(ticker: str):
-    """GET /api/ticker/AAPL?market=US&strategy=BALANCED → {Ticker, TotalScore, ...}"""
+    """GET /api/ticker/005930.KS?market=KR&strategy=BALANCED → {Ticker, TotalScore, ...}"""
     ticker = _validate_ticker(ticker)
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
-    market_arg = (request.args.get("market") or "US").upper()
+    market_arg = (request.args.get("market") or "KR").upper()
+    if market_arg not in _SUPPORTED_MARKETS:
+        return jsonify({"error": "US market is disabled; KR only"}), 410
     strategy_arg = request.args.get("strategy", "BALANCED")
     # ── 응답 캐시 조회 (동일 종목 재오픈 시 즉시 반환) ──
     _td_key = f"{ticker}:{market_arg}:{strategy_arg}"
@@ -1527,9 +1467,7 @@ def api_sentiment(ticker: str):
     ticker = _validate_ticker(ticker)
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
-    market = (request.args.get("market") or "US").upper()
-    if market == "KR":
-        return jsonify({"ok": False, "reason": "kr_not_supported"})
+    return jsonify({"ok": False, "reason": "us_market_disabled"}), 410
 
     # ── 5분 TTL 메모리 캐시: 같은 종목 반복 호출시 yfinance/Finnhub 재호출 회피 ──
     _now = time.time()
@@ -1707,20 +1645,17 @@ def api_peers(ticker: str):
     ticker = _validate_ticker(ticker)
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
-    market = (request.args.get("market") or "US").upper()
+    market = (request.args.get("market") or "KR").upper()
     try:
         limit = max(2, min(8, int(request.args.get("limit", "5"))))
     except (TypeError, ValueError):
         limit = 5
 
-    # US 종목: Finnhub 라이브 우선 (스캔 캐시 stale 회피)
     is_kr = ticker.endswith(".KS") or ticker.endswith(".KQ") or ticker.isdigit()
-    if market == "US" and not is_kr:
-        fh_payload = _peers_from_finnhub(ticker, limit)
-        if fh_payload:
-            return jsonify(fh_payload)
+    if market not in _SUPPORTED_MARKETS or not is_kr:
+        return jsonify({"error": "US market is disabled; KR only"}), 410
 
-    # KR 또는 Finnhub 실패 시 기존 스캔 캐시 폴백
+    # KR 기존 스캔 캐시 폴백
     rows = []
     with _scan_results_cache_lock:
         for strat in ("BALANCED", "AGGRESSIVE", "CONSERVATIVE"):
@@ -2208,7 +2143,9 @@ def api_consensus(ticker: str):
     import urllib.request
     import json as _json
 
-    market = (request.args.get("market") or "US").upper()
+    market = (request.args.get("market") or "KR").upper()
+    if market not in _SUPPORTED_MARKETS:
+        return jsonify({"error": "US market is disabled; KR only"}), 410
     cons_cache_key = f"{ticker}:{market}"
     now = int(time.time())
     with _consensus_cache_lock:
@@ -2298,7 +2235,9 @@ def api_regime(ticker: str):
     ticker = _validate_ticker(ticker)
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
-    market = (request.args.get("market") or "US").upper()
+    market = (request.args.get("market") or "KR").upper()
+    if market not in _SUPPORTED_MARKETS:
+        return jsonify({"error": "US market is disabled; KR only"}), 410
     try:
         from agentquant_signal import get_regime_signal
         payload = get_regime_signal(ticker, market=market)
@@ -2597,7 +2536,9 @@ def api_four_axis(ticker: str):
     ticker = _validate_ticker(ticker)
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
-    market = (request.args.get("market") or "US").upper()
+    market = (request.args.get("market") or "KR").upper()
+    if market not in _SUPPORTED_MARKETS:
+        return jsonify({"error": "US market is disabled; KR only"}), 410
     # 상폐 블록리스트 — US 한정. yfinance 호출 자체 차단으로 로그 노이즈 제거.
     if market == "US":
         try:
@@ -2639,7 +2580,7 @@ def api_dart_news(ticker: str):
     ticker = _validate_ticker(ticker)
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
-    market = (request.args.get("market") or "US").upper()
+    market = (request.args.get("market") or "KR").upper()
     if market != "KR":
         return jsonify({"error": "KR 종목만 지원"}), 400
 
@@ -2788,9 +2729,7 @@ def api_us_insight(ticker: str):
     ticker = _validate_ticker(ticker)
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
-    market = (request.args.get("market") or "US").upper()
-    if market != "US":
-        return jsonify({"error": "US 종목만 지원"}), 400
+    return jsonify({"error": "US market is disabled; KR only"}), 410
 
     result = {
         "news": {}, "holders": {}, "earnings": {},
@@ -2884,6 +2823,8 @@ def api_score_history(ticker: str):
     if not ticker:
         return jsonify({"error": "invalid ticker"}), 400
     market = (request.args.get("market") or "KR").upper()
+    if market not in _SUPPORTED_MARKETS:
+        return jsonify({"error": "US market is disabled; KR only"}), 410
     days = min(int(request.args.get("days") or 30), 90)
     import history as hist_mod
     from datetime import date, timedelta
@@ -2918,24 +2859,17 @@ def api_bucket_stats():
 # SocketIO 초기화 (gunicorn / 직접 실행 모두 대응)
 socketio.init_app(app)
 
-# KR/US 캐시 워밍 시작 (gunicorn import 시점에도 트리거; file-lock으로 중복 방지)
+# KR 캐시 워밍 시작 (gunicorn import 시점에도 트리거; file-lock으로 중복 방지)
 try:
     _start_kr_warmup_once()
 except Exception as _e:
     logging.warning("KR warm-up bootstrap failed: %s", _e)
-try:
-    _start_us_warmup_once()
-except Exception as _e:
-    logging.warning("US warm-up bootstrap failed: %s", _e)
 
 # 검색 인덱스 사전 빌드 (백그라운드) — 첫 검색 요청 시 지연 제거
 def _warmup_search_index():
     try:
         _get_search_idx("KR")
-        _get_search_idx("US")
-        logging.info("[search-idx] pre-built KR=%d US=%d",
-                     len(_SEARCH_IDX.get("KR", [])),
-                     len(_SEARCH_IDX.get("US", [])))
+        logging.info("[search-idx] pre-built KR=%d", len(_SEARCH_IDX.get("KR", [])))
     except Exception as _e:
         logging.warning("search index warmup failed: %s", _e)
 
@@ -2980,7 +2914,7 @@ def _cold_start_live_scan(market: str) -> None:
 
 
 def _cold_start_fill():
-    """서버 기동 직후 파일 잠금 없이 US/KR 캐시를 즉시 채운다.
+    """서버 기동 직후 파일 잠금 없이 KR 캐시를 즉시 채운다.
     파일 잠금 실패로 quick-warm이 건너뛰어질 때도 첫 요청이 캐시 히트하도록 보장.
 
     C2: quick-warm(prefer_cache=True, cache_only=True)으로도 캐시가 비어 있으면
@@ -3008,10 +2942,9 @@ def _cold_start_fill():
         except Exception as _e:
             logging.warning("cold-start-fill %s failed: %s", market, _e)
 
-    # US/KR 병렬 quick-warm — 순차 대비 ~50% 시간 단축
     threads = [
         threading.Thread(target=_fill_market, args=(m,), daemon=True, name=f"cold-fill-{m}")
-        for m in ("KR", "US")
+        for m in ("KR",)
     ]
     for t in threads:
         t.start()
