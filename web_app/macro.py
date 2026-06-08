@@ -120,13 +120,48 @@ def _fetch_yf() -> dict:
     return out
 
 
-# ── 네이버 검색 카드 — 한국/미국 기준금리 스크래핑 ────────────────────
-# 네이버 통합검색 "한국은행 기준금리" / "미국 기준금리" → 중앙은행 기준금리 표 카드.
+# ── 기준금리 스크래핑 ────────────────────────────────────────────────
+# 한국 기준금리: 한국은행 공식 "한국은행 기준금리 추이" 표 우선.
+# 미국 기준금리: 네이버 통합검색 "미국 기준금리" → 중앙은행 기준금리 표 카드.
 # 태그 제거 후 '기준금리 표' 이후 첫 실수 퍼센트를 최신 기준금리로 본다.
 # 미국 Fed funds rate는 범위(예: 4.00~4.25%)로 표기되며, 상단(upper bound)을 선호.
 _TAG_RE = re.compile(r"<[^>]+>")
 _RATE_PCT_RE = re.compile(r"(\d{1,2}\.\d{1,2})\s*%")
 _RATE_RANGE_RE = re.compile(r"(\d{1,2}\.\d{1,2})\s*[~∼\-–]\s*(\d{1,2}\.\d{1,2})\s*%")
+_BOK_BASE_RATE_URL = "https://www.bok.or.kr/portal/singl/baseRate/list.do?menuNo=200676"
+_BOK_TABLE_RATE_RE = re.compile(
+    r"<caption>\s*한국은행\s*기준금리\s*추이\s*</caption>.*?"
+    r"<tbody>\s*<tr>\s*"
+    r"<td[^>]*>\s*\d{4}\s*</td>\s*"
+    r"<td[^>]*>.*?</td>\s*"
+    r"<td[^>]*>\s*(\d{1,2}(?:\.\d{1,2})?)\s*</td>",
+    re.S,
+)
+_BOK_CHART_RATE_RE = re.compile(
+    r'\[\s*["\'](20\d{2}/\d{2}/\d{2})\s*["\']\s*,\s*(\d{1,2}(?:\.\d{1,2})?)\s*\]'
+)
+
+
+def _fetch_bok_base_rate() -> float | None:
+    """한국은행 공식 기준금리 추이 페이지에서 최신 기준금리(%)를 읽는다."""
+    try:
+        req = urllib.request.Request(
+            _BOK_BASE_RATE_URL,
+            headers={"User-Agent": "Mozilla/5.0 scanner-macro"},
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            htm = resp.read().decode("utf-8", "ignore")
+        m = _BOK_TABLE_RATE_RE.search(htm)
+        if m:
+            return _valid("kr_rate", m.group(1))
+
+        pairs = _BOK_CHART_RATE_RE.findall(htm)
+        if pairs:
+            latest = max(pairs, key=lambda p: p[0])
+            return _valid("kr_rate", latest[1])
+    except Exception as e:
+        _LOG.warning("macro: BOK base rate scrape failed: %s", e)
+    return None
 
 
 def _fetch_naver_rate(key: str, query: str) -> float | None:
@@ -160,7 +195,7 @@ def _fetch_naver_rate(key: str, query: str) -> float | None:
 
 
 def _fetch_kr_rate() -> float | None:
-    return _fetch_naver_rate("kr_rate", "한국은행 기준금리")
+    return _fetch_bok_base_rate() or _fetch_naver_rate("kr_rate", "한국은행 기준금리")
 
 
 def _fetch_us_rate() -> float | None:
