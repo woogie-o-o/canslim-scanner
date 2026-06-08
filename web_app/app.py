@@ -5,6 +5,8 @@ engine_adapter.ScanAdapter를 JSON API로 서빙하고 HTML 템플릿을 렌더�
 실행: python web_app/app.py
 접속: http://localhost:5000
 """
+from __future__ import annotations
+
 import sys
 import os
 import io
@@ -390,9 +392,6 @@ def _override_kr_day_chg(results: list) -> list:
     """
     if not results:
         return results
-    from concurrent.futures import ThreadPoolExecutor
-    from naver_finance import get_quote
-
     kr_items = [
         r for r in results
         if isinstance(r, dict) and isinstance(r.get("Ticker"), str)
@@ -402,22 +401,40 @@ def _override_kr_day_chg(results: list) -> list:
         return results
 
     def _fetch(r):
-        try:
-            q = get_quote(r["Ticker"])
-            pct = q.get("change_pct")
-            if pct is not None:
-                r["DayChg"] = float(pct) / 100.0
-            # 현재가도 실시간 반영 — pickle 캐시의 어제 종가를 오늘 시세로 교체
-            _p = q.get("price")
-            if _p is not None and _p > 0:
-                r["Price"] = float(_p)
-        except Exception as _e:
-            logging.debug("silent except (app.py): %s", _e)
-        return r
+        return _overlay_kr_realtime_quote(r)
 
+    from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as ex:
         list(ex.map(_fetch, kr_items))
     return results
+
+
+def _overlay_kr_realtime_quote(row: dict) -> dict:
+    """단일 KR 결과의 Price/DayChg를 네이버 현재가로 보정한다."""
+    if not isinstance(row, dict):
+        return row
+    ticker = str(row.get("Ticker") or "")
+    if not ticker.replace(".KS", "").replace(".KQ", "").isdigit():
+        return row
+    try:
+        from naver_finance import get_quote
+        q = get_quote(ticker)
+        pct = q.get("change_pct")
+        if pct is not None:
+            row["DayChg"] = float(pct) / 100.0
+            row["_DayChgPct"] = float(pct)
+        price = q.get("price")
+        if price is not None and price > 0:
+            row["Price"] = float(price)
+            target = row.get("TargetPrice")
+            try:
+                if target:
+                    row["TargetUpside"] = (float(target) - row["Price"]) / row["Price"]
+            except (TypeError, ValueError, ZeroDivisionError):
+                pass
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+    return row
 
 
 def _render_static_template(name: str, replacements: dict[str, str] | None = None) -> Response:
@@ -1434,7 +1451,9 @@ def api_ticker(ticker: str):
                 fresh = dict(_td_cached["data"])
                 _ol_annotate([fresh])
             except Exception:
-                fresh = _td_cached["data"]
+                fresh = dict(_td_cached["data"])
+            if market_arg == "KR":
+                _overlay_kr_realtime_quote(fresh)
             return jsonify(fresh)
     try:
         adapter = _make_adapter()
@@ -1457,6 +1476,7 @@ def api_ticker(ticker: str):
                         result["Name"] = fixed
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
+            _overlay_kr_realtime_quote(result)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
         else:
