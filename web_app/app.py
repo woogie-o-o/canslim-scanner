@@ -432,6 +432,9 @@ def _overlay_kr_realtime_quote(row: dict) -> dict:
                     row["TargetUpside"] = (float(target) - row["Price"]) / row["Price"]
             except (TypeError, ValueError, ZeroDivisionError):
                 pass
+        market_cap_oku = q.get("market_cap_oku")
+        if market_cap_oku is not None and market_cap_oku > 0:
+            row["_MarketCap"] = float(market_cap_oku) * 1e8
     except Exception as _e:
         logging.debug("silent except (app.py): %s", _e)
     return row

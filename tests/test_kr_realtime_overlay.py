@@ -28,13 +28,18 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         }
         with patch(
             "naver_finance.get_quote",
-            return_value={"price": 301000.0, "change_pct": -8.51},
+            return_value={
+                "price": 301000.0,
+                "change_pct": -8.51,
+                "market_cap_oku": 17568067.0,
+            },
         ):
             app._overlay_kr_realtime_quote(row)
 
         self.assertEqual(row["Price"], 301000.0)
         self.assertEqual(row["DayChg"], -0.0851)
         self.assertEqual(row["_DayChgPct"], -8.51)
+        self.assertEqual(row["_MarketCap"], 17568067.0 * 1e8)
         self.assertAlmostEqual(row["TargetUpside"], (426250.0 - 301000.0) / 301000.0)
 
     def test_overlay_ignores_non_kr_ticker(self) -> None:
