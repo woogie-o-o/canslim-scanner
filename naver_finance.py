@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import html as _html
+import json
 import re
 import urllib.request
 from typing import Any
@@ -47,6 +48,13 @@ def _fetch(url: str) -> str:
     return raw.decode("utf-8", errors="ignore")
 
 
+def _fetch_json(url: str) -> Any:
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=5) as r:
+        raw = r.read()
+    return json.loads(raw.decode("utf-8"))
+
+
 def _normalize_code(ticker: str) -> str | None:
     """KR 6자리 코드 추출. 'AAPL' 같은 미국 티커는 None."""
     s = str(ticker or "").strip().upper()
@@ -54,6 +62,50 @@ def _normalize_code(ticker: str) -> str | None:
     if s.isdigit() and len(s) == 6:
         return s
     return None
+
+
+def _parse_market_cap_oku(value: str) -> float | None:
+    raw = _strip(str(value or "")).replace(",", "").replace("억원", "억")
+    cho = re.search(r"([\d.]+)\s*조", raw)
+    oku = re.search(r"([\d.]+)\s*억", raw)
+    total_oku = 0.0
+    if cho:
+        total_oku += float(cho.group(1)) * 10000
+    if oku:
+        total_oku += float(oku.group(1))
+    return total_oku if total_oku > 0 else None
+
+
+def _apply_mobile_quote_overrides(out: dict[str, Any], code: str) -> None:
+    try:
+        prices = _fetch_json(f"https://m.stock.naver.com/api/stock/{code}/price?pageSize=1&page=1")
+        if isinstance(prices, list) and prices:
+            latest = prices[0]
+            price = _to_float(str(latest.get("closePrice") or ""))
+            change = _to_float(str(latest.get("compareToPreviousClosePrice") or ""))
+            change_pct = _to_float(str(latest.get("fluctuationsRatio") or ""))
+            volume = latest.get("accumulatedTradingVolume")
+            if price is not None:
+                out["price"] = price
+            if change is not None:
+                out["change"] = change
+            if change_pct is not None:
+                out["change_pct"] = change_pct
+            if volume is not None:
+                out["volume"] = _to_float(str(volume))
+    except Exception:
+        pass
+
+    try:
+        info = _fetch_json(f"https://m.stock.naver.com/api/stock/{code}/integration")
+        for item in info.get("totalInfos", []) if isinstance(info, dict) else []:
+            if item.get("code") == "marketValue":
+                market_cap_oku = _parse_market_cap_oku(item.get("value", ""))
+                if market_cap_oku is not None:
+                    out["market_cap_oku"] = market_cap_oku
+                break
+    except Exception:
+        pass
 
 
 def get_quote(ticker: str) -> dict[str, Any]:
@@ -125,16 +177,9 @@ def get_quote(ticker: str) -> dict[str, Any]:
     # 시가총액 (예: "382조 6,549억원")
     m = re.search(r"시가총액[^<]*</th>.*?<em[^>]*>([^<]+)</em>", html, re.S)
     if m:
-        raw = _strip(m.group(1)).replace(",", "")
-        cho = re.search(r"(\d+)\s*조", raw)
-        oku = re.search(r"(\d+)\s*억", raw)
-        total_oku = 0.0
-        if cho:
-            total_oku += float(cho.group(1)) * 10000
-        if oku:
-            total_oku += float(oku.group(1))
-        if total_oku > 0:
-            out["market_cap_oku"] = total_oku
+        market_cap_oku = _parse_market_cap_oku(m.group(1))
+        if market_cap_oku is not None:
+            out["market_cap_oku"] = market_cap_oku
 
     # PER / PBR — 우측 투자정보 박스가 렌더한 <em id="_per">42.81</em>.
     # (구 regex는 <em>…</em> 인접 가정이 깨져 항상 None을 반환했다.)
@@ -152,6 +197,7 @@ def get_quote(ticker: str) -> dict[str, Any]:
     if m:
         out["foreign_pct"] = _to_float(m.group(1))
 
+    _apply_mobile_quote_overrides(out, code)
     return out
 
 
