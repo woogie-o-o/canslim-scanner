@@ -1739,11 +1739,14 @@ def api_ticker(ticker: str):
     if market_arg not in _SUPPORTED_MARKETS:
         return jsonify({"error": "US market is disabled; KR only"}), 410
     strategy_arg = request.args.get("strategy", "BALANCED")
+    force_refresh = request.args.get("refresh") in ("1", "true", "yes")
     # ── 응답 캐시 조회 (동일 종목 재오픈 시 즉시 반환) ──
     _td_key = f"{ticker}:{market_arg}:{strategy_arg}"
     _td_now = int(time.time())
     with _ticker_detail_cache_lock:
-        _td_cached = _ticker_detail_cache.get(_td_key)
+        if force_refresh:
+            _ticker_detail_cache.pop(_td_key, None)
+        _td_cached = None if force_refresh else _ticker_detail_cache.get(_td_key)
         if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
             # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
             fresh = dict(_td_cached["data"])
