@@ -29,6 +29,10 @@ SETTINGS_SCHEMA: dict[str, list[dict[str, str]]] = {
         {"key": "NAVER_CLIENT_ID",      "label": "Client ID",       "type": "password"},
         {"key": "NAVER_CLIENT_SECRET",  "label": "Client Secret",   "type": "password"},
     ],
+    "Toss증권 Open API": [
+        {"key": "TOSSINVEST_CLIENT_ID",     "label": "Client ID",       "type": "password"},
+        {"key": "TOSSINVEST_CLIENT_SECRET", "label": "Client Secret",   "type": "password"},
+    ],
     "4축 분석": [
         {"key": "FOUR_AXIS_FETCH_TIMEOUT_SEC", "label": "데이터 조회 제한시간(초)", "type": "text"},
         {"key": "FOUR_AXIS_INFO_TIMEOUT_SEC",  "label": "종목명 조회 제한시간(초)", "type": "text"},
@@ -113,6 +117,9 @@ def get_connection_status(data: dict[str, str]) -> dict[str, dict[str, Any]]:
     def configured(key: str) -> bool:
         return bool(data.get(key) or os.environ.get(key))
 
+    def configured_any(*keys: str) -> bool:
+        return any(configured(key) for key in keys)
+
     # Telegram
     tg_ok = configured("TELEGRAM_BOT_TOKEN") and configured("TELEGRAM_CHAT_ID")
     status["Telegram"] = {"connected": tg_ok}
@@ -123,6 +130,15 @@ def get_connection_status(data: dict[str, str]) -> dict[str, dict[str, Any]]:
     # Naver
     naver_ok = configured("NAVER_CLIENT_ID") and configured("NAVER_CLIENT_SECRET")
     status["Naver"] = {"connected": naver_ok}
+
+    # Toss Securities Open API
+    toss_id_ok = configured_any("TOSSINVEST_CLIENT_ID", "TOSS_INVEST_CLIENT_ID", "TOSS_CLIENT_ID")
+    toss_secret_ok = configured_any(
+        "TOSSINVEST_CLIENT_SECRET",
+        "TOSS_INVEST_CLIENT_SECRET",
+        "TOSS_CLIENT_SECRET",
+    )
+    status["Toss증권"] = {"connected": toss_id_ok and toss_secret_ok}
 
     # Finnhub
     status["Finnhub"] = {"connected": configured("FINNHUB_API_KEY")}

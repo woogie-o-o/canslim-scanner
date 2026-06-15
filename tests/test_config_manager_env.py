@@ -21,12 +21,15 @@ class TestConfigManagerEnv(unittest.TestCase):
             "DART_API_KEY": "dart-key",
             "NAVER_CLIENT_ID": "naver-id",
             "NAVER_CLIENT_SECRET": "naver-secret",
+            "TOSSINVEST_CLIENT_ID": "toss-id",
+            "TOSSINVEST_CLIENT_SECRET": "toss-secret",
         }
         with patch.dict(os.environ, env, clear=False):
             status = config_manager.get_connection_status({})
 
         self.assertTrue(status["DART"]["connected"])
         self.assertTrue(status["Naver"]["connected"])
+        self.assertTrue(status["Toss증권"]["connected"])
 
     def test_config_values_override_empty_environment(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
@@ -34,10 +37,13 @@ class TestConfigManagerEnv(unittest.TestCase):
                 "DART_API_KEY": "dart-key",
                 "NAVER_CLIENT_ID": "naver-id",
                 "NAVER_CLIENT_SECRET": "naver-secret",
+                "TOSSINVEST_CLIENT_ID": "toss-id",
+                "TOSSINVEST_CLIENT_SECRET": "toss-secret",
             })
 
         self.assertTrue(status["DART"]["connected"])
         self.assertTrue(status["Naver"]["connected"])
+        self.assertTrue(status["Toss증권"]["connected"])
 
 
 if __name__ == "__main__":

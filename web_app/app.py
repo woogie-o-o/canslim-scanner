@@ -441,24 +441,41 @@ def _annotate_moats(results: list, force: bool = False):
     return results
 
 
+def _kr_quote_symbol(ticker: str) -> str | None:
+    raw = str(ticker or "").strip().upper()
+    raw = raw.replace(".KS", "").replace(".KQ", "")
+    if raw.isdigit():
+        return raw.zfill(6)
+    return None
+
+
 def _override_kr_day_chg(results: list) -> list:
-    """KR 종목 DayChg를 네이버 금융 실시간 등락률로 덮어쓴다.
+    """KR 종목 Price/DayChg를 실시간 시세로 보정한다.
 
     yfinance KR 일봉이 장중에 전일 종가 기준으로 고착되는 문제 회피.
-    네이버 change_pct는 퍼센트 단위 → DayChg 저장은 fraction이므로 /100.
+    Toss가 설정되어 있으면 현재가는 배치로 가져오고, 네이버 change_pct는
+    퍼센트 단위 → DayChg 저장은 fraction이므로 /100.
     """
     if not results:
         return results
     kr_items = [
         r for r in results
         if isinstance(r, dict) and isinstance(r.get("Ticker"), str)
-        and r["Ticker"].replace(".KS", "").replace(".KQ", "").isdigit()
+        and _kr_quote_symbol(r["Ticker"])
     ]
     if not kr_items:
         return results
+    toss_quotes = {}
+    try:
+        import toss_invest
+        toss_quotes = toss_invest.get_prices([r["Ticker"] for r in kr_items])
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
 
     def _fetch(r):
-        return _overlay_kr_realtime_quote(r)
+        symbol = _kr_quote_symbol(r.get("Ticker"))
+        toss_quote = toss_quotes.get(symbol) if symbol else None
+        return _overlay_kr_realtime_quote(r, toss_quote=toss_quote, fetch_toss=False)
 
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as ex:
@@ -466,23 +483,52 @@ def _override_kr_day_chg(results: list) -> list:
     return results
 
 
-def _overlay_kr_realtime_quote(row: dict) -> dict:
-    """단일 KR 결과의 Price/DayChg를 네이버 현재가로 보정한다."""
+def _overlay_kr_realtime_quote(row: dict, toss_quote: dict | None = None, fetch_toss: bool = True) -> dict:
+    """단일 KR 결과의 Price/DayChg를 실시간 시세로 보정한다.
+
+    Toss Open API가 설정되어 있으면 현재가를 먼저 사용한다. Toss가 제공하지
+    않는 등락률/시총은 기존 Naver 보정값으로 채운다.
+    """
     if not isinstance(row, dict):
         return row
     ticker = str(row.get("Ticker") or "")
-    if not ticker.replace(".KS", "").replace(".KQ", "").isdigit():
+    if not _kr_quote_symbol(ticker):
         return row
+    toss_q = toss_quote
+    if fetch_toss and toss_q is None:
+        try:
+            import toss_invest
+            toss_q = toss_invest.get_quote(ticker)
+        except Exception as _e:
+            logging.debug("silent except (app.py): %s", _e)
+    naver_q = {}
     try:
         from naver_finance import get_quote
-        q = get_quote(ticker)
+        naver_q = get_quote(ticker) or {}
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+    try:
+        q = naver_q
         pct = q.get("change_pct")
         if pct is not None:
             row["DayChg"] = float(pct) / 100.0
             row["_DayChgPct"] = float(pct)
-        price = q.get("price")
+        price_source = ""
+        price_ts = None
+        price = (toss_q or {}).get("price") if isinstance(toss_q, dict) else None
+        if price is not None and price > 0:
+            price_source = str((toss_q or {}).get("source") or "tossinvest")
+            price_ts = (toss_q or {}).get("timestamp")
+        else:
+            price = q.get("price")
+            if price is not None and price > 0:
+                price_source = str(q.get("source") or "finance.naver.com")
         if price is not None and price > 0:
             row["Price"] = float(price)
+            if price_source:
+                row["_QuoteSource"] = price_source
+            if price_ts:
+                row["_QuoteTimestamp"] = price_ts
             target = row.get("TargetPrice")
             try:
                 if target:
