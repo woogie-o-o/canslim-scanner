@@ -2437,13 +2437,14 @@ function _renderEarningsSummary(d, cardId = 'detail-earnings-card', wrapId = 'de
   if (!hasAnyFinance) { card.style.display = 'none'; return; }
 
   const metrics = [];
+  const epsBasis = d._EPSGrowthBasis || '최근 분기 EPS/순이익 YoY';
 
   if (d._EPSGrowth != null && d._EPSGrowth !== 0) {
     const v = d._EPSGrowth * 100;
-    metrics.push(['EPS 성장률', (v >= 0 ? '+' : '') + fmt(v, 1) + '%',
-      v >= 25 ? 'var(--success)' : v < 0 ? 'var(--destructive)' : null, '분기 순이익 전년비']);
+    metrics.push([epsBasis, (v >= 0 ? '+' : '') + fmt(v, 1) + '%',
+      v >= 25 ? 'var(--success)' : v < 0 ? 'var(--destructive)' : null, epsBasis]);
   } else {
-    metrics.push(['EPS 성장률', '—', null, '분기 순이익 전년비']);
+    metrics.push([epsBasis, '—', null, epsBasis]);
   }
 
   if (d._ROE) {
@@ -3763,6 +3764,7 @@ function _renderFinanceTab(d) {
 
   const roeRaw = d._ROE ? fmt(d._ROE * 100, 1) + '%' + _roeLbl(d._ROE) : '—';
   const epsRaw = (d._EPSGrowth != null && d._EPSGrowth !== 0) ? (d._EPSGrowth >= 0 ? '+' : '') + fmt(d._EPSGrowth*100,1)+'%' + _epsLbl(d._EPSGrowth) : '—';
+  const epsBasis = d._EPSGrowthBasis || '최근 분기 EPS/순이익 YoY';
   const perLbl = d._PER ? (d._PER < 15 ? ' · 저평가 가능' : d._PER > 40 ? ' · 고평가 주의' : '') : '';
   const pbrLbl = d._PBR ? (d._PBR < 1 ? ' · 자산 대비 저평가' : d._PBR > 5 ? ' · 고평가' : '') : '';
   const omLbl  = d._OperatingMargin ? (d._OperatingMargin > 0.20 ? ' · 우수' : d._OperatingMargin > 0.10 ? ' · 양호' : d._OperatingMargin > 0 ? ' · 보통' : ' · 손실') : '';
@@ -3775,7 +3777,7 @@ function _renderFinanceTab(d) {
     ['PER',       d._PER   ? fmt(d._PER, 1) + perLbl  : '—', '주가÷순이익 · 15↓ 저평가 · 40↑ 고평가',    d._PER && d._PER < 15 ? 'var(--success)' : d._PER > 40 ? 'var(--destructive)' : null],
     ['PBR',       d._PBR   ? fmt(d._PBR, 2) + pbrLbl  : '—', '주가÷순자산 · 1↓ 자산 대비 저렴',           null],
     ['ROE',       roeRaw,                                      '자기자본이익률 · 17%↑ 오닐 기준 합격',     d._ROE > 0.15 ? 'var(--success)' : null],
-    ['EPS 성장률',epsRaw,                                      '분기 순이익 전년비 · 25%↑ 성장주 기준',    d._EPSGrowth > 0 ? 'var(--success)' : 'var(--destructive)'],
+    [epsBasis,    epsRaw,                                      epsBasis + ' · 25%↑ 성장주 기준',    d._EPSGrowth > 0 ? 'var(--success)' : 'var(--destructive)'],
     ['EPS 가속',  epsAccelRaw,                                 '전분기 대비 성장 가속 중인가 (CAN SLIM C원칙)', epsAccelCol],
     ['영업이익률',d._OperatingMargin ? fmt(d._OperatingMargin*100,1)+'%' + omLbl : '—', '매출 대비 영업이익 · 20%↑ 우수',  null],
   ];

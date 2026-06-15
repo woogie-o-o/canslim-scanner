@@ -132,6 +132,7 @@ except Exception:
     _urllib3 = None
     _NAVER_HTTP = None
 import valuation_engine
+from earnings_growth import select_canslim_c_growth
 from entry_pricing import strong_entry_floor as _strong_entry_floor
 
 # ── 세이프 모드 (공공장소용 — config.json "safe_mode": true) ──────────────
@@ -1603,6 +1604,7 @@ class DataCache:
     - 파일 해시를 별도로 저장하여 오염된 캐시를 자동 폐기합니다.
     - max_age_minutes 를 초과한 항목은 만료 처리합니다.
     """
+    CACHE_SCHEMA = 2  # v2: CAN SLIM C는 최근 분기 YoY 우선
     REQUIRED_KEYS = {"Ticker", "Name", "Price", "TotalScore", "Signal", "_AvgVol20"}
     NAME_FIXUPS = {
         "LITE": "루멘텀"}
@@ -1664,6 +1666,10 @@ class DataCache:
                 logging.warning(f"[Cache] 무결성 실패: {ticker}")
                 os.remove(path)
                 return None
+            if data.get("_CacheSchema") != self.CACHE_SCHEMA:
+                logging.info(f"[Cache] 스키마 만료: {ticker}")
+                os.remove(path)
+                return None
             base_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
             fixed_name = self.NAME_FIXUPS.get(base_ticker)
             if fixed_name and data.get("Name") != fixed_name:
@@ -1681,6 +1687,9 @@ class DataCache:
         path = self._path(ticker)
         tmp = path + ".tmp"
         try:
+            if isinstance(data, dict):
+                data = dict(data)
+                data["_CacheSchema"] = self.CACHE_SCHEMA
             with open(tmp, "wb") as f:
                 pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
             os.replace(tmp, path)
@@ -3078,7 +3087,7 @@ class WallStreetQuantStrategies:
           • EPS 성장 < 0                  → 강력 페널티 (Fail-Safe 트리거)
 
         반환값:
-          eps_growth:       연간 EPS 성장률
+          eps_growth:       CAN SLIM C 기준 성장률(최근 분기 YoY 우선)
           eps_acceleration: True/False (3분기 연속 가속)
           c_score:          C 원칙 원점수
           a_score_bonus:    A 원칙 추가 보너스
@@ -3095,44 +3104,24 @@ class WallStreetQuantStrategies:
             "accel_quarters":   0,       # 연속 가속 분기 수
             "fail_safe_eps":    False,   # EPS < 0 → Ceiling 트리거
             "eps_src":          "",      # EPS 성장률 출처 (디버그/표시용)
+            "eps_basis":        "",      # 화면 표시용 기준 설명
             "data_missing":     False,   # True → 모든 소스 부재 (진짜 데이터 부족)
         }
         try:
-            rg = safe_get(info.get("revenueGrowth"), 0.0)
-
-            # ── [C] 분기 EPS 성장률 소스 폴백 체인 ──────────────────
-            # yfinance info 의 earningsGrowth(연간)는 KR·ADR·소형주에서
-            # 누락이 잦다. C 원칙은 본래 '분기 실적'이므로 아래 우선순위로
-            # 실데이터를 끌어와 '데이터 부족' 오표기를 차단한다.
-            #   1) earningsGrowth          (연간 EPS — 기존 동작 보존)
-            #   2) earningsQuarterlyGrowth (분기 YoY 순이익 — C 원칙 정통)
-            #   3) forwardEps vs trailingEps 파생 성장률
-            #   4) revenueGrowth 보수적 프록시 (0.6× 할인)
-            eg  = safe_get(info.get("earningsGrowth"), None)
-            src = "annual_eps"
-            if eg is None:
-                eg = safe_get(info.get("earningsQuarterlyGrowth"), None)
-                src = "quarterly_eps"
-            if eg is None:
-                fe = safe_get(info.get("forwardEps"),  None)
-                te = safe_get(info.get("trailingEps"), None)
-                if fe is not None and te is not None and abs(te) > 1e-9:
-                    eg  = (fe - te) / abs(te)
-                    src = "forward_vs_trailing_eps"
-            if eg is None and rg not in (None, 0.0):
-                # 매출 성장만 확보 — 순이익 레버리지 보수 추정(0.6×)
-                eg  = rg * 0.6
-                src = "revenue_proxy"
+            growth = select_canslim_c_growth(info)
+            rg = growth["rev_growth"]
+            eg = growth["eps_growth"]
 
             result["rev_growth"] = rg
 
             # 모든 소스 부재 → 진짜 데이터 부족 (페널티 없음)
-            if eg is None:
+            if growth["data_missing"]:
                 result["data_missing"] = True
                 return result
 
             result["eps_growth"] = eg
-            result["eps_src"]    = src
+            result["eps_src"]    = growth["eps_src"]
+            result["eps_basis"]  = growth["eps_basis"]
 
             # Fail-Safe 트리거
             if eg < 0:
@@ -6278,7 +6267,7 @@ class QuantNexusApp:
                  None if earn.get("data_missing") else round(earn["c_score"], 1),
                  "실적 데이터가 아직 공개되지 않았어요. (분기 보고 전이거나 공시 미반영)"
                  if earn.get("data_missing") else
-                 f"지난 분기 순이익이 {earn['eps_growth']:+.0%} 변동했어요. "
+                 f"{earn.get('eps_basis', 'EPS 성장률')}이 {earn['eps_growth']:+.0%} 변동했어요. "
                  f"{'연속 성장 중이에요' if earn.get('eps_acceleration') else '성장 추세예요' if earn.get('trend') == 'up' else '주춤하고 있어요'}."),
 
                 ("[A] 연간실적 ROE 기준 (Annual EPS)",
@@ -6461,7 +6450,8 @@ class QuantNexusApp:
             try:
                 _detail_inputs = {
                 "[C]": (c_raw, f"_n01({c_raw:.1f}, best=60)",
-                    f"• EPS 성장률: {earn['eps_growth']:+.0%}\n"
+                    f"• 기준: {earn.get('eps_basis', 'EPS 성장률')}\n"
+                    f"• 성장률: {earn['eps_growth']:+.0%}\n"
                     f"• 가속 성장: {'예 ✓' if earn.get('eps_acceleration') else '아니오'}\n"
                     f"• 추세: {earn.get('trend', '-')}"),
                 "[A]": (a_raw, f"_n({a_raw:.1f})",
@@ -6856,6 +6846,8 @@ class QuantNexusApp:
                 "Sector":           _sector_for_nomura or (info.get("industry", "") or info.get("sector", "")),
                 # NH 필터용 원시 재무 데이터
                 "_EPSGrowth":       earn["eps_growth"],
+                "_EPSGrowthSource": earn.get("eps_src", ""),
+                "_EPSGrowthBasis":  earn.get("eps_basis", ""),
                 "_ROE":             ff["roe"],
                 "_PBR":             safe_get(info.get("priceToBook"), 0),
                 "_PER":             safe_get(info.get("trailingPE"), 0),
