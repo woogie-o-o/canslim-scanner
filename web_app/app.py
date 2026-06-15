@@ -573,8 +573,10 @@ def _overlay_kr_realtime_quote(
             row["_MarketCap"] = float(market_cap_oku) * 1e8
         if _quote_debug_enabled():
             row["_TossConfigured"] = bool(toss_configured)
-            if toss_error:
-                row["_TossError"] = str(toss_error)[:240]
+            row["_TossError"] = str(toss_error)[:240] if toss_error else ""
+        else:
+            row.pop("_TossConfigured", None)
+            row.pop("_TossError", None)
     except Exception as _e:
         logging.debug("silent except (app.py): %s", _e)
     return row
