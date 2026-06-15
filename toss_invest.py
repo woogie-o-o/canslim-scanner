@@ -22,6 +22,7 @@ _SESSION = requests.Session()
 _TOKEN_LOCK = threading.Lock()
 _TOKEN: str | None = None
 _TOKEN_EXP: float = 0.0
+_LAST_ERROR: str = ""
 
 
 def _env(*names: str) -> str:
@@ -48,6 +49,28 @@ def _credentials() -> tuple[str, str]:
     return client_id, client_secret
 
 
+def _set_last_error(message: str) -> None:
+    global _LAST_ERROR
+    _LAST_ERROR = str(message or "")[:240]
+
+
+def get_last_error() -> str:
+    return _LAST_ERROR
+
+
+def _http_error(label: str, resp) -> str:
+    detail = ""
+    try:
+        payload = resp.json() or {}
+        if isinstance(payload, dict):
+            parts = [payload.get("error"), payload.get("error_description"), payload.get("code"), payload.get("message")]
+            detail = " ".join(str(p).strip() for p in parts if p)
+    except Exception:
+        detail = ""
+    status = getattr(resp, "status_code", "unknown")
+    return f"{label}_http_{status}" + (f": {detail[:160]}" if detail else "")
+
+
 def is_available() -> bool:
     client_id, client_secret = _credentials()
     return bool(client_id and client_secret)
@@ -67,6 +90,7 @@ def _request(method: str, path: str, **kwargs):
 def _access_token(force: bool = False) -> str | None:
     global _TOKEN, _TOKEN_EXP
     if not is_available():
+        _set_last_error("credentials_missing")
         return None
     now = time.time()
     with _TOKEN_LOCK:
@@ -74,20 +98,27 @@ def _access_token(force: bool = False) -> str | None:
             return _TOKEN
 
         client_id, client_secret = _credentials()
-        resp = _request(
-            "POST",
-            TOKEN_PATH,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            data={
-                "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_secret": client_secret,
-            },
-        )
+        try:
+            resp = _request(
+                "POST",
+                TOKEN_PATH,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                },
+            )
+        except requests.RequestException as exc:
+            _set_last_error(f"token_request_error: {exc.__class__.__name__}")
+            raise
+        if resp.status_code >= 400:
+            _set_last_error(_http_error("token", resp))
         resp.raise_for_status()
         data = resp.json() or {}
         token = str(data.get("access_token") or "").strip()
         if not token:
+            _set_last_error("token_missing")
             return None
         try:
             expires_in = float(data.get("expires_in") or 3600)
@@ -95,6 +126,7 @@ def _access_token(force: bool = False) -> str | None:
             expires_in = 3600.0
         _TOKEN = token
         _TOKEN_EXP = now + max(60.0, expires_in)
+        _set_last_error("")
         return _TOKEN
 
 
@@ -122,7 +154,11 @@ def _authed_get(path: str, params: dict[str, str]):
     if not token:
         return None
     headers = {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-    resp = _request("GET", path, headers=headers, params=params)
+    try:
+        resp = _request("GET", path, headers=headers, params=params)
+    except requests.RequestException as exc:
+        _set_last_error(f"prices_request_error: {exc.__class__.__name__}")
+        raise
     if resp.status_code == 401:
         token = _access_token(force=True)
         if not token:
@@ -136,8 +172,12 @@ def _authed_get(path: str, params: dict[str, str]):
             wait = 0.5
         time.sleep(wait)
         resp = _request("GET", path, headers=headers, params=params)
+    if resp.status_code >= 400:
+        _set_last_error(_http_error("prices", resp))
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
+    _set_last_error("")
+    return data
 
 
 def get_prices(symbols: Iterable[str]) -> dict[str, dict[str, Any]]:
@@ -153,7 +193,10 @@ def get_prices(symbols: Iterable[str]) -> dict[str, dict[str, Any]]:
         if s and s not in seen:
             normalized.append(s)
             seen.add(s)
-    if not normalized or not is_available():
+    if not normalized:
+        return {}
+    if not is_available():
+        _set_last_error("credentials_missing")
         return {}
 
     out: dict[str, dict[str, Any]] = {}

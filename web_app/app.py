@@ -449,6 +449,13 @@ def _kr_quote_symbol(ticker: str) -> str | None:
     return None
 
 
+def _quote_debug_enabled() -> bool:
+    try:
+        return request.args.get("quote_debug") == "1"
+    except RuntimeError:
+        return False
+
+
 def _override_kr_day_chg(results: list) -> list:
     """KR 종목 Price/DayChg를 실시간 시세로 보정한다.
 
@@ -466,16 +473,27 @@ def _override_kr_day_chg(results: list) -> list:
     if not kr_items:
         return results
     toss_quotes = {}
+    toss_configured = None
+    toss_error = ""
     try:
         import toss_invest
+        toss_configured = toss_invest.is_available()
         toss_quotes = toss_invest.get_prices([r["Ticker"] for r in kr_items])
+        toss_error = toss_invest.get_last_error()
     except Exception as _e:
+        toss_error = str(_e.__class__.__name__)
         logging.debug("silent except (app.py): %s", _e)
 
     def _fetch(r):
         symbol = _kr_quote_symbol(r.get("Ticker"))
         toss_quote = toss_quotes.get(symbol) if symbol else None
-        return _overlay_kr_realtime_quote(r, toss_quote=toss_quote, fetch_toss=False)
+        return _overlay_kr_realtime_quote(
+            r,
+            toss_quote=toss_quote,
+            fetch_toss=False,
+            toss_configured=toss_configured,
+            toss_error=toss_error,
+        )
 
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as ex:
@@ -483,7 +501,13 @@ def _override_kr_day_chg(results: list) -> list:
     return results
 
 
-def _overlay_kr_realtime_quote(row: dict, toss_quote: dict | None = None, fetch_toss: bool = True) -> dict:
+def _overlay_kr_realtime_quote(
+    row: dict,
+    toss_quote: dict | None = None,
+    fetch_toss: bool = True,
+    toss_configured: bool | None = None,
+    toss_error: str = "",
+) -> dict:
     """단일 KR 결과의 Price/DayChg를 실시간 시세로 보정한다.
 
     Toss Open API가 설정되어 있으면 현재가를 먼저 사용한다. Toss가 제공하지
@@ -498,8 +522,11 @@ def _overlay_kr_realtime_quote(row: dict, toss_quote: dict | None = None, fetch_
     if fetch_toss and toss_q is None:
         try:
             import toss_invest
+            toss_configured = toss_invest.is_available()
             toss_q = toss_invest.get_quote(ticker)
+            toss_error = toss_invest.get_last_error()
         except Exception as _e:
+            toss_error = str(_e.__class__.__name__)
             logging.debug("silent except (app.py): %s", _e)
     naver_q = {}
     try:
@@ -538,6 +565,10 @@ def _overlay_kr_realtime_quote(row: dict, toss_quote: dict | None = None, fetch_
         market_cap_oku = q.get("market_cap_oku")
         if market_cap_oku is not None and market_cap_oku > 0:
             row["_MarketCap"] = float(market_cap_oku) * 1e8
+        if _quote_debug_enabled():
+            row["_TossConfigured"] = bool(toss_configured)
+            if toss_error:
+                row["_TossError"] = str(toss_error)[:240]
     except Exception as _e:
         logging.debug("silent except (app.py): %s", _e)
     return row
