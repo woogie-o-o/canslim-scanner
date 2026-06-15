@@ -593,9 +593,16 @@ class ScanAdapter:
             result[translated_cat] = [sub_kr.get(s, s) for s in subsectors.keys()]
         return result
 
-    def analyze_ticker(self, ticker: str, *, prefer_cache: bool = False, cache_only: bool = False) -> dict | None:
+    def analyze_ticker(
+        self,
+        ticker: str,
+        *,
+        prefer_cache: bool = False,
+        cache_only: bool = False,
+        force_refresh: bool = False,
+    ) -> dict | None:
         """단일 종목 분석 — 캐시 우선/캐시 전용 모드를 지원한다."""
-        if prefer_cache:
+        if prefer_cache and not force_refresh:
             # _analyze_ticker(quant_nexus_v20.py:4684)와 동일한 dated 키 포맷.
             # 키 포맷 불일치 시 cache_only 분기에서 종목이 대량 누락되어
             # /api/scan 이 일부 universe만 반환하던 버그를 잡는다.
@@ -609,7 +616,12 @@ class ScanAdapter:
                     return apply_to_row(cached)
             if cache_only:
                 return None
-        result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
+        prev_force = getattr(self, "_force_refresh", False)
+        self._force_refresh = bool(force_refresh)
+        try:
+            result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
+        finally:
+            self._force_refresh = prev_force
         return apply_to_row(result) if result else result
 
     def scan_sector(self, sector: str, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "8")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:

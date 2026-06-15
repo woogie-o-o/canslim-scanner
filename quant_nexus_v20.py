@@ -1604,7 +1604,7 @@ class DataCache:
     - 파일 해시를 별도로 저장하여 오염된 캐시를 자동 폐기합니다.
     - max_age_minutes 를 초과한 항목은 만료 처리합니다.
     """
-    CACHE_SCHEMA = 2  # v2: CAN SLIM C는 최근 분기 YoY 우선
+    CACHE_SCHEMA = 3  # v3: CAN SLIM C 분기 YoY 우선 + 표시 문구 정리
     REQUIRED_KEYS = {"Ticker", "Name", "Price", "TotalScore", "Signal", "_AvgVol20"}
     NAME_FIXUPS = {
         "LITE": "루멘텀"}
@@ -5286,8 +5286,9 @@ class QuantNexusApp:
             # 날짜 포함 캐시 키 — 날짜가 바뀌면 자동으로 새 스캔 (어제 DayChg 고착 방지)
             _today = datetime.now().strftime("%Y%m%d")
             strategy_key = f"{ticker}__{self._scan_strategy}__{_today}"
+            force_refresh = bool(getattr(self, "_force_refresh", False))
             # rate-limit 회피: 캐시 TTL 4시간 (KR 풀스캔 부하 경감)
-            cached = self.cache.get(strategy_key, max_age_minutes=240)
+            cached = None if force_refresh else self.cache.get(strategy_key, max_age_minutes=240)
             if cached:
                 with self._stats_lock:
                     self.stats["cache_hits"] += 1
@@ -5333,8 +5334,8 @@ class QuantNexusApp:
                     break
             if hist is None or hist.empty or len(hist) < 30:
                 # 오늘 날짜 키로 먼저 조회, 없으면 최대 7일 이전 키까지 lookback
-                stale = self.cache.get(strategy_key, max_age_minutes=60 * 24 * 30)
-                if not stale:
+                stale = None if force_refresh else self.cache.get(strategy_key, max_age_minutes=60 * 24 * 30)
+                if not force_refresh and not stale:
                     for _days_back in range(1, 8):
                         _prev = (datetime.now() - timedelta(days=_days_back)).strftime("%Y%m%d")
                         _prev_key = f"{ticker}__{self._scan_strategy}__{_prev}"
