@@ -481,7 +481,10 @@ def _override_kr_day_chg(results: list) -> list:
         toss_quotes = toss_invest.get_prices([r["Ticker"] for r in kr_items])
         toss_error = toss_invest.get_last_error()
     except Exception as _e:
-        toss_error = str(_e.__class__.__name__)
+        try:
+            toss_error = toss_invest.get_last_error() or str(_e.__class__.__name__)
+        except Exception:
+            toss_error = str(_e.__class__.__name__)
         logging.debug("silent except (app.py): %s", _e)
 
     def _fetch(r):
@@ -526,7 +529,10 @@ def _overlay_kr_realtime_quote(
             toss_q = toss_invest.get_quote(ticker)
             toss_error = toss_invest.get_last_error()
         except Exception as _e:
-            toss_error = str(_e.__class__.__name__)
+            try:
+                toss_error = toss_invest.get_last_error() or str(_e.__class__.__name__)
+            except Exception:
+                toss_error = str(_e.__class__.__name__)
             logging.debug("silent except (app.py): %s", _e)
     naver_q = {}
     try:
