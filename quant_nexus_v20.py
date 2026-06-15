@@ -6267,7 +6267,7 @@ class QuantNexusApp:
                  None if earn.get("data_missing") else round(earn["c_score"], 1),
                  "실적 데이터가 아직 공개되지 않았어요. (분기 보고 전이거나 공시 미반영)"
                  if earn.get("data_missing") else
-                 f"{earn.get('eps_basis', 'EPS 성장률')}이 {earn['eps_growth']:+.0%} 변동했어요. "
+                 f"{earn.get('eps_basis', 'EPS 성장률')}: {earn['eps_growth']:+.0%} 변동했어요. "
                  f"{'연속 성장 중이에요' if earn.get('eps_acceleration') else '성장 추세예요' if earn.get('trend') == 'up' else '주춤하고 있어요'}."),
 
                 ("[A] 연간실적 ROE 기준 (Annual EPS)",
