@@ -122,7 +122,7 @@ def test_atr_pct_null_falls_back_to_absolute():
     assert _run_in_node(3.0, None) == "이격 구간"
 
 
-# EG-005: stale 가드 — asOfTs 가 5분 초과 시 라벨에 ' (stale)' 접미사
+# EG-005: stale 가드 — asOfTs 가 5분 초과 시 라벨에 ' · 지연' 접미사
 def _run_with_age(disc, age_sec) -> str:
     src = _extract_entry_label_src()
     script = (
@@ -141,21 +141,21 @@ def _run_with_age(disc, age_sec) -> str:
 
 
 def test_stale_appends_suffix_after_5min():
-    # 6분 경과 → ' (stale)' 접미사
+    # 6분 경과 → ' · 지연' 접미사
     out = _run_with_age(0.5, 360)
-    assert out.endswith(" (stale)")
+    assert out.endswith(" · 지연")
 
 
 def test_fresh_no_stale_suffix():
     # 1분 경과 → stale 아님
     out = _run_with_age(0.5, 60)
-    assert "(stale)" not in out
+    assert "지연" not in out
 
 
 def test_stale_boundary_just_under_5min_not_stale():
     # 4분(240초) → stale 아님
     out = _run_with_age(0.5, 240)
-    assert "(stale)" not in out
+    assert "지연" not in out
 
 
 # EG-006: 복합 드로다운 경고 — 52주 고점 거리 + MDD 중 더 나쁜 쪽 사용
@@ -178,17 +178,17 @@ def _run_with_dd(disc, ddPct, mddCurrent=None, mddRisk=None, volRegime=None) -> 
     "disc,ddPct,mddCurrent,expected_suffix",
     [
         # 52주 고점 -10%, MDD -25% → MDD가 더 나쁨 → [경고] (NORMAL 레짐)
-        (0.5, -10, -25, "[경고]"),
+        (0.5, -10, -25, "· 경고"),
         # 52주 고점 -35%, MDD -10% → 52주가 더 나쁨 → [고위험]
-        (0.5, -35, -10, "[고위험]"),
+        (0.5, -35, -10, "· 고위험"),
         # 둘 다 -18% → [주의] (NORMAL: -15 임계값)
-        (0.5, -18, -18, "[주의]"),
+        (0.5, -18, -18, "· 주의"),
         # 둘 다 양호 → 경고 없음
         (0.5, -5, -5, None),
         # MDD만 나쁨, 52주 null → MDD 기준
-        (0.5, None, -22, "[경고]"),
+        (0.5, None, -22, "· 경고"),
         # 52주만 나쁨, MDD null → 52주 기준
-        (0.5, -31, None, "[고위험]"),
+        (0.5, -31, None, "· 고위험"),
     ],
 )
 def test_composite_drawdown_warning(disc, ddPct, mddCurrent, expected_suffix):
@@ -196,7 +196,7 @@ def test_composite_drawdown_warning(disc, ddPct, mddCurrent, expected_suffix):
     if expected_suffix:
         assert out.endswith(expected_suffix), f"expected '{expected_suffix}' in '{out}'"
     else:
-        assert "[" not in out, f"unexpected warning in '{out}'"
+        assert "·" not in out, f"unexpected warning in '{out}'"
 
 
 # EG-008: vol_regime 적응형 임계값 — LOW=0.6x(민감), HIGH=1.6x(관대)
@@ -204,18 +204,18 @@ def test_composite_drawdown_warning(disc, ddPct, mddCurrent, expected_suffix):
     "ddPct,volRegime,expected_suffix",
     [
         # LOW 레짐: 임계값 -9%/-12%/-18% (0.6x)
-        (-10, "LOW", "[주의]"),         # -10 <= -9 → [주의]
-        (-13, "LOW", "[경고]"),         # -13 <= -12 → [경고]
-        (-19, "LOW", "[고위험]"),       # -19 <= -18 → [고위험]
+        (-10, "LOW", "· 주의"),         # -10 <= -9 → [주의]
+        (-13, "LOW", "· 경고"),         # -13 <= -12 → [경고]
+        (-19, "LOW", "· 고위험"),       # -19 <= -18 → [고위험]
         (-8, "LOW", None),              # -8 > -9 → 경고 없음
         # HIGH 레짐: 임계값 -24%/-32%/-48% (1.6x)
         (-20, "HIGH", None),            # -20 > -24 → 경고 없음
-        (-25, "HIGH", "[주의]"),        # -25 <= -24 → [주의]
-        (-33, "HIGH", "[경고]"),        # -33 <= -32 → [경고]
-        (-49, "HIGH", "[고위험]"),      # -49 <= -48 → [고위험]
+        (-25, "HIGH", "· 주의"),        # -25 <= -24 → [주의]
+        (-33, "HIGH", "· 경고"),        # -33 <= -32 → [경고]
+        (-49, "HIGH", "· 고위험"),      # -49 <= -48 → [고위험]
         # NORMAL 레짐: 기존 -15/-20/-30
-        (-16, "NORMAL", "[주의]"),
-        (-21, "NORMAL", "[경고]"),
+        (-16, "NORMAL", "· 주의"),
+        (-21, "NORMAL", "· 경고"),
     ],
 )
 def test_vol_regime_adaptive_thresholds(ddPct, volRegime, expected_suffix):
@@ -223,7 +223,7 @@ def test_vol_regime_adaptive_thresholds(ddPct, volRegime, expected_suffix):
     if expected_suffix:
         assert out.endswith(expected_suffix), f"expected '{expected_suffix}' in '{out}'"
     else:
-        assert "[" not in out, f"unexpected warning in '{out}'"
+        assert "·" not in out, f"unexpected warning in '{out}'"
 
 
 # EG-007: NEUTRAL/AVOID에 MDD 극단적 위험 표시
@@ -243,16 +243,16 @@ def _run_neutral_mdd(mddRisk) -> str:
 
 
 def test_neutral_mdd_extreme_shows_warning():
-    assert _run_neutral_mdd("EXTREME").endswith("[고위험]")
+    assert _run_neutral_mdd("EXTREME").endswith("· 고위험")
 
 
 def test_neutral_mdd_high_shows_warning():
-    assert _run_neutral_mdd("HIGH").endswith("[경고]")
+    assert _run_neutral_mdd("HIGH").endswith("· 경고")
 
 
 def test_neutral_mdd_normal_no_warning():
     out = _run_neutral_mdd("NORMAL")
-    assert "[" not in out
+    assert "·" not in out
 
 
 # EG-009: P4 급락 속도 경보 — ddVelocity5d < -5 이면 [급락] 배지
@@ -274,8 +274,8 @@ def _run_with_velocity(disc, vel5d, ddPct=None) -> str:
 @pytest.mark.parametrize(
     "vel5d,expected_suffix",
     [
-        (-8, "[급락]"),       # 5일간 -8%p → 급락
-        (-5.1, "[급락]"),     # 경계값 초과 → 급락
+        (-8, "· 급락"),       # 5일간 -8%p → 급락
+        (-5.1, "· 급락"),     # 경계값 초과 → 급락
         (-4.9, None),         # 경계값 미만 → 급락 아님
         (0, None),            # 변동 없음
     ],
@@ -285,11 +285,11 @@ def test_velocity_badge(vel5d, expected_suffix):
     if expected_suffix:
         assert out.endswith(expected_suffix), f"expected '{expected_suffix}' in '{out}'"
     else:
-        assert "[급락]" not in out, f"unexpected [급락] in '{out}'"
+        assert "· 급락" not in out, f"unexpected [급락] in '{out}'"
 
 
 def test_velocity_overrides_drawdown_badge():
     # P13: 급락이 고위험보다 우선 — vel=-8 + dd=-35% → [급락]만 표시
     out = _run_with_velocity(0.5, -8, ddPct=-35)
-    assert out.endswith("[급락]"), f"velocity should override drawdown badge: '{out}'"
-    assert "[고위험]" not in out
+    assert out.endswith("· 급락"), f"velocity should override drawdown badge: '{out}'"
+    assert "· 고위험" not in out

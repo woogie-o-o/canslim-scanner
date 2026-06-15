@@ -175,6 +175,7 @@ _SUPPORTED_MARKETS = frozenset({"KR"})
 _SCAN_RESULTS_TTL_SEC = 300  # 5분
 _scan_results_cache: dict[tuple[str, str, str], dict] = {}
 _scan_results_cache_lock = threading.Lock()
+_SCAN_SNAPSHOT_PATH = os.path.join(_BASE, "cache_v19", "_scan_snapshot.pkl")
 
 # 스캔 JSON 응답에서 제거할 무거운 필드 (상세 패널은 /api/ticker 에서 별도 제공)
 # Breakdown: 점수 분해 배열 (detail에서 /api/ticker로 재취득)
@@ -186,7 +187,7 @@ _SCAN_STRIP_FIELDS: frozenset = frozenset({"Breakdown", "Scores", "Reason", "Abo
 _ENTRY_PLAN_KEEP: frozenset = frozenset({
     "entry", "entry_discount", "atr_pct", "as_of_ts", "headline_action",
     "current", "stop", "t1", "t2", "rr", "rr_now", "vol_regime", "drawdown_pct",
-    "mdd_current", "mdd_risk", "mdd_recovery", "size_suggestion", "cvar_95",
+    "mdd_current", "mdd_risk", "mdd_recovery", "size_suggestion", "cvar_95", "worst_day",
     "dd_velocity_5d", "dd_velocity_20d", "underwater_days", "calmar_ratio",
     "skewness", "excess_kurtosis", "downside_beta",
     "stress_2008", "stress_2020", "stress_2022",
@@ -195,6 +196,14 @@ _ENTRY_PLAN_KEEP: frozenset = frozenset({
 })
 # MoatData 서브필드 중 리스트 뷰 미사용 (scores=111B/종목, 상세 패널에서만 사용)
 _MOAT_DATA_STRIP: frozenset = frozenset({"scores", "evidence_source", "story_risk"})
+
+def _apply_moat_bonus(rows: list) -> None:
+    """MoatBonus를 TotalScore에 반영한다. 모든 캐시 저장 경로에서 호출."""
+    for r in rows:
+        bonus = r.get("MoatBonus", 0)
+        if bonus and isinstance(r.get("TotalScore"), (int, float)):
+            r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
+
 
 def _strip_heavy(rows: list) -> list:
     if not rows:
@@ -232,6 +241,50 @@ def _store_scan_cache(key: tuple, ts: int, rows: list) -> bytes:
     with _scan_gz_cache_lock:
         _scan_gz_cache[key] = compressed
     return compressed
+
+
+_scan_snapshot_lock = threading.Lock()
+
+
+def _save_scan_snapshot():
+    """in-memory 스캔 캐시를 단일 파일로 저장 — 서버 재시작 시 즉시 복원용."""
+    if not _scan_snapshot_lock.acquire(blocking=False):
+        return  # 다른 스레드가 이미 저장 중 → 스킵
+    try:
+        with _scan_results_cache_lock:
+            snapshot = dict(_scan_results_cache)
+        if not snapshot:
+            return
+        import pickle
+        tmp = _SCAN_SNAPSHOT_PATH + ".tmp"
+        with open(tmp, "wb") as f:
+            pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
+        os.replace(tmp, _SCAN_SNAPSHOT_PATH)
+        logging.info("scan snapshot saved: %d entries", len(snapshot))
+    except Exception as e:
+        logging.warning("scan snapshot save failed: %s", e)
+    finally:
+        _scan_snapshot_lock.release()
+
+
+def _load_scan_snapshot() -> bool:
+    """단일 스냅샷 파일에서 in-memory 캐시 즉시 복원. 성공 시 True."""
+    try:
+        if not os.path.exists(_SCAN_SNAPSHOT_PATH):
+            return False
+        import pickle
+        with open(_SCAN_SNAPSHOT_PATH, "rb") as f:
+            snapshot = pickle.load(f)
+        if not snapshot:
+            return False
+        with _scan_results_cache_lock:
+            _scan_results_cache.update(snapshot)
+        logging.info("scan snapshot loaded: %d entries (instant cold-start)", len(snapshot))
+        return True
+    except Exception as e:
+        logging.warning("scan snapshot load failed: %s", e)
+        return False
+
 
 # ── 검색 인덱스 (앱 시작 시 1회 빌드 — 매 요청 선형 스캔 제거) ──
 # 각 항목: (ticker, display_name, blob) — blob = ticker|name 소문자 결합 문자열
@@ -513,11 +566,7 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
                 results = _annotate_one_liners(results, force=True)
             except Exception as oe:
                 logging.warning("background one_liner annotate failed: %s", oe)
-            # 해자(Moat) 가산점 → TotalScore 반영
-            for r in results:
-                bonus = r.get("MoatBonus", 0)
-                if bonus and isinstance(r.get("TotalScore"), (int, float)):
-                    r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
+            _apply_moat_bonus(results)
             # Phase-3: moat 주입 후 투기주 졸업 재평가
             from speculative_themes import apply_speculative_correction as _spec_reeval_batch
             _spec_reeval_batch(results)
@@ -762,11 +811,13 @@ def _warmup_fill_cache(market: str) -> None:
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
             # 캐시 즉시 저장 — 네이버 오버레이/GreedZone 없이도 첫 API 응답 즉시 가능
+            _apply_moat_bonus(results)
             results = _strip_heavy(results)
             ts = int(time.time())
             _store_scan_cache((market, "BALANCED", ""), ts, results)
             _populate_sector_caches(market, "BALANCED", results, ts)
             logging.info("%s quick-warm done: %d tickers (from pickle)", market, len(results))
+            _save_scan_snapshot()
             # 네이버 실시간 + GreedZone — BG에서 순차 실행 후 캐시 갱신
             def _bg_enrich(_res=list(results), _mkt=market):
                 try:
@@ -783,6 +834,7 @@ def _warmup_fill_cache(market: str) -> None:
                     except Exception as _e:
                         logging.warning("%s GreedZone bg failed: %s", _mkt, _e)
                     if _res:
+                        _apply_moat_bonus(_res)
                         _s = _strip_heavy(_res)
                         _t = int(time.time())
                         _store_scan_cache((_mkt, "BALANCED", ""), _t, _s)
@@ -854,6 +906,7 @@ def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> Non
                             results = _enrich_greedzone_batch(results)
                         except Exception as _e:
                             logging.warning("KR slow-refresh GreedZone enrichment failed: %s", _e)
+                        _apply_moat_bonus(results)
                         results = _strip_heavy(results)
                         ts = int(time.time())
                         _store_scan_cache(("KR", "BALANCED", ""), ts, results)
@@ -1208,11 +1261,7 @@ def api_scan():
             results = _annotate_one_liners(results)
         except Exception as oe:
             logging.warning("one_liner annotate failed: %s", oe)
-        # 해자(Moat) 가산점 → TotalScore 반영
-        for r in results:
-            bonus = r.get("MoatBonus", 0)
-            if bonus and isinstance(r.get("TotalScore"), (int, float)):
-                r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
+        _apply_moat_bonus(results)
         # Phase-3: moat 주입 후 투기주 졸업 재평가
         from speculative_themes import apply_speculative_correction as _spec_reeval_sync
         _spec_reeval_sync(results)
@@ -1261,6 +1310,83 @@ def api_macro():
                            ("vix", "sp500", "kospi", "usdkrw", "kr_rate")},
             "ts": None, "stale": True,
         })
+
+
+@app.route("/api/index-meta")
+def api_index_meta():
+    """GET /api/index-meta → 지수 명단 기준일·신선도. UI '명단 기준일' 표시용."""
+    try:
+        import engine_adapter
+        return jsonify(engine_adapter.index_membership_meta())
+    except Exception as e:
+        logging.warning("api_index_meta failed: %s", e)
+        return jsonify({"generated": None, "stale_days": None, "is_stale": False})
+
+
+@app.route("/api/etf")
+def api_etf():
+    """GET /api/etf → 한국 인기 ETF 현황. /api/scan 과 완전 분리."""
+    try:
+        import etf
+        force = request.args.get("force") in ("1", "true", "yes")
+        data = etf.get_etfs(force=force)
+        data["us"] = []
+        return jsonify(data)
+    except Exception as e:
+        logging.warning("api_etf failed: %s", e)
+        return jsonify({"us": [], "kr": [], "ts": None, "stale": True})
+
+
+@app.route("/api/etf-sectors/<path:ticker>")
+def api_etf_sectors(ticker: str):
+    """GET /api/etf-sectors/SPY → ETF 섹터 비중(지연 로딩). /api/etf 와 분리."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"ticker": "", "sectors": [], "holdings": [], "stale": True}), 400
+    try:
+        import etf
+        return jsonify(etf.get_etf_sectors(ticker))
+    except Exception as e:
+        logging.warning("api_etf_sectors failed: %s", e)
+        return jsonify({"ticker": ticker, "sectors": [], "holdings": [], "stale": True})
+
+
+@app.route("/api/etf-rotation")
+def api_etf_rotation():
+    """GET /api/etf-rotation → 한국 ETF M1/M3 수익률 히트맵. /api/scan 과 분리."""
+    try:
+        import etf
+        force = request.args.get("force") in ("1", "true", "yes")
+        data = etf.get_etf_rotation(force=force)
+        data["us"] = []
+        return jsonify(data)
+    except Exception as e:
+        logging.warning("api_etf_rotation failed: %s", e)
+        return jsonify({"us": [], "kr": [], "ts": None, "stale": True})
+
+
+@app.route("/api/score-eval")
+def api_score_eval():
+    """GET /api/score-eval?market=KR → 점수 신호 표본외 검증 캐시(배지용).
+
+    실제 IC 계산은 무거우므로(yfinance) score_eval.py 가 주기적으로 생성한
+    web_app/score_eval_{MARKET}.json 캐시만 읽어 가볍게 서빙. 없으면 no_data.
+    """
+    market = (request.args.get("market") or "KR").upper()
+    if market not in _SUPPORTED_MARKETS:
+        return jsonify({"error": "US market is disabled; KR only"}), 410
+    _webapp_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(_webapp_dir, f"score_eval_{market}.json")
+    try:
+        if not os.path.exists(path):
+            return jsonify({"market": market, "status": "no_data",
+                            "badge": {"level": "none", "label": "검증 데이터 없음"}})
+        with open(path, encoding="utf-8") as f:
+            return jsonify(json.load(f))
+    except Exception as e:
+        logging.warning("api_score_eval failed: %s", e)
+        return jsonify({"market": market, "status": "error",
+                        "badge": {"level": "none", "label": "검증 데이터 없음"}})
 
 
 # ── 워치리스트 영속화 ─────────────────────────────────────────────────────
@@ -1432,14 +1558,51 @@ def api_ticker(ticker: str):
             result = _annotate_one_liners([result])[0]
         except Exception as oe:
             logging.warning("one_liner annotate (ticker) failed: %s", oe)
-        # 해자 가산점
-        bonus = result.get("MoatBonus", 0)
-        if bonus and isinstance(result.get("TotalScore"), (int, float)):
-            result["TotalScore"] = min(100.0, result["TotalScore"] + bonus)
+        _apply_moat_bonus([result])
         # Phase-3: moat 주입 후 투기주 졸업 재평가
         # (engine_adapter에서 moat 없이 1차 평가 → moat 주입 후 2차 재평가)
         from speculative_themes import apply_to_row as _spec_reeval
         _spec_reeval(result)
+
+        # ── MECE 분석 프레임워크 부착 (Phase 1/2/3) ──
+        try:
+            from web_app.valuation_context import attach_valuation_context as _mece_val
+            # 캐시된 스캔 결과에서 동일 섹터 종목 조회
+            _mece_peers = []
+            _mece_sector = (result.get("Sector") or "").strip()
+            if _mece_sector:
+                with _scan_results_cache_lock:
+                    for _mk in ("BALANCED", "AGGRESSIVE", "CONSERVATIVE"):
+                        _mc = _scan_results_cache.get((market_arg, _mk, ""))
+                        if _mc and _mc.get("data"):
+                            _mece_peers = [r for r in _mc["data"]
+                                           if (r.get("Sector") or "").strip() == _mece_sector]
+                            break
+            _mece_val(result, _mece_peers)
+        except Exception as _mece_e:
+            logging.debug("MECE valuation context failed: %s", _mece_e)
+            result.setdefault("ValPctile", None)
+            result.setdefault("SectorRelPE", None)
+            result.setdefault("PriceInLevel", None)
+
+        try:
+            from web_app.scenario_engine import build_scenario_table as _mece_scenario
+            result["Scenarios"] = _mece_scenario(result)
+        except Exception as _mece_e2:
+            logging.debug("MECE scenario failed: %s", _mece_e2)
+            result.setdefault("Scenarios", None)
+
+        # ATR top-level 필드 추출
+        result['ATR'] = result.get('volatility', {}).get('details', {}).get('atr', 0)
+        result['ATR_pct'] = result.get('volatility', {}).get('details', {}).get('atr_pct', 0)
+
+        try:
+            from web_app.price_levels import build_price_strategy as _mece_price
+            _mece_scenarios = result.get("Scenarios", {}).get("scores") if result.get("Scenarios") else None
+            result["PriceLevels"] = _mece_price(result, _mece_scenarios)
+        except Exception as _mece_e3:
+            logging.debug("MECE price levels failed: %s", _mece_e3)
+            result.setdefault("PriceLevels", None)
 
         # ── 응답 캐시 저장 ──
         with _ticker_detail_cache_lock:
@@ -1450,6 +1613,12 @@ def api_ticker(ticker: str):
     except Exception as e:
         logging.exception("api_ticker")
         return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/market_context")
+def api_market_context():
+    """US market context is disabled in KR-only mode."""
+    return jsonify({"error": "US market is disabled; KR only"}), 410
 
 
 _sentiment_cache: dict[str, dict] = {}
@@ -1524,6 +1693,14 @@ def api_sentiment(ticker: str):
                 out["_FH_Headlines"] = fh.get("news_headlines", [])
                 out["_FH_DayChangePct"] = fh.get("day_change_pct", 0)
                 out["_FH_CurrentPrice"] = fh.get("current_price", 0)
+                out["_FH_Logo"] = fh.get("logo", "")
+                out["_FH_IpoDate"] = fh.get("ipo_date", "")
+                out["_FH_ShareOut"] = fh.get("share_outstanding")
+                out["_FH_Industry"] = fh.get("industry", "")
+                out["_FH_Exchange"] = fh.get("exchange", "")
+                out["_FH_MSPR"] = fh.get("mspr")
+                out["_FH_MSPRTrend"] = fh.get("mspr_trend", [])
+                out["_FH_MSPRChange"] = fh.get("mspr_change", 0.0)
                 out["_FH_Available"] = True
             else:
                 out["_FH_Available"] = False
@@ -1600,9 +1777,10 @@ def _peers_from_finnhub(ticker: str, limit: int) -> dict | None:
                 price = q.get("c") if q else None
             except Exception:
                 price = yi.get("currentPrice") or yi.get("regularMarketPrice")
+            _us_nm = getattr(QuantNexusApp, "US_NAMES", {}).get(tk)
             return {
                 "Ticker":          tk,
-                "Name":            yi.get("shortName") or yi.get("longName") or name_fallback or tk,
+                "Name":            _us_nm or yi.get("shortName") or yi.get("longName") or name_fallback or tk,
                 "Sector":          yi.get("sector") or "",
                 "Industry":        yi.get("industry") or "",
                 "Price":           price,
@@ -1796,7 +1974,17 @@ _TICKER_EVENTS_MAX = 500          # 무제한 증가 차단(FIFO eviction)
 
 
 def _load_macro_events() -> list:
+    """매크로 이벤트 로드 — NFP/CPI 자동 생성 + JSON 교정 병합."""
     global _macro_events_cache, _macro_events_mtime
+    try:
+        from macro_calendar import get_macro_events
+        with _macro_events_lock:
+            # macro_calendar 내부 24h 캐시 사용
+            _macro_events_cache = get_macro_events()
+            return _macro_events_cache
+    except Exception as e:
+        logging.warning("macro_calendar failed, falling back to JSON: %s", e)
+    # fallback: 기존 JSON 직접 로드
     path = os.path.join(os.path.dirname(__file__), "macro_events.json")
     try:
         mt = os.path.getmtime(path)
@@ -2208,7 +2396,7 @@ def api_consensus(ticker: str):
         try:
             import yfinance as yf
             info = _run_with_timeout(
-                lambda: yf.Ticker(ticker).info or {}, 5, f"consensus yf {ticker}"
+                lambda: yf.Ticker(ticker).info or {}, 8, f"consensus yf {ticker}"
             ) or {}
             def _flt(v):
                 try: return float(v)
@@ -2249,8 +2437,34 @@ def api_regime(ticker: str):
         return jsonify({"error": str(e)}), 500
 
 
-def _compute_four_axis_payload(ticker: str, market: str) -> tuple:
-    """yfinance + FourAxisAnalyzer + HandDrawnChartRenderer → (payload_dict|None, err_str|None)."""
+def _downsample_closes(closes, max_points: int = 24):
+    """스파크라인용 종가 배열을 max_points 이하로 균등 다운샘플. 최신가는 항상 보존."""
+    vals = [float(c) for c in closes if c is not None]
+    n = len(vals)
+    if n == 0:
+        return []
+    if n <= max_points:
+        return vals
+    step = n / max_points
+    out = [vals[int(i * step)] for i in range(max_points)]
+    out[-1] = vals[-1]  # 마지막(최신) 값 보존
+    return out
+
+
+def _wk52_high_low(closes):
+    """종가 배열의 (고가, 저가). 비면 (None, None)."""
+    vals = [float(c) for c in closes if c is not None]
+    if not vals:
+        return (None, None)
+    return (max(vals), min(vals))
+
+
+def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True) -> tuple:
+    """yfinance + FourAxisAnalyzer + HandDrawnChartRenderer → (payload_dict|None, err_str|None).
+
+    want_chart=False 이면 핸드드로잉 차트 렌더(+US 종목명 info 조회)를 생략한다 —
+    드로어는 차트를 쓰지 않으므로 헛렌더링/네트워크를 피해 응답을 빠르게 한다.
+    """
     try:
         import yfinance as yf
         _configure_yf_cache()
@@ -2353,31 +2567,38 @@ def _compute_four_axis_payload(ticker: str, market: str) -> tuple:
                         chart_title = str(nm)
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
-            if not chart_title and market == "US":
-                try:
-                    yt0 = candidates[0] if candidates else ticker
-                    yinfo = _run_with_timeout(
-                        lambda yt0=yt0: yf.Ticker(yt0).info or {},
-                        info_timeout_sec,
-                        f"four_axis info {yt0}",
-                    )
-                    chart_title = (yinfo.get("longName") or yinfo.get("shortName") or "")
-                except Exception as _e:
-                    logging.debug("silent except (app.py): %s", _e)
+            if want_chart and not chart_title and market == "US":
+                _us_chart_nm = getattr(QuantNexusApp, "US_NAMES", {}).get(ticker)
+                if _us_chart_nm:
+                    chart_title = _us_chart_nm
+                else:
+                    try:
+                        yt0 = candidates[0] if candidates else ticker
+                        yinfo = _run_with_timeout(
+                            lambda yt0=yt0: yf.Ticker(yt0).info or {},
+                            info_timeout_sec,
+                            f"four_axis info {yt0}",
+                        )
+                        chart_title = (yinfo.get("longName") or yinfo.get("shortName") or "")
+                    except Exception as _e:
+                        logging.debug("silent except (app.py): %s", _e)
         except Exception as _e:
             logging.debug("silent except (app.py): %s", _e)
         chart_title = chart_title or ticker
 
-        renderer = HandDrawnChartRenderer(
-            hist, result, ticker=chart_title,
-            width_px=1200, height_px=560, dpi=100,
-        )
-        img = renderer.render()
+        if want_chart:
+            renderer = HandDrawnChartRenderer(
+                hist, result, ticker=chart_title,
+                width_px=1200, height_px=560, dpi=100,
+            )
+            img = renderer.render()
 
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
-        chart_b64 = base64.b64encode(buf.read()).decode("ascii")
+            buf = io.BytesIO()
+            img.save(buf, format="PNG")
+            buf.seek(0)
+            chart_b64 = base64.b64encode(buf.read()).decode("ascii")
+        else:
+            chart_b64 = None  # 드로어는 차트 미사용 — 핸드드로잉 렌더 생략(성능)
 
         import numpy as np
 
@@ -2409,6 +2630,21 @@ def _compute_four_axis_payload(ticker: str, market: str) -> tuple:
             "key_observation": rd.get("key_observation", ""),
             "structured_analysis": rd.get("structured_analysis", ""),
         }
+
+        # ── Hero 스파크라인용 경량 데이터 (20~24 포인트) + 52주 고저 ──
+        try:
+            _closes_full = [float(x) for x in hist["Close"].dropna().tolist()]
+            _recent = _closes_full[-60:] if len(_closes_full) > 60 else _closes_full
+            payload["closes"] = _downsample_closes(_recent, max_points=24)
+            _hi, _lo = _wk52_high_low(_closes_full[-252:])
+            payload["wk52_high"] = _hi
+            payload["wk52_low"] = _lo
+            payload["spark_change_pct"] = (
+                round((_recent[-1] / _recent[0] - 1) * 100, 1)
+                if len(_recent) >= 2 and _recent[0] else None
+            )
+        except Exception as _e:
+            logging.debug("hero spark payload: %s", _e)
 
         # ── 과열/바닥 신호 ────────────────────────────────────────────
         try:
@@ -2505,8 +2741,11 @@ _four_axis_render_lock = threading.Lock()  # BG warm만 직렬화 — 유저 요
 
 
 def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> None:
-    """BG 선제 4축 캐시 채우기 — 클릭 시 차트 즉시 표시."""
-    cache_key = f"{ticker}:{market}:{timeframe}"
+    """BG 선제 4축 캐시 채우기 — 클릭(드로어) 시 분석 즉시 표시.
+
+    드로어는 차트를 쓰지 않으므로 no-chart(c0) 페이로드를 워밍한다.
+    """
+    cache_key = f"{ticker}:{market}:{timeframe}:c0"
     with _four_axis_cache_lock:
         if cache_key in _four_axis_cache:
             return  # BG warm hit — move_to_end 호출 안 함 (cold entry가 hot으로 위장하는 것 방지)
@@ -2517,7 +2756,7 @@ def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> Non
         with _four_axis_cache_lock:
             if cache_key in _four_axis_cache:
                 return
-        payload, err = _compute_four_axis_payload(ticker, market)
+        payload, err = _compute_four_axis_payload(ticker, market, want_chart=False)
         if payload:
             with _four_axis_cache_lock:
                 if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
@@ -2554,7 +2793,8 @@ def api_four_axis(ticker: str):
         except Exception as _e:
             logging.debug("silent except (app.py): %s", _e)
     timeframe = (request.args.get("timeframe") or "default").strip() or "default"
-    cache_key = f"{ticker}:{market}:{timeframe}"
+    want_chart = (request.args.get("chart", "1") != "0")  # 드로어는 chart=0 → 핸드드로잉 렌더 생략
+    cache_key = f"{ticker}:{market}:{timeframe}:{'c1' if want_chart else 'c0'}"
     now = int(time.time())
     with _four_axis_cache_lock:
         cached = _four_axis_cache.get(cache_key)
@@ -2562,7 +2802,7 @@ def api_four_axis(ticker: str):
             _four_axis_cache.move_to_end(cache_key)  # LRU bump — 유저 요청 hit만 hot으로 보존
             return jsonify(cached["data"])
     # 유저 요청은 락 없이 즉시 실행 — BG warm과 경쟁해도 Agg 백엔드에서 안전
-    payload, err = _compute_four_axis_payload(ticker, market)
+    payload, err = _compute_four_axis_payload(ticker, market, want_chart=want_chart)
     if payload is None:
         return jsonify({"error": err or "생성 실패"}), (404 if "데이터 부족" in (err or "") else 500)
     with _four_axis_cache_lock:
@@ -2845,16 +3085,6 @@ def api_score_history(ticker: str):
 
 
 
-@app.route("/api/bucket-stats")
-def api_bucket_stats():
-    from one_liner import _bucket_counter
-    total = sum(_bucket_counter.values())
-    data = [
-        {"bucket": k, "count": v, "pct": round(v / total * 100, 1) if total else 0}
-        for k, v in _bucket_counter.most_common()
-    ]
-    return jsonify({"total": total, "distribution": data})
-
 
 # SocketIO 초기화 (gunicorn / 직접 실행 모두 대응)
 socketio.init_app(app)
@@ -2904,6 +3134,7 @@ def _cold_start_live_scan(market: str) -> None:
             results = _annotate_one_liners(results)
         except Exception:
             pass
+        _apply_moat_bonus(results)
         results = _strip_heavy(results)
         ts = int(time.time())
         _store_scan_cache((market, "BALANCED", ""), ts, results)
@@ -2917,11 +3148,17 @@ def _cold_start_fill():
     """서버 기동 직후 파일 잠금 없이 KR 캐시를 즉시 채운다.
     파일 잠금 실패로 quick-warm이 건너뛰어질 때도 첫 요청이 캐시 히트하도록 보장.
 
-    C2: quick-warm(prefer_cache=True, cache_only=True)으로도 캐시가 비어 있으면
-    (pickle 자체가 없는 첫 기동) 즉시 라이브 scan_all을 BG로 트리거해서
-    사용자가 30분 warmup 주기를 기다리지 않도록 한다.
+    Phase 1: 단일 스냅샷 파일(_scan_snapshot.pkl)에서 즉시 복원 → 수 초 이내 API 응답 가능.
+    Phase 2: 개별 pickle에서 최신 데이터로 BG 갱신 (스냅샷 히트 시 join 없이 비동기).
+    Phase 3: pickle도 없으면 라이브 scan_all BG 트리거.
     """
     time.sleep(0.1)  # Flask/SocketIO 초기화 완료 대기
+
+    # Phase 1: 스냅샷 즉시 복원 (단일 파일 → 수 초 이내)
+    _snapshot_hit = _load_scan_snapshot()
+    if _snapshot_hit:
+        _warmup_search_index()
+        _warmup_moat_cache()
 
     def _fill_market(market: str) -> None:
         try:
@@ -2948,10 +3185,15 @@ def _cold_start_fill():
     ]
     for t in threads:
         t.start()
+
+    if _snapshot_hit:
+        # 스냅샷으로 이미 캐시 채워짐 → BG 갱신은 join 없이 비동기 진행
+        return
+
+    # 스냅샷 없음 → 기존 방식 (pickle 읽기 완료까지 대기 + 스냅샷 저장)
     for t in threads:
         t.join()
-
-    # 캐시 채움 완료 후 2차 초기화 — 서버 응답 가능 시점을 앞당김
+    _save_scan_snapshot()
     _warmup_search_index()
     _warmup_moat_cache()
 

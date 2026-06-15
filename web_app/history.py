@@ -19,40 +19,6 @@ os.makedirs(_SNAP_DIR, exist_ok=True)
 _MAX_LOOKBACK_DAYS = 14
 
 
-def _grade_from_score(score) -> str | None:
-    """종합점수 → 등급 S/A/B/C. 숫자가 아니면 None. 컷은 프론트 _stockGrade와 정합."""
-    if score is None:
-        return None
-    try:
-        n = float(score)
-    except (TypeError, ValueError):
-        return None
-    if n >= 75:
-        return "S"
-    if n >= 60:
-        return "A"
-    if n >= 45:
-        return "B"
-    return "C"
-
-
-def load_timeline(ticker: str, market: str) -> list[dict]:
-    """오늘 포함 직전 14 달력일의 등급·진입 이력. 날짜 오름차순."""
-    today = date.today()
-    out: list[dict] = []
-    for back in range(_MAX_LOOKBACK_DAYS - 1, -1, -1):
-        d = today - timedelta(days=back)
-        snap = _load(market, d)
-        rec = snap.get(ticker) if snap else None
-        if rec:
-            grade = _grade_from_score(rec.get("score"))
-            entry = rec.get("entry")
-        else:
-            grade = None
-            entry = None
-        out.append({"date": d.isoformat(), "grade": grade, "entry": entry})
-    return out
-
 
 def _snap_path(market: str, day: date) -> str:
     return os.path.join(_SNAP_DIR, f"scanner_{market}_{day.isoformat()}.json")
@@ -139,15 +105,28 @@ def save_snapshot(results: list[dict], market: str, universe: list[str] | set[st
     sorted_by_score = sorted(
         results, key=lambda x: x.get("TotalScore") or 0, reverse=True
     )
-    snap = {
-        r["Ticker"]: {
+    def _row(r: dict, rank: int) -> dict:
+        d = {
             "score": round(float(r.get("TotalScore", 0) or 0), 1),
-            "rank": i + 1,
+            "rank": rank,
             "entry": r.get("EntryStatus"),
+            "_PER": r.get("_PER"),
+            "_PBR": r.get("_PBR"),
         }
-        for i, r in enumerate(sorted_by_score)
-        if r.get("Ticker")
-    }
+        # 레짐 모듈 필드 (있을 때만) — RegimeEntryScore forward 누적 비교용.
+        # 미설치/비활성 시 키 부재 → 기존 포맷과 100% 호환.
+        re_score = r.get("RegimeEntryScore")
+        if re_score is not None:
+            d["regime_entry"] = round(float(re_score), 2)
+            d["regime_state"] = r.get("RegimeState")
+            d["ofi"] = r.get("OFIScore")
+            d["accum"] = bool(r.get("Accumulation"))
+        return d
+
+    snap = {}
+    for i, r in enumerate(sorted_by_score):
+        if r.get("Ticker"):
+            snap[r["Ticker"]] = _row(r, i + 1)
     if universe:
         for tkr in universe:
             if tkr and tkr not in snap:

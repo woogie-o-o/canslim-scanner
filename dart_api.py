@@ -13,7 +13,9 @@
 from __future__ import annotations
 
 import os
+import re
 import json
+import time
 import urllib.request
 import urllib.parse
 from typing import Any, Dict, List, Optional
@@ -229,6 +231,25 @@ def get_financials(
     return {"available": False, "error": f"재무데이터 없음 ({code})"}
 
 
+# ── 12h 인메모리 캐시 (재무가치 등급 Phase 2a 에서 동일 종목 중복 호출 방지) ──
+_fin_cache: Dict[str, tuple] = {}
+_FIN_TTL = 43200  # 12h
+
+
+def get_financials_cached(stock_code: str, **kwargs) -> Dict[str, Any]:
+    """get_financials 와 동일하되 12 시간 인메모리 캐시."""
+    code = stock_code.split(".")[0].zfill(6)
+    cache_key = f"{code}:{kwargs.get('year', '')}:{kwargs.get('report_code', '11011')}"
+    now = time.time()
+    cached = _fin_cache.get(cache_key)
+    if cached and (now - cached[1]) < _FIN_TTL:
+        return cached[0]
+    result = get_financials(stock_code, **kwargs)
+    if result.get("available"):
+        _fin_cache[cache_key] = (result, now)
+    return result
+
+
 def _extract_eps(rows: List[Dict[str, Any]]) -> Optional[Dict[str, float]]:
     """IS/CIS 행에서 보통주 기본 EPS(원/주) 당기·전기·전전기 값을 뽑는다.
 
@@ -279,6 +300,54 @@ def _extract_eps(rows: List[Dict[str, Any]]) -> Optional[Dict[str, float]]:
         "frm": _f(best_row.get("frmtrm_amount")),
         "bf":  _f(best_row.get("bfefrmtrm_amount")),
     }
+
+
+def extract_fields(
+    financials: Dict[str, Any],
+    sheet: str,
+    field_patterns: Dict[str, List[str]],
+) -> Dict[str, Dict[str, Optional[float]]]:
+    """DART 재무제표에서 복수 필드를 regex 기반으로 추출.
+
+    Args:
+        financials: get_financials() 결과.
+        sheet: ``"BS"``, ``"IS"``, ``"CF"`` 등.
+        field_patterns: ``{output_key: [regex_pattern, ...]}``.
+            패턴 순서 = 우선순위. 첫 매칭 채택.
+
+    Returns:
+        ``{key: {"ths": float|None, "frm": float|None, "bf": float|None}}``
+    """
+    def _p(v: Any) -> Optional[float]:
+        s = str(v or "").replace(",", "").strip()
+        if s in ("", "-"):
+            return None
+        try:
+            return float(s)
+        except ValueError:
+            return None
+
+    rows = financials.get(sheet, [])
+    out: Dict[str, Dict[str, Optional[float]]] = {}
+    for key, patterns in field_patterns.items():
+        for pat in patterns:
+            rgx = re.compile(pat)
+            matched = False
+            for row in rows:
+                nm = (row.get("account_nm") or "").replace(" ", "")
+                if rgx.search(nm):
+                    out[key] = {
+                        "ths": _p(row.get("thstrm_amount")),
+                        "frm": _p(row.get("frmtrm_amount")),
+                        "bf":  _p(row.get("bfefrmtrm_amount")),
+                    }
+                    matched = True
+                    break
+            if matched:
+                break
+        if key not in out:
+            out[key] = {"ths": None, "frm": None, "bf": None}
+    return out
 
 
 def get_annual_eps_growth(stock_code: str) -> Dict[str, Any]:

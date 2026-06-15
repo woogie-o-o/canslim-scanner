@@ -210,7 +210,141 @@ def get_ttm_financials(code: str) -> Dict[str, Any]:
     return out
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# 재무가치 등급(Phase 1)용 분기 QoQ 지표
+# ──────────────────────────────────────────────────────────────────────────
+#
+# get_ttm_financials 가 TTM(합산) 입력을 만드는 반면, 여기서는 횡단면 백분위
+# 채점(fundamental_value_grade)에 쓸 "직전분기 대비 현분기" 성장률을 뽑는다.
+#   - flow(매출·영업이익·순이익): 최신 actual 분기 vs 직전 actual 분기.
+#   - 분모(직전분기)가 0 또는 음수면 성장률 정의가 깨지므로 None (호출부 중립 처리).
+#   - ROE·PBR: 최신 actual 분기 stock 값(네이버 직접 제공).
+# PSR 은 가격 의존이라 여기서 계산하지 않고 통합 계층(가격+TTM매출+주식수)에서 산출.
+
+_qmetrics_cache: Dict[str, tuple[Dict[str, Any], float]] = {}
+
+
+def _to_float_or_none(x: Any) -> Optional[float]:
+    """blank('','-','N/A')은 None — 실제 0 과 결측을 구분한다."""
+    s = str(x).replace(",", "").strip()
+    if s in ("", "-", "N/A"):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _qoq_growth(latest: Optional[float], prior: Optional[float]) -> Optional[float]:
+    """(현분기 - 직전분기) / 직전분기. 분모 0/음수면 None(정의 붕괴)."""
+    if latest is None or prior is None:
+        return None
+    if prior <= 0:
+        return None
+    return (latest - prior) / prior
+
+
+def _cell(rows: List[Dict[str, Any]], matcher, period_key: str) -> Optional[float]:
+    """matcher(title)==True 인 첫 row 의 특정 분기 셀 값(None 가능)."""
+    for row in rows:
+        if matcher(str(row.get("title", ""))):
+            cols = row.get("columns", {}) or {}
+            return _to_float_or_none((cols.get(period_key) or {}).get("value"))
+    return None
+
+
+def get_quarter_metrics(code: str) -> Dict[str, Any]:
+    """재무가치 등급(Phase 1)용 분기 QoQ 지표.
+
+    Returns:
+        {
+          "available": bool,
+          "rev_qoq": float|None,   # 매출 QoQ 성장률
+          "op_qoq":  float|None,   # 영업이익 QoQ 성장률
+          "ni_qoq":  float|None,   # (지배주주)순이익 QoQ 성장률
+          "roe":     float|None,   # 최신 actual 분기 ROE (%)
+          "pbr":     float|None,   # 최신 actual 분기 PBR
+          "fiscal_q": str,
+          "source":  "Naver-Q",
+        }
+    """
+    code6 = code.split(".")[0].zfill(6)
+    now = time.time()
+    with _lock:
+        cached = _qmetrics_cache.get(code6)
+        if cached and (now - cached[1]) < _TTL:
+            return cached[0]
+
+    out: Dict[str, Any] = {"source": "Naver-Q", "available": False,
+                           "rev_qoq": None, "op_qoq": None, "ni_qoq": None,
+                           "rev_yoy": None, "op_yoy": None, "ni_yoy": None,
+                           "streak": 0,
+                           "roe": None, "pbr": None, "fiscal_q": ""}
+    try:
+        raw = _fetch_raw(code6)
+        fi = raw.get("financeInfo", {}) or {}
+        titles = fi.get("trTitleList", []) or []
+        rows = fi.get("rowList", []) or []
+        if not titles or not rows:
+            return out
+
+        actual_keys = [t.get("key") for t in titles if t.get("isConsensus") != "Y"]
+        if len(actual_keys) < 2:
+            return out
+        prior_k, latest_k = actual_keys[-2], actual_keys[-1]
+
+        m_rev = lambda t: t.strip() == "매출액"
+        m_op = lambda t: t.strip() == "영업이익"          # "영업이익률" 제외
+        m_roe = lambda t: t.strip() == "ROE"
+        m_pbr = lambda t: t.strip() == "PBR"
+
+        def _ni_cell(pk: str) -> Optional[float]:
+            # 지배주주순이익 우선, 없으면 당기순이익
+            for kw in ("지배주주순이익", "당기순이익"):
+                v = _cell(rows, lambda t, _kw=kw: t.strip() == _kw, pk)
+                if v is not None:
+                    return v
+            return None
+
+        out["rev_qoq"] = _qoq_growth(_cell(rows, m_rev, latest_k), _cell(rows, m_rev, prior_k))
+        out["op_qoq"] = _qoq_growth(_cell(rows, m_op, latest_k), _cell(rows, m_op, prior_k))
+        out["ni_qoq"] = _qoq_growth(_ni_cell(latest_k), _ni_cell(prior_k))
+        out["roe"] = _cell(rows, m_roe, latest_k)
+        out["pbr"] = _cell(rows, m_pbr, latest_k)
+        out["fiscal_q"] = str(latest_k)
+
+        # ── Phase 2a: YoY 성장률 (전년도 동분기 대비, 4분기 전) ──
+        if len(actual_keys) >= 5:
+            yoy_k = actual_keys[-5]
+            out["rev_yoy"] = _qoq_growth(
+                _cell(rows, m_rev, latest_k), _cell(rows, m_rev, yoy_k))
+            out["op_yoy"] = _qoq_growth(
+                _cell(rows, m_op, latest_k), _cell(rows, m_op, yoy_k))
+            out["ni_yoy"] = _qoq_growth(_ni_cell(latest_k), _ni_cell(yoy_k))
+
+        # ── Phase 2a: 연속 성장 분기 수 (순이익 QoQ 기준) ──
+        streak = 0
+        for idx in range(len(actual_keys) - 1, 0, -1):
+            curr = _ni_cell(actual_keys[idx])
+            prev = _ni_cell(actual_keys[idx - 1])
+            if curr is not None and prev is not None and prev > 0 and curr > prev:
+                streak += 1
+            else:
+                break
+        out["streak"] = streak
+
+        out["available"] = any(out[k] is not None
+                               for k in ("rev_qoq", "op_qoq", "ni_qoq", "roe", "pbr"))
+        with _lock:
+            _qmetrics_cache[code6] = (out, now)
+    except Exception as e:
+        out["error"] = str(e)
+    return out
+
+
 if __name__ == "__main__":
     for c in ("005930", "000660", "035420"):
         r = get_ttm_financials(c)
-        print(c, json.dumps(r, ensure_ascii=False, indent=2))
+        print(c, "TTM:", json.dumps(r, ensure_ascii=False))
+        q = get_quarter_metrics(c)
+        print(c, "QoQ:", json.dumps(q, ensure_ascii=False))

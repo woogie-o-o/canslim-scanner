@@ -243,6 +243,24 @@ def get_sentiment_data(ticker: str) -> Dict[str, Any]:
         result["news_count_7d"] = 0
         result["news_headlines"] = []
 
+    # 7) Company profile2 (로고·정확 IPO일·상장주식수·산업)
+    prof = _safe("profile2", ticker, lambda: fc.company_profile2(symbol=ticker))
+    parsed_prof = _parse_profile2(prof)
+    result["logo"] = parsed_prof.get("logo", "")
+    result["ipo_date"] = parsed_prof.get("ipo", "")
+    result["share_outstanding"] = parsed_prof.get("share_outstanding")
+    result["industry"] = parsed_prof.get("industry", "")
+    result["exchange"] = parsed_prof.get("exchange", "")
+
+    # 8) Insider sentiment MSPR (최근 ~18개월)
+    twelve_mo_ago = (today - timedelta(days=540)).strftime("%Y-%m-%d")
+    ins_sent = _safe("insider_sentiment", ticker,
+                     lambda: fc.stock_insider_sentiment(ticker, twelve_mo_ago, today_s))
+    parsed_ms = _parse_insider_sentiment(ins_sent)
+    result["mspr"] = parsed_ms.get("mspr")
+    result["mspr_trend"] = parsed_ms.get("mspr_trend", [])
+    result["mspr_change"] = parsed_ms.get("mspr_change", 0.0)
+
     _store(cache_key, result)
     return result
 
@@ -266,6 +284,90 @@ def get_peers(ticker: str) -> List[str]:
              if p and p.upper() != ticker.upper() and _is_us_ticker(p)][:10]
     _store(cache_key, peers)
     return peers
+
+
+def _parse_profile2(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """company_profile2 응답 → 정규화 dict. 존재하는 키만 포함."""
+    if not raw or not isinstance(raw, dict):
+        return {}
+    out: Dict[str, Any] = {}
+    if raw.get("logo"):
+        out["logo"] = raw["logo"]
+    if raw.get("ipo"):
+        out["ipo"] = raw["ipo"]
+    so = raw.get("shareOutstanding")
+    if so is not None:
+        out["share_outstanding"] = so
+    if raw.get("finnhubIndustry"):
+        out["industry"] = raw["finnhubIndustry"]
+    if raw.get("exchange"):
+        out["exchange"] = raw["exchange"]
+    if raw.get("weburl"):
+        out["weburl"] = raw["weburl"]
+    return out
+
+
+def _parse_insider_sentiment(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """stock_insider_sentiment 응답 → 최신 MSPR + 월별 추세.
+
+    MSPR(Monthly Share Purchase Ratio): -100~100. 양수=순매수 우위.
+    """
+    if not raw or not isinstance(raw, dict):
+        return {}
+    rows = raw.get("data") or []
+    if not rows:
+        return {}
+    rows = sorted(rows, key=lambda r: (r.get("year", 0), r.get("month", 0)))
+    trend = [float(r.get("mspr") or 0.0) for r in rows]
+    latest = trend[-1]
+    prev = trend[-2] if len(trend) >= 2 else latest
+    return {
+        "mspr": latest,
+        "mspr_trend": trend,
+        "mspr_change": round(latest - prev, 4),
+    }
+
+
+def _parse_ipo_calendar(raw: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """ipo_calendar 응답 → 정규화 리스트."""
+    if not raw or not isinstance(raw, dict):
+        return []
+    rows = raw.get("ipoCalendar") or []
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        if not r.get("symbol"):
+            continue
+        out.append({
+            "date": r.get("date", ""),
+            "symbol": r.get("symbol", ""),
+            "name": r.get("name", ""),
+            "price": r.get("price", ""),
+            "shares": r.get("numberOfShares"),
+            "exchange": r.get("exchange", ""),
+        })
+    return out
+
+
+def _parse_general_news(raw: Optional[List[Dict[str, Any]]],
+                        limit: int = 15) -> List[Dict[str, Any]]:
+    """general_news 응답(list) → 정규화 리스트. headline 없는 항목 제외."""
+    if not raw or not isinstance(raw, list):
+        return []
+    out: List[Dict[str, Any]] = []
+    for n in raw:
+        h = n.get("headline")
+        if not h:
+            continue
+        out.append({
+            "headline": h[:160],
+            "url": n.get("url", ""),
+            "source": n.get("source", ""),
+            "datetime": n.get("datetime", 0),
+            "category": n.get("category", ""),
+        })
+        if len(out) >= limit:
+            break
+    return out
 
 
 def get_basic_financials(ticker: str) -> Dict[str, Any]:
@@ -335,5 +437,35 @@ def get_basic_financials(ticker: str) -> Dict[str, Any]:
     if eps is not None:
         result["trailingEps"] = eps
 
+    _store(cache_key, result)
+    return result
+
+
+def get_market_context() -> Dict[str, Any]:
+    """시장 전역 데이터 — IPO 캘린더(향후 30일) + 일반 시장 뉴스.
+
+    per-ticker 아님. 자체 캐시(_cached/_store) 사용.
+    """
+    if not is_available():
+        return {"available": False, "ipos": [], "news": []}
+    cache_key = "fh_market_context"
+    cached = _cached(cache_key)
+    if cached is not None:
+        return cached
+    fc = _client()
+    today = datetime.now()
+    today_s = today.strftime("%Y-%m-%d")
+    in_30 = (today + timedelta(days=30)).strftime("%Y-%m-%d")
+
+    ipo_raw = _safe("ipo_calendar", "_market",
+                    lambda: fc.ipo_calendar(_from=today_s, to=in_30))
+    news_raw = _safe("general_news", "_market",
+                     lambda: fc.general_news("general", min_id=0))
+
+    result = {
+        "available": True,
+        "ipos": _parse_ipo_calendar(ipo_raw),
+        "news": _parse_general_news(news_raw),
+    }
     _store(cache_key, result)
     return result

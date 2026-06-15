@@ -1,5 +1,5 @@
-/* StyleSeed — Toss Securities Skin
- * Authentic Toss design language: blue brand, near-black text, generous radius
+/* StyleSeed — Apple Design Language
+ * Clean, minimal Apple aesthetic: SF Pro typography, tight letter-spacing, generous radius
  */
 
 @font-face {
@@ -80,84 +80,84 @@ html, body {
 }
 
 :root {
-  /* Brand — Toss Blue */
-  --brand: #3182F6;
-  --primary: #191F28;
+  /* Brand — Apple Blue */
+  --brand: #0071E3;
+  --primary: #1D1D1F;
   --primary-foreground: #ffffff;
 
   /* Surface */
-  --background: #F5F6F8;
-  --foreground: #191F28;
+  --background: #F5F5F7;
+  --foreground: #1D1D1F;
   --card: #ffffff;
-  --card-foreground: #191F28;
+  --card-foreground: #1D1D1F;
   --popover: #ffffff;
-  --popover-foreground: #191F28;
+  --popover-foreground: #1D1D1F;
 
   /* Secondary / Muted */
-  --secondary: #F2F3F6;
-  --secondary-foreground: #191F28;
-  --muted: #EAEBEE;
-  --muted-foreground: #8B95A1;
+  --secondary: #F5F5F7;
+  --secondary-foreground: #1D1D1F;
+  --muted: #E8E8ED;
+  --muted-foreground: #6E6E73;
   --accent: #E8F3FF;
-  --accent-foreground: #3182F6;
+  --accent-foreground: #0071E3;
 
   /* Semantic Status */
-  --destructive: #F04452;
+  --destructive: #FF3B30;
   --destructive-foreground: #ffffff;
-  --success: #00C073;
+  --success: #34C759;
   --success-foreground: #ffffff;
-  --warning: #C77700;
+  --warning: #FF9500;
   --warning-foreground: #ffffff;
-  --info: #3485FA;
+  --info: #007AFF;
   --info-foreground: #ffffff;
 
   /* Text Hierarchy */
-  --text-primary: #191F28;
-  --text-secondary: #4E5968;
-  --text-tertiary: #6B7684;
-  --text-disabled: #8B95A1;
-  --icon-default: #4E5968;
+  --text-primary: #1D1D1F;
+  --text-secondary: #424245;
+  --text-tertiary: #6E6E73;
+  --text-disabled: #86868B;
+  --icon-default: #424245;
 
   /* Page Surfaces */
-  --surface-page: #F5F6F8;
-  --surface-subtle: #F2F3F6;
-  --surface-muted: #EAEBEE;
+  --surface-page: #F5F5F7;
+  --surface-subtle: #F5F5F7;
+  --surface-muted: #E8E8ED;
   --brand-tint: #E8F3FF;
-  --alert-badge: #F04452;
+  --alert-badge: #FF3B30;
 
   /* Border / Input */
-  --border: #E5E8EB;
+  --border: #D2D2D7;
   --input: transparent;
-  --input-background: #F2F3F6;
-  --switch-background: #B0B8C1;
-  --ring: rgba(49, 130, 246, 0.3);
+  --input-background: #F5F5F7;
+  --switch-background: #86868B;
+  --ring: rgba(0, 113, 227, 0.4);
 
-  /* Radius — Toss generous rounding */
-  --radius: 12px;
+  /* Radius — Apple generous rounding */
+  --radius: 18px;
 
-  /* Shadows */
-  --shadow-card:     0 2px 8px rgba(0, 0, 0, 0.04);
-  --shadow-button:   0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-hover:    0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-elevated: 0 8px 20px rgba(0, 0, 0, 0.08);
-  --shadow-modal:    0 12px 32px rgba(0, 0, 0, 0.12);
+  /* Shadows — Apple subtle depth */
+  --shadow-card:     0 2px 12px rgba(0, 0, 0, 0.04);
+  --shadow-button:   0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-hover:    0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.08);
+  --shadow-modal:    0 16px 40px rgba(0, 0, 0, 0.12);
 
-  /* Animation */
+  /* Animation — Apple smooth curves */
   --duration-fast:     100ms;
   --duration-normal:   200ms;
   --duration-moderate: 300ms;
   --duration-slow:     400ms;
-  --ease-default: cubic-bezier(0.2, 0, 0, 1);
-  --ease-in:      cubic-bezier(0.4, 0, 1, 1);
-  --ease-out:     cubic-bezier(0, 0, 0.2, 1);
+  --ease-default: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-in:      cubic-bezier(0.42, 0, 1, 1);
+  --ease-out:     cubic-bezier(0, 0, 0.58, 1);
   --ease-spring:  cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  /* Charts — Toss palette */
-  --chart-1: #3182F6;
-  --chart-2: #00C073;
-  --chart-3: #F04452;
-  --chart-4: #FF9200;
-  --chart-5: #8B95A1;
+  /* Charts */
+  --chart-1: #0071E3;
+  --chart-2: #34C759;
+  --chart-3: #FF3B30;
+  --chart-4: #FF9500;
+  --chart-5: #86868B;
 }
 
 :where(
@@ -175,43 +175,43 @@ html, body {
 }
 
 .dark {
-  --brand: #4593FC;
-  --primary: #E4E5E7;
-  --primary-foreground: #17171C;
+  --brand: #2997FF;
+  --primary: #F5F5F7;
+  --primary-foreground: #1D1D1F;
 
-  --background: #17171C;
-  --foreground: #E4E5E7;
-  --card: #1F2028;
-  --card-foreground: #E4E5E7;
-  --popover: #1F2028;
-  --popover-foreground: #E4E5E7;
+  --background: #000000;
+  --foreground: #F5F5F7;
+  --card: #1C1C1E;
+  --card-foreground: #F5F5F7;
+  --popover: #1C1C1E;
+  --popover-foreground: #F5F5F7;
 
-  --secondary: #2B2D36;
-  --secondary-foreground: #E4E5E7;
-  --muted: #2B2D36;
-  --muted-foreground: #8B8FA0;
-  --accent: #1F3461;
-  --accent-foreground: #4593FC;
+  --secondary: #2C2C2E;
+  --secondary-foreground: #F5F5F7;
+  --muted: #2C2C2E;
+  --muted-foreground: #98989D;
+  --accent: #1C3049;
+  --accent-foreground: #2997FF;
 
-  --destructive: #FF5A67;
-  --success: #1CD98B;
-  --warning: #FFB54C;
-  --info: #6AAFFF;
+  --destructive: #FF453A;
+  --success: #30D158;
+  --warning: #FFD60A;
+  --info: #64D2FF;
 
-  --text-primary: #E4E5E7;
-  --text-secondary: #A9ABB5;
-  --text-tertiary: #6E7180;
-  --text-disabled: #4A4D59;
-  --icon-default: #8B8FA0;
+  --text-primary: #F5F5F7;
+  --text-secondary: #A1A1A6;
+  --text-tertiary: #6E6E73;
+  --text-disabled: #48484A;
+  --icon-default: #98989D;
 
-  --surface-page: #17171C;
-  --surface-subtle: #1F2028;
-  --surface-muted: #2B2D36;
-  --brand-tint: #1F3461;
+  --surface-page: #000000;
+  --surface-subtle: #1C1C1E;
+  --surface-muted: #2C2C2E;
+  --brand-tint: #1C3049;
 
-  --border: rgba(255, 255, 255, 0.08);
-  --input-background: #2B2D36;
-  --switch-background: #4A4D59;
+  --border: rgba(255, 255, 255, 0.1);
+  --input-background: #2C2C2E;
+  --switch-background: #48484A;
 
   --shadow-card:     none;
   --shadow-button:   none;
@@ -220,7 +220,7 @@ html, body {
   --shadow-modal:    none;
 }
 
-/* EG-005: stale 라벨 (>5분 경과) 회색 처리 */
+/* EG-005: stale label (>5 min) greyed out */
 .entry-stale {
   color: var(--text-tertiary) !important;
   opacity: 0.7;

@@ -1,0 +1,40 @@
+{
+  "generated": "2026-06-09T20:14:28",
+  "ofi_universe": 50,
+  "regime_universe": 8,
+  "ofi_cross_sectional_ic": {
+    "5": {
+      "status": "OK",
+      "n_dates": 313,
+      "mean_ic": 0.002,
+      "t_stat": 0.17,
+      "hit_rate": 0.48
+    },
+    "21": {
+      "status": "OK",
+      "n_dates": 307,
+      "mean_ic": -0.0047,
+      "t_stat": -0.42,
+      "hit_rate": 0.51
+    }
+  },
+  "regime_event_study": {
+    "5": {
+      "status": "OK",
+      "n_obs": 1272,
+      "n_fired": 7,
+      "fired_mean_ret": -0.0052,
+      "base_mean_ret": 0.0062,
+      "edge": -0.0114
+    },
+    "21": {
+      "status": "OK",
+      "n_obs": 1232,
+      "n_fired": 6,
+      "fired_mean_ret": 0.0078,
+      "base_mean_ret": 0.0215,
+      "edge": -0.0136
+    }
+  },
+  "hmm_available": true
+}

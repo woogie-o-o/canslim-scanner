@@ -1,0 +1,118 @@
+{
+  "generated": "2026-06-09T20:59:25",
+  "market": "US",
+  "universe": "index",
+  "years": 6,
+  "non_overlap": false,
+  "cost_bps": 25.0,
+  "ofi_universe": 600,
+  "regime_universe": 0,
+  "ofi_cross_sectional_ic": {
+    "5": {
+      "status": "OK",
+      "n_dates": 289,
+      "avg_names": 584,
+      "eff_step": 5,
+      "non_overlap": false,
+      "mean_ic": -0.0049,
+      "t_nw": -0.95,
+      "t_naive": -0.86,
+      "ic_ci95": [
+        -0.0149,
+        0.0054
+      ],
+      "hit_rate": 0.5,
+      "ls_spread_net": -0.0115,
+      "cost_bps": 25.0,
+      "yearly": {
+        "2020": {
+          "mean_ic": -0.0295,
+          "n": 17
+        },
+        "2021": {
+          "mean_ic": -0.016,
+          "n": 51
+        },
+        "2022": {
+          "mean_ic": -0.0242,
+          "n": 50
+        },
+        "2023": {
+          "mean_ic": -0.0032,
+          "n": 50
+        },
+        "2024": {
+          "mean_ic": 0.0059,
+          "n": 50
+        },
+        "2025": {
+          "mean_ic": 0.0151,
+          "n": 50
+        },
+        "2026": {
+          "mean_ic": 0.0106,
+          "n": 21
+        },
+        "_summary": {
+          "n_years": 7,
+          "pos_years": 3,
+          "sign_stable": false
+        }
+      }
+    },
+    "21": {
+      "status": "OK",
+      "n_dates": 286,
+      "avg_names": 584,
+      "eff_step": 5,
+      "non_overlap": false,
+      "mean_ic": -0.0099,
+      "t_nw": -1.19,
+      "t_naive": -2.04,
+      "ic_ci95": [
+        -0.0276,
+        0.0061
+      ],
+      "hit_rate": 0.44,
+      "ls_spread_net": -0.0212,
+      "cost_bps": 25.0,
+      "yearly": {
+        "2020": {
+          "mean_ic": -0.0457,
+          "n": 17
+        },
+        "2021": {
+          "mean_ic": -0.0357,
+          "n": 51
+        },
+        "2022": {
+          "mean_ic": -0.0211,
+          "n": 50
+        },
+        "2023": {
+          "mean_ic": -0.0153,
+          "n": 50
+        },
+        "2024": {
+          "mean_ic": 0.0099,
+          "n": 50
+        },
+        "2025": {
+          "mean_ic": 0.0148,
+          "n": 50
+        },
+        "2026": {
+          "mean_ic": 0.0203,
+          "n": 18
+        },
+        "_summary": {
+          "n_years": 7,
+          "pos_years": 3,
+          "sign_stable": false
+        }
+      }
+    }
+  },
+  "regime_event_study": {},
+  "hmm_available": true
+}

@@ -1,0 +1,68 @@
+{
+  "skill_name": "midcap-alpha",
+  "evals": [
+    {
+      "id": 1,
+      "name": "full-midcap-scan",
+      "prompt": "미드캡 분석해줘. SP400 기반으로 시총 5B~15B 사이에서 기관이 모으는 종목 위주로 보고 싶어",
+      "expected_output": "SP400 유니버스에서 시총 필터링 후, SEC 13F 기관 보유 + Form 4 내부자 거래 데이터를 수집하고, 4축 시그널(승격/기관매집/내부자/성장) 스코어링 결과를 테이블로 제시",
+      "should_trigger": true,
+      "files": [],
+      "assertions": [
+        "mentions SEC EDGAR or 13F or Form 4 as data source",
+        "produces a scored ranking table with MidcapAlphaScore",
+        "includes disclaimer about proxy-based signals"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "sp500-promotion-focus",
+      "prompt": "S&P500 승격 후보 종목 찾아줘. 시총이 거의 다 왔는데 아직 편입 안 된 미드캡 있어?",
+      "expected_output": "S&P500 편입 필요조건(시총 $18B+, 4분기 연속 흑자, 유동성) 충족도 기준으로 후보를 정렬하고, 각 종목의 승격 시나리오와 리스크를 브리핑",
+      "should_trigger": true,
+      "files": [],
+      "assertions": [
+        "mentions S&P 500 inclusion criteria (market cap, profitability, liquidity)",
+        "labels output as readiness or eligibility, NOT probability",
+        "references SP400 or midcap universe as source"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "institutional-accumulation",
+      "prompt": "US mid-cap 중에 기관이 조용히 모으는 종목 있어? 거래량은 늘었는데 가격은 아직 안 움직인 거",
+      "expected_output": "거래량 가속도 + 가격 압축(볼린저밴드 스퀴즈) + SEC 13F 기관 관심 증가를 조합하여 매집 패턴 후보를 제시",
+      "should_trigger": true,
+      "files": [],
+      "assertions": [
+        "uses volume acceleration and price compression as signal components",
+        "mentions 13F or institutional filings",
+        "marks signals as proxy-based"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "should-not-trigger-korean-stock",
+      "prompt": "삼성전자 분석해줘. 최근 실적이랑 차트 어때?",
+      "expected_output": "기존 한국 종목스캐너로 처리하거나 일반 분석을 제공. midcap-alpha 스킬이 트리거되면 안 됨.",
+      "should_trigger": false,
+      "files": [],
+      "assertions": [
+        "does NOT mention midcap alpha score or SP400",
+        "does NOT run SEC EDGAR collection scripts"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "should-not-trigger-etf-timing",
+      "prompt": "S&P500 ETF 매수 타이밍 알려줘. VOO 지금 사도 돼?",
+      "expected_output": "ETF 매수/매도 타이밍에 대한 일반 답변. midcap-alpha 스킬이 트리거되면 안 됨.",
+      "should_trigger": false,
+      "files": [],
+      "assertions": [
+        "does NOT mention midcap universe or promotion candidates",
+        "treats as ETF timing question, not midcap screening"
+      ]
+    }
+  ]
+}

@@ -84,6 +84,26 @@ except Exception:
     _dart_api = None  # type: ignore
     _DART_OK = False
 
+try:
+    from bottom_fishing_score import compute_bf_score as _compute_bf
+    _BF_OK = True
+except Exception:
+    _BF_OK = False
+
+try:
+    import fundamental_value_grade as _fvg
+    _FVG_OK = True
+except Exception:
+    _fvg = None  # type: ignore
+    _FVG_OK = False
+
+try:
+    import bottleneck_screen as _bottleneck
+    _BOTTLENECK_OK = True
+except Exception:
+    _bottleneck = None  # type: ignore
+    _BOTTLENECK_OK = False
+
 import concurrent.futures
 from datetime import datetime, timedelta
 import pickle
@@ -113,6 +133,17 @@ except Exception:
     _NAVER_HTTP = None
 import valuation_engine
 from entry_pricing import strong_entry_floor as _strong_entry_floor
+
+# ── 세이프 모드 (공공장소용 — config.json "safe_mode": true) ──────────────
+def _read_safe_mode() -> bool:
+    try:
+        _cfg_path = os.path.join(os.path.dirname(__file__), "config.json")
+        with open(_cfg_path, encoding="utf-8") as f:
+            return bool(json.load(f).get("safe_mode"))
+    except Exception:
+        return False
+_SAFE_MODE = _read_safe_mode()
+_APP_NAME = "종목 스캐너" if _SAFE_MODE else "종목분석기"
 from us_company_info import US_COMPANY_INFO as _US_COMPANY_INFO
 from kr_company_info import KR_COMPANY_INFO as _KR_COMPANY_INFO
 from greedzone import calc_greedzone as _calc_greedzone
@@ -886,6 +917,34 @@ _SW_MATRIX = np.array(
     dtype=np.float64,
 )  # shape (5, 23)
 
+# ── Regime-conditional factor multiplier (Patch-02) ────────────────────
+# 학계 근거: Daniel-Moskowitz (2016) — factor premium regime별 비대칭
+# BEAR에서 momentum 감쇄, drawdown/quality 강화 / BULL에서 역전
+REGIME_FACTOR_MULT: dict[str, dict[str, float]] = {
+    "STRONG_BULL":   {"momentum": 1.25, "mtf": 1.25, "rs": 1.10,
+                      "drawdown": 0.75, "mean_reversion": 0.80,
+                      "quality": 0.90, "fama_french": 0.90},
+    "BULL":          {"momentum": 1.15, "mtf": 1.15, "rs": 1.05,
+                      "drawdown": 0.85, "mean_reversion": 0.90},
+    "SIDEWAYS_BULL": {"momentum": 1.05, "mtf": 1.05},
+    "SIDEWAYS":      {},
+    "SIDEWAYS_BEAR": {"momentum": 0.85, "mtf": 0.85,
+                      "drawdown": 1.15, "quality": 1.10},
+    "BEAR":          {"momentum": 0.50, "mtf": 0.50, "rs": 0.85,
+                      "drawdown": 1.30, "mean_reversion": 1.20,
+                      "quality": 1.20, "fama_french": 1.15},
+    "STRONG_BEAR":   {"momentum": 0.30, "mtf": 0.30, "rs": 0.70,
+                      "drawdown": 1.40, "mean_reversion": 1.30,
+                      "quality": 1.30, "fama_french": 1.25},
+}
+
+def _effective_weights(strategy_weights: dict, regime_state: str) -> dict:
+    """STRATEGY_WEIGHTS에 regime mult 적용 후 합=1.0 정규화."""
+    mult = REGIME_FACTOR_MULT.get(regime_state, {})
+    raw = {k: v * mult.get(k, 1.0) for k, v in strategy_weights.items()}
+    s = sum(raw.values())
+    return {k: v / s for k, v in raw.items()} if s > 0 else strategy_weights
+
 # ─── 열 툴팁 ──────────────────────────────────────────────────────────
 COLUMN_TOOLTIPS = {
     "TICKER":   "종목 코드\n주식을 식별하는 고유 심볼입니다.",
@@ -916,6 +975,16 @@ COLUMN_TOOLTIPS = {
     "MomScore": "[N+S] 모멘텀+거래량 확인 점수\n컵앤핸들 피벗 돌파 시 가산.",
     "Value":    "[A] 연간 실적 점수\nROE 17%+ 기준 Fama-French 팩터.",
     "Quality":  "[C+A] 실적 품질 점수\nEPS 가속도·ROE·이익률 기반.",
+    "병목":     "공급망 병목 ∩ 진입타이밍\n"
+                "🟢 병목+진입: 상류 희소층 + 들어갈 자리(과열·약세 아님)\n"
+                "🟡 조정대기: 병목이나 폭등 꼭대기/과매수 → 추격 금지\n"
+                "⚪ 병목-약세: 병목이나 모멘텀·진입 신호 부재\n"
+                "셀 표기: 신호 이모지 + 병목근접도(0~100). '-'=병목 후보 아님",
+    "FinValue": "재무가치 등급 (0~100, 전체종목 백분위)\n"
+                "분기 성장(매출·영업이익·순이익 QoQ) + ROE + PBR·PSR(저평가).\n"
+                "• 높을수록 성장+저평가 우위 (PBR·PSR은 낮을수록 가점)\n"
+                "• 섹터내 백분위는 별도 보관(FinValueSec)\n"
+                "※ Phase 1: 네이버 분기 데이터. YoY·현금흐름·PEGR은 DART 연동 후 추가 예정.",
     "RSI":      "RSI (0~100)\n과매수/과매도 보조 지표.",
     "VWAP":     "[I] VWAP 괴리율\n기관 평균단가 대비 위치.",
     "ATR%":     "변동성 (ATR%)\n일평균 가격 변동폭 비율.",
@@ -2589,7 +2658,7 @@ class WallStreetQuantStrategies:
         """
         import math
         result = {"max_dd": 0.0, "current_dd": 0.0, "recovery": 0.0,
-                  "cvar_95": 0.0, "score": 0, "risk": "NORMAL",
+                  "cvar_95": 0.0, "worst_day": None, "score": 0, "risk": "NORMAL",
                   "dd_velocity_5d": 0.0, "dd_velocity_20d": 0.0,
                   "underwater_days": 0, "calmar_ratio": 0.0,
                   "skewness": 0.0, "excess_kurtosis": 0.0,
@@ -2625,24 +2694,35 @@ class WallStreetQuantStrategies:
                     break
             result["underwater_days"] = tuw
 
-            # P7: Calmar Ratio (연수익률 / |MDD|)
-            if len(c) >= 252 and abs(result["max_dd"]) > 0.001:
-                annual_ret = float(c.iloc[-1] / c.iloc[-252]) - 1.0
-                result["calmar_ratio"] = round(annual_ret / abs(result["max_dd"]), 2)
+            # P7: Calmar Ratio (B3: 분자·분모 모두 최근 1년으로 기간 일치)
+            # 기존 버그: 분자=최근1년 수익 / 분모=전체역사 MDD → 옛날 폭락이 분모를 영구히 부풀림
+            if len(c) >= 252:
+                c_1y = c.iloc[-252:]
+                _rmax_1y = c_1y.expanding().max()
+                _dd_1y = (c_1y - _rmax_1y) / _rmax_1y
+                _mdd_1y = float(_dd_1y.min())
+                if abs(_mdd_1y) > 0.001:
+                    annual_ret = float(c.iloc[-1] / c.iloc[-252]) - 1.0
+                    result["calmar_ratio"] = round(annual_ret / abs(_mdd_1y), 2)
 
             # CVaR 95% + P5: Skew/Kurtosis
-            daily_ret = c.pct_change().dropna()
-            if len(daily_ret) >= 30:
-                var_95 = float(daily_ret.quantile(0.05))
-                tail = daily_ret[daily_ret <= var_95]
-                result["cvar_95"] = round(float(tail.mean()) if len(tail) > 0 else var_95, 4)
-                result["skewness"] = round(float(daily_ret.skew()), 2)
-                result["excess_kurtosis"] = round(float(daily_ret.kurtosis()), 2)
+            # B1: 전체 history(시점 혼재) + 30일 하한(꼬리 1~2개) → 최근 252일 트레일링 + 표본 하한 상향.
+            # daily_ret(전체)은 하방베타·자기상관용으로 유지하고, 꼬리 통계는 최근 1년 창으로 계산.
+            daily_ret = c.pct_change(fill_method=None).dropna()
+            _ret_w = daily_ret.iloc[-252:]                       # 최근 1년(252거래일) 한정
+            if len(_ret_w) >= 120:                                # 30→120: 5% 꼬리 ≥6개 확보
+                var_95 = float(_ret_w.quantile(0.05))
+                tail = _ret_w[_ret_w <= var_95]
+                # ES95는 꼬리 표본이 충분(≥10)할 때만 신뢰 — 아니면 VaR(=하위 5% 지점)로 폴백
+                result["cvar_95"] = round(float(tail.mean()) if len(tail) >= 10 else var_95, 4)
+                result["worst_day"] = round(float(_ret_w.min()), 4)   # 진짜 단일 최악일(역대 최저 일간수익률)
+                result["skewness"] = round(float(_ret_w.skew()), 2)
+                result["excess_kurtosis"] = round(float(_ret_w.kurtosis()), 2)
 
             # P9: Downside Beta + P12: Stress Scenarios
             if benchmark_hist is not None and len(daily_ret) >= 60:
                 try:
-                    bench_ret = benchmark_hist["Close"].pct_change().dropna()
+                    bench_ret = benchmark_hist["Close"].pct_change(fill_method=None).dropna()
                     common = daily_ret.index.intersection(bench_ret.index)
                     if len(common) >= 60:
                         sr, br = daily_ret.loc[common], bench_ret.loc[common]
@@ -2654,9 +2734,11 @@ class WallStreetQuantStrategies:
                             if var_d > 1e-10:
                                 beta = round(cov_d / var_d, 2)
                                 result["downside_beta"] = beta
-                                result["stress_2008"] = round(beta * -0.568, 3)
-                                result["stress_2020"] = round(beta * -0.339, 3)
-                                result["stress_2022"] = round(beta * -0.254, 3)
+                                # B2: 선형 외삽이라 레버리지 종목(β>1.76)이면 -100% 초과(원금 이상 손실)라는
+                                # 불가능한 수가 나옴 → max(-1.0, ...)로 -100% 하한 클리핑. (선형 추정 한계는 프론트 주석으로 고지)
+                                result["stress_2008"] = max(-1.0, round(beta * -0.568, 3))
+                                result["stress_2020"] = max(-1.0, round(beta * -0.339, 3))
+                                result["stress_2022"] = max(-1.0, round(beta * -0.254, 3))
                 except Exception:
                     pass
 
@@ -2666,8 +2748,11 @@ class WallStreetQuantStrategies:
                     ac1 = float(daily_ret.iloc[-60:].autocorr(lag=1))
                     if not (ac1 != ac1):  # NaN check
                         result["ac1"] = round(ac1, 3)
-                        if ac1 < -0.01:
-                            result["halflife"] = round(-0.6931 / float(np.log(1 + ac1)), 1)
+                        # B5: np.log(1+ac1)은 ac1<=-1이면 log(0 또는 음수)=NaN/-inf → 정의역 가드 추가
+                        if -0.99 < ac1 < -0.01:
+                            _logv = float(np.log(1 + ac1))
+                            if _logv < -1e-10:
+                                result["halflife"] = round(-0.6931 / _logv, 1)
                 except Exception:
                     pass
 
@@ -2676,7 +2761,7 @@ class WallStreetQuantStrategies:
                 try:
                     _vol = hist["Volume"].iloc[-20:]
                     _cls = hist["Close"].iloc[-20:]
-                    _ret = _cls.pct_change().abs().iloc[1:]
+                    _ret = _cls.pct_change(fill_method=None).abs().iloc[1:]
                     _tvol = (_cls.iloc[1:].values * _vol.iloc[1:].values)
                     _valid = _tvol > 0
                     if _valid.sum() >= 10:
@@ -2727,12 +2812,17 @@ class WallStreetQuantStrategies:
             # Composite Risk Score (0=안전 ~ 99=극위험) — BlackRock Aladdin 방식
             # 6개 메트릭 가중합산: MDD(25%) + CVaR(20%) + Velocity(15%) + TUW(15%) + DownBeta(15%) + SkewKurt(10%)
             try:
-                _mdd_r = min(1.0, abs(result["current_dd"]) / 0.50)        # 50%=max
-                _cvar_r = min(1.0, abs(result["cvar_95"]) / 0.08)          # 8%=max
+                # B4: ①현재 낙폭뿐 아니라 역사적 max_dd도 반영 ②CVaR 상한 8%→3%(일간 ES 3%도 충격적,
+                #     8%면 실제 위험이 정규화에서 희석됨) ③downside_beta None(데이터없음)과 0(저변동) 구분
+                _mdd_r = min(1.0, max(abs(result["current_dd"]), abs(result["max_dd"]) * 0.5) / 0.40)  # 40%=max
+                _cvar_r = min(1.0, abs(result["cvar_95"]) / 0.03)          # 3%=max
                 _vel_r = min(1.0, abs(min(0, result["dd_velocity_5d"])) / 0.15)  # 15%p=max
                 _tuw_r = min(1.0, result["underwater_days"] / 200)          # 200일=max
                 _db = result["downside_beta"]
-                _db_r = min(1.0, (max(0, (_db or 1.0) - 0.5)) / 2.0)     # 0.5~2.5→0~1
+                if _db is None:
+                    _db_r = 0.5                                            # 벤치마크 없음 → 중립값
+                else:
+                    _db_r = min(1.0, max(0.0, _db - 0.5) / 2.0)           # 0.5~2.5→0~1
                 _sk = abs(result["skewness"])
                 _ek = max(0, result["excess_kurtosis"])
                 _sk_r = min(1.0, (_sk + _ek * 0.3) / 4.0)
@@ -3816,7 +3906,7 @@ class QuantNexusApp:
         """네이버 finance/annual API에서 PER/PBR/ROE/영업이익률/부채비율 + DCF 입력값(EPS/BPS/영업CF/EBITDA/발행주식수) 조회."""
         code = ticker.split('.')[0]
         cached = self._naver_fund_cache.get(code)
-        if cached is not None:
+        if cached:
             return cached
         result = {}
         try:
@@ -3838,7 +3928,6 @@ class QuantNexusApp:
                     latest_key = tr['key']
                     break
             if not latest_key:
-                self._naver_fund_cache[code] = result
                 return result
 
             # title → (key, unit_multiplier)
@@ -3875,7 +3964,7 @@ class QuantNexusApp:
                 self._save_naver_fund_cache()
         except Exception as e:
             logging.debug(f"Naver fund fetch failed for {code}: {e}")
-            self._naver_fund_cache[code] = {}
+            # 실패 시 캐시 저장 안 함 — 다음 호출에서 재시도
         return result
 
     # ─────────────────────────────────────────────────────────────────────
@@ -4200,7 +4289,7 @@ class QuantNexusApp:
         tf = self.main_tree_frame
 
         cols = ("Sector","Name","Desc","Price","Target","Score","Conv","SRank","Day%","Mom12M","MomScore",
-                "Value","Quality","RSI","VWAP","ATR%","Regime","Cmte","Signal","Reason")
+                "Value","Quality","FinValue","병목","RSI","VWAP","ATR%","Regime","Cmte","Signal","Reason")
         self.tree = ttk.Treeview(tf, columns=cols, show="tree headings")
 
         # ── 컬럼 비율 정의 ──────────────────────────────────────────────
@@ -4223,6 +4312,8 @@ class QuantNexusApp:
             "MomScore": (2,      62,       "center"),
             "Value":    (2,      55,       "center"),
             "Quality":  (2,      58,       "center"),
+            "FinValue": (2,      62,       "center"),  # 재무가치 등급(전체 백분위)
+            "병목":     (2,      66,       "center"),  # 공급망 병목 진입 신호
             "RSI":      (1,      48,       "center"),
             "VWAP":     (2,      55,       "center"),
             "ATR%":     (1,      52,       "center"),
@@ -4238,7 +4329,7 @@ class QuantNexusApp:
                          minwidth=_COL_SPEC["#0"][1],
                          anchor=_COL_SPEC["#0"][2],
                          stretch=True)
-        _COL_LABEL = {"Desc": "설명", "Name": "종목명", "Sector": "섹터"}
+        _COL_LABEL = {"Desc": "설명", "Name": "종목명", "Sector": "섹터", "FinValue": "재무가치"}
         self.tree.heading("#0", text="TICKER")
         for col in cols:
             w, mw, anc = _COL_SPEC[col]
@@ -4886,6 +4977,12 @@ class QuantNexusApp:
             self._log(f"📡 KR 재무 데이터 사전 로드 ({len(_kr_uncached)}개)...")
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as _naver_ex:
                 list(_naver_ex.map(self._fetch_naver_fundamentals, _kr_uncached))
+                # 재무가치 등급(Phase 1)용 분기 QoQ 지표도 병렬 워밍 (12h 캐시)
+                if _FVG_OK and _NAVERQ_OK and _naver_q is not None:
+                    try:
+                        list(_naver_ex.map(_naver_q.get_quarter_metrics, _kr_uncached))
+                    except Exception as _e:
+                        logging.debug(f"[FinValue] 분기지표 워밍 실패: {_e}")
 
         # F5: 종목명 사전 1회 구축 — _analyze_ticker 내 3단계 조회를 dict 1회 조회로 대체
         _kr_names_d = getattr(QuantNexusApp, "KR_NAMES", {})
@@ -4983,6 +5080,51 @@ class QuantNexusApp:
                     elif pct <= 25: r["SectorRank"] = "Top 25%"
                     elif pct <= 50: r["SectorRank"] = "Top 50%"
                     else:           r["SectorRank"] = "Bottom"
+
+        # ── 재무가치 등급 (Phase 1: 횡단면 백분위, 전체/섹터 병행) ──
+        if _FVG_OK and _fvg is not None and _NAVERQ_OK and _naver_q is not None and results:
+            try:
+                _fvg.apply_grades(
+                    results,
+                    quarter_fetch=_naver_q.get_quarter_metrics,
+                    ttm_fetch=_naver_q.get_ttm_financials,
+                    dart_fetch=_dart_api.get_financials_cached if _DART_OK and _dart_api else None,
+                    log=lambda m: self.root.after(0, lambda _m=m: self._log(_m)),
+                )
+            except Exception as _e:
+                logging.warning(f"[FinValue] 등급 패스 실패: {_e}")
+                for _r in results:
+                    _r.setdefault("FinValue", None)
+                    _r.setdefault("FinValueSec", None)
+
+        # ── 공급망 병목 근접도 (초벌 패스: 사업설명·섹터 키워드 매칭) ──
+        if _BOTTLENECK_OK and _bottleneck is not None and results:
+            for _r in results:
+                try:
+                    _txt = " ".join(str(_r.get(_k, "") or "") for _k in
+                                    ("Desc", "Industry", "About", "CompanyInfo"))
+                    _bp = _bottleneck.bottleneck_proximity(_txt, _r.get("Sector", ""))
+                    _r["BottleneckScore"] = _bp["score"]
+                    _r["BottleneckLayers"] = _bp["layers"]
+                    _r["BottleneckTop"] = _bp["top_layer"]
+                    _sig = _bottleneck.bottleneck_entry_signal(
+                        bottleneck_score=_bp["score"],
+                        entry_score=_r.get("EntryScore"),
+                        rsi=_r.get("RSI"),
+                        rs_rating=_r.get("RSRating"),
+                        mom_3m=_r.get("_Mom3M"),
+                        regime=_r.get("Regime"),
+                    )
+                    _r["BottleneckEntry"] = _sig["label"]
+                    _r["BottleneckEntryPass"] = _sig["pass_gate"]
+                    _r["BottleneckEntryReasons"] = _sig["reasons"]
+                except Exception:
+                    _r.setdefault("BottleneckScore", 0)
+                    _r.setdefault("BottleneckLayers", [])
+                    _r.setdefault("BottleneckTop", None)
+                    _r.setdefault("BottleneckEntry", None)
+                    _r.setdefault("BottleneckEntryPass", False)
+                    _r.setdefault("BottleneckEntryReasons", [])
 
         # ── Cross-Sectional RS Rating (백분위 기반 재조정) ─────
         if len(results) >= 5:
@@ -5520,8 +5662,10 @@ class QuantNexusApp:
             #     가중치를 적용한다 — "c_raw * 0.35 += base" 같은
             #     고정 하드코딩 덧셈은 완전히 폐기한다.
             # ════════════════════════════════════════════════════════════
-            w = STRATEGY_WEIGHTS.get(self._scan_strategy,
-                                     STRATEGY_WEIGHTS["BALANCED"])
+            _base_w = STRATEGY_WEIGHTS.get(self._scan_strategy,
+                                           STRATEGY_WEIGHTS["BALANCED"])
+            _regime_state = regime.get("regime", "SIDEWAYS") if regime else "SIDEWAYS"
+            w = _effective_weights(_base_w, _regime_state)
 
             # ── 투자지주사: 실적/밸류 팩터 무력화, NAV-할인 신호 주축화 ──
             # 지주사 주가는 실적이 아니라 보유 상장지분 NAV에 할인율이
@@ -5622,77 +5766,111 @@ class QuantNexusApp:
                         "(실적·PER·ROE 팩터는 점수에서 제외)")
 
             # ── [C] Current Quarterly EPS 가속도 ─────────────────────
-            c_raw = earn["c_score"]
-            if earn["eps_acceleration"]:
-                canslim_tags.append("C🔥 분기 실적이 2분기 연속 가속 성장 중이에요")
-            elif c_raw >= 28:
-                canslim_tags.append("C 분기 순이익이 50% 이상 폭발적으로 늘었어요")
-            elif c_raw >= 18:
-                canslim_tags.append("C 분기 순이익이 25% 이상 성장해 기준을 충족했어요")
-            elif earn["fail_safe_eps"]:
-                canslim_tags.append("C⛔ 분기 순이익이 적자예요. 진입에 주의하세요")
+            # 각 원칙을 개별 try/except 로 감싸 하나가 실패해도
+            # 나머지 원칙 태그가 사라지지 않도록 방어한다.
+            try:
+                c_raw = earn["c_score"]
+                if earn.get("data_missing"):
+                    canslim_tags.append("C 실적 데이터가 아직 공개되지 않았어요 (분기 보고 전이거나 공시 미반영)")
+                elif earn["eps_acceleration"]:
+                    canslim_tags.append("C🔥 분기 실적이 2분기 연속 가속 성장 중이에요")
+                elif c_raw >= 28:
+                    canslim_tags.append("C 분기 순이익이 50% 이상 폭발적으로 늘었어요")
+                elif c_raw >= 18:
+                    canslim_tags.append("C 분기 순이익이 25% 이상 성장해 기준을 충족했어요")
+                elif earn["fail_safe_eps"]:
+                    canslim_tags.append("C⛔ 분기 순이익이 적자예요. 진입에 주의하세요")
+                elif c_raw > 0:
+                    canslim_tags.append(f"C 분기 순이익이 소폭({earn['eps_growth']:+.0%}) 성장했지만 기준(25%)에 미달해요")
+                else:
+                    canslim_tags.append("C 분기 순이익 성장이 확인되지 않았어요")
+            except Exception:
+                c_raw = 0
+                canslim_tags.append("C 분기 실적 데이터를 분석할 수 없었어요")
             f_cs_c = _n01(max(c_raw, 0.0), best=60.0)   # 60점이 사실상 상한
 
             # ── [A] Annual Earnings: ROE 17%+ ────────────────────────
-            a_raw = ff["a_score"]
-            if ff["roe_pass"]:
-                canslim_tags.append(f"A✅ 자기자본이익률 {ff['roe']:.0%}로 기준(17%)을 통과했어요")
-            else:
-                canslim_tags.append(f"A⛔ 자기자본이익률 {ff['roe']:.0%}로 기준(17%)에 미달해요")
+            try:
+                a_raw = ff["a_score"]
+                if ff["roe_pass"]:
+                    canslim_tags.append(f"A✅ 자기자본이익률 {ff['roe']:.0%}로 기준(17%)을 통과했어요")
+                else:
+                    canslim_tags.append(f"A⛔ 자기자본이익률 {ff['roe']:.0%}로 기준(17%)에 미달해요")
+            except Exception:
+                a_raw = 0
+                canslim_tags.append("A 자기자본이익률(ROE) 데이터를 확인할 수 없었어요")
             f_cs_a = _n(a_raw)
 
             # ── [N] New Highs / 컵앤핸들 피벗 ───────────────────────
             n_raw = 0.0
-            if mom["near_52w_high"]:
-                n_raw += 20
-                canslim_tags.append(f"N🚀 52주 최고가에서 {mom['dist_from_52w_high']:.0%} 아래, 신고가 도전 중이에요")
-            elif mom["dist_from_52w_high"] < 0.10:
-                n_raw += 10
-                canslim_tags.append(f"N 52주 최고가에서 10% 이내에 위치했어요")
-            else:
-                canslim_tags.append(f"N 52주 최고가보다 {mom['dist_from_52w_high']:.0%} 아래에 있어요")
-            if mom["pivot_breakout"]:
-                n_raw += 15
-                canslim_tags.append("N🔔 컵앤핸들 패턴의 피벗을 돌파했어요")
+            try:
+                if mom["near_52w_high"]:
+                    n_raw += 20
+                    canslim_tags.append(f"N🚀 52주 최고가에서 {mom['dist_from_52w_high']:.0%} 아래, 신고가 도전 중이에요")
+                elif mom["dist_from_52w_high"] < 0.10:
+                    n_raw += 10
+                    canslim_tags.append(f"N 52주 최고가에서 10% 이내에 위치했어요")
+                else:
+                    canslim_tags.append(f"N 52주 최고가보다 {mom['dist_from_52w_high']:.0%} 아래에 있어요")
+                if mom["pivot_breakout"]:
+                    n_raw += 15
+                    canslim_tags.append("N🔔 컵앤핸들 패턴의 피벗을 돌파했어요")
+            except Exception:
+                canslim_tags.append("N 52주 신고가 데이터를 확인할 수 없었어요")
             f_cs_n = _n01(n_raw, best=35.0)
 
             # ── [S] Supply & Demand (거래량 확인 돌파) ───────────────
-            s_raw = vol_a["score"]
-            if vol_a["s_confirmed"]:
-                canslim_tags.append(f"S✅ 거래량이 평소의 {vol_a['ratio']:.1f}배로 급증해 기관 참여가 확인됐어요")
-            elif vol_a["unconfirmed_break"]:
-                s_raw -= 10
-                canslim_tags.append(f"S⚠️ 가격은 올랐지만 거래량이 부족해요. 가짜 신호일 수 있어요")
-            else:
-                canslim_tags.append(f"S 거래량이 평소의 {vol_a['ratio']:.1f}배 수준이에요")
+            try:
+                s_raw = vol_a["score"]
+                if vol_a["s_confirmed"]:
+                    canslim_tags.append(f"S✅ 거래량이 평소의 {vol_a['ratio']:.1f}배로 급증해 기관 참여가 확인됐어요")
+                elif vol_a["unconfirmed_break"]:
+                    s_raw -= 10
+                    canslim_tags.append(f"S⚠️ 가격은 올랐지만 거래량이 부족해요. 가짜 신호일 수 있어요")
+                else:
+                    canslim_tags.append(f"S 거래량이 평소의 {vol_a['ratio']:.1f}배 수준이에요")
+            except Exception:
+                s_raw = 0
+                canslim_tags.append("S 거래량 데이터를 확인할 수 없었어요")
             f_cs_s = _n(s_raw)
 
             # ── [L] Leader or Laggard (RS 80+) ──────────────────────
-            l_raw = rs["score"]
-            if rs["is_leader"]:
-                canslim_tags.append(f"L⭐ 상대강도 {rs['rs_rating']}점으로 시장 주도주예요")
-            elif rs["fail_safe_rs"]:
-                canslim_tags.append(f"L📉 상대강도 {rs['rs_rating']}점으로 시장 대비 뒤처지고 있어요")
-            else:
-                canslim_tags.append(f"L 상대강도(RS) {rs['rs_rating']}점이에요")
+            try:
+                l_raw = rs["score"]
+                if rs["is_leader"]:
+                    canslim_tags.append(f"L⭐ 상대강도 {rs['rs_rating']}점으로 시장 주도주예요")
+                elif rs["fail_safe_rs"]:
+                    canslim_tags.append(f"L📉 상대강도 {rs['rs_rating']}점으로 시장 대비 뒤처지고 있어요")
+                else:
+                    canslim_tags.append(f"L 상대강도(RS) {rs['rs_rating']}점이에요")
+            except Exception:
+                l_raw = 0
+                canslim_tags.append("L 상대강도(RS) 데이터를 확인할 수 없었어요")
             f_cs_l = _n(l_raw)
 
             # ── [I] Institutional Sponsorship (Smart Money) ──────────
-            i_raw = flow["score"]
-            canslim_tags.append(f"I 기관 자금 흐름은 '{flow['signal']}'이에요")
+            try:
+                i_raw = flow["score"]
+                canslim_tags.append(f"I 기관 자금 흐름은 '{flow['signal']}'이에요")
+            except Exception:
+                i_raw = 0
+                canslim_tags.append("I 기관 자금 흐름 데이터를 확인할 수 없었어요")
             f_cs_i = _n(i_raw)
 
             # ── [M] Market Direction (태그만 — regime에서 점수 처리) ─
             #   다른 원칙(C/A/N/S/L/I)과 동일한 'M+이모지 한글설명' 포맷으로
             #   생성해야 프론트가 본문(main)으로 분류한다. (대괄호 포맷은 보조지표로 빠짐)
-            _m_msg = {
-                "STRONG_BULL":  "M🔥 시장 전체가 강한 상승 추세예요 (CAN SLIM의 핵심 조건)",
-                "BULL":         "M✅ 시장이 상승 추세에 있어요",
-                "SIDEWAYS_BULL":"M 시장이 횡보 중이지만 상승 쪽으로 기울어 있어요",
-                "STRONG_BEAR":  "M🚫 시장이 강한 하락 추세예요. 점수에 50% 상한이 걸려요",
-                "BEAR":         "M🚫 시장이 하락 추세예요. 점수에 50% 상한이 걸려요",
-                "SIDEWAYS":     "M 시장이 뚜렷한 방향 없이 횡보 중이에요"}.get(regime.get("regime", "SIDEWAYS"),
-                  "M 시장이 뚜렷한 방향 없이 횡보 중이에요")
+            try:
+                _m_msg = {
+                    "STRONG_BULL":  "M🔥 시장 전체가 강한 상승 추세예요 (CAN SLIM의 핵심 조건)",
+                    "BULL":         "M✅ 시장이 상승 추세에 있어요",
+                    "SIDEWAYS_BULL":"M 시장이 횡보 중이지만 상승 쪽으로 기울어 있어요",
+                    "STRONG_BEAR":  "M🚫 시장이 강한 하락 추세예요. 점수에 50% 상한이 걸려요",
+                    "BEAR":         "M🚫 시장이 하락 추세예요. 점수에 50% 상한이 걸려요",
+                    "SIDEWAYS":     "M 시장이 뚜렷한 방향 없이 횡보 중이에요"}.get(regime.get("regime", "SIDEWAYS"),
+                      "M 시장이 뚜렷한 방향 없이 횡보 중이에요")
+            except Exception:
+                _m_msg = "M 시장 방향 데이터를 확인할 수 없었어요"
             canslim_tags.append(_m_msg)
 
             # ════════════════════════════════════════════════════════════
@@ -5769,14 +5947,17 @@ class QuantNexusApp:
             # STEP 5 — Hurst + Kalman 신뢰도 조정 (±4% 이내 소폭 보정)
             # ════════════════════════════════════════════════════════════
             hurst_kalman_trust = 1.0
-            if hurst["h"] >= 0.60 and kf["signal"] in ("BUY_TREND", "POSSIBLE_REVERSAL"):
-                hurst_kalman_trust = 1.04
-                canslim_tags.append(f"[MATH✅] Hurst {hurst['h']:.2f}≥0.6 + Kalman {kf['signal']}")
-            elif hurst["h"] < 0.45 and kf["signal"] == "SELL_TREND":
-                hurst_kalman_trust = 0.94
-                canslim_tags.append(f"[MATH⚠️] Hurst {hurst['h']:.2f} + Kalman SELL — 신뢰도↓")
-            else:
-                canslim_tags.append(f"[MATH] Hurst {hurst['h']:.2f}  Kalman {kf['signal']}")
+            try:
+                if hurst["h"] >= 0.60 and kf["signal"] in ("BUY_TREND", "POSSIBLE_REVERSAL"):
+                    hurst_kalman_trust = 1.04
+                    canslim_tags.append(f"[MATH✅] Hurst {hurst['h']:.2f}≥0.6 + Kalman {kf['signal']}")
+                elif hurst["h"] < 0.45 and kf["signal"] == "SELL_TREND":
+                    hurst_kalman_trust = 0.94
+                    canslim_tags.append(f"[MATH⚠️] Hurst {hurst['h']:.2f} + Kalman SELL — 신뢰도↓")
+                else:
+                    canslim_tags.append(f"[MATH] Hurst {hurst['h']:.2f}  Kalman {kf['signal']}")
+            except Exception:
+                canslim_tags.append("[MATH] Hurst/Kalman 데이터를 확인할 수 없었어요")
 
             base = max(0.0, min(120.0, base * hurst_kalman_trust))
 
@@ -5833,12 +6014,23 @@ class QuantNexusApp:
             # ════════════════════════════════════════════════════════════
             vix_m = _smooth_band(self.vix_value, [
                 (12.0, 1.04), (15.0, 1.02), (20.0, 1.00),
-                (25.0, 0.93), (30.0, 0.86), (35.0, 0.80), (45.0, 0.75)])
+                (25.0, 0.92), (30.0, 0.82), (35.0, 0.70), (45.0, 0.55)])
             base = max(0.0, min(120.0, base * vix_m))
             # Re-clamp to fail-safe ceiling if it was set (VIX upmove must not bypass cap).
             if fail_safe_triggered:
                 _ceil_post = CANSLIM["SCORE_CEIL_MOMENTUM_OVERRIDE"] if _momentum_override else CANSLIM["SCORE_CEIL_LAGGARD"]
                 base = min(base, _ceil_post)
+
+            # ════════════════════════════════════════════════════════════
+            # STEP 7.5 — 매크로 레짐 감쇄 (macro_gate Risk-Off → 글로벌 점수 축소)
+            # ════════════════════════════════════════════════════════════
+            _macro_r = getattr(self, '_scan_macro_regime', None)
+            if _macro_r == "Risk-Off":
+                base *= 0.82
+            elif _macro_r == "Neutral":
+                base *= 0.94
+            # Risk-On: 1.0 (변화 없음)
+            base = max(0.0, min(120.0, base))
 
             # ════════════════════════════════════════════════════════════
             # STEP 8 — [M] Bear Cap: Bear 시장 → 최종 점수 50% 상한
@@ -5940,7 +6132,13 @@ class QuantNexusApp:
                 _holdco_wv = np.array([w.get(k, 0.0) for k in _SW_KEYS], dtype=np.float64)
                 _raw_b_arr = np.full(len(_SW_MODES), float(_holdco_wv @ _fv_arr))
             else:
-                _raw_b_arr = _SW_MATRIX @ _fv_arr  # shape (5,)
+                # regime 조건부 가중치 적용
+                _regime_sw = np.array(
+                    [[_effective_weights(STRATEGY_WEIGHTS[m], _regime_state).get(k, 0.0)
+                      for k in _SW_KEYS] for m in _SW_MODES],
+                    dtype=np.float64,
+                )
+                _raw_b_arr = _regime_sw @ _fv_arr
             all_scores: dict[str, float] = {}
             for _i, _mode in enumerate(_SW_MODES):
                 _b = float(_raw_b_arr[_i])
@@ -5950,6 +6148,11 @@ class QuantNexusApp:
                     _ceil = CANSLIM["SCORE_CEIL_MOMENTUM_OVERRIDE"] if _momentum_override else CANSLIM["SCORE_CEIL_LAGGARD"]
                     _b = min(_b, _ceil)
                 _b = max(0.0, min(120.0, _b * vix_m))
+                # macro regime dampener (5전략 재계산에도 동일 적용)
+                if _macro_r == "Risk-Off":
+                    _b *= 0.82
+                elif _macro_r == "Neutral":
+                    _b *= 0.94
                 if fail_safe_triggered:
                     _ceil_ms = CANSLIM["SCORE_CEIL_MOMENTUM_OVERRIDE"] if _momentum_override else CANSLIM["SCORE_CEIL_LAGGARD"]
                     _b = min(_b, _ceil_ms)
@@ -5988,6 +6191,31 @@ class QuantNexusApp:
                 final = _v21["final"]
             except Exception:
                 pass
+
+            # ════════════════════════════════════════════════════════════
+            # STEP 10.9 — Bottom-Fishing Score (저점매수 복합 점수)
+            # ════════════════════════════════════════════════════════════
+            _bf_result: dict = {
+                "bf_score": 0.0, "bf_signal": "NEUTRAL",
+                "axis1_value": 0.0, "axis2_tech": 0.0, "axis3_macro": 0.0,
+                "piotroski": {"f_score": 0, "available": False},
+                "altman": {"z_score": None, "zone": "UNKNOWN", "available": False},
+                "bf_tags": [], "breakdown": [],
+            }
+            if _BF_OK:
+                try:
+                    _dart_fin = None
+                    if _is_kr and _DART_OK and _dart_api:
+                        try:
+                            _dart_fin = _dart_api.get_financials_cached(ticker)
+                        except Exception:
+                            pass
+                    _bf_result = _compute_bf(
+                        ticker, mr, flow, ff, qual, atr, hurst, regime, dd,
+                        info, hist, dart_data=_dart_fin,
+                    )
+                except Exception:
+                    pass
 
             # ════════════════════════════════════════════════════════════
             # STEP 11 — CAN SLIM 시그널 결정
@@ -6032,6 +6260,10 @@ class QuantNexusApp:
                 signal += " [VOL🔥]"
             if low_liquidity:
                 signal += " [LOW LIQ]"
+            if _bf_result.get("bf_score", 0) >= 60:
+                signal += " [BF🎯]"
+            for _bft in (_bf_result.get("bf_tags") or [])[:2]:
+                signal += f" [{_bft}]"
 
             # ════════════════════════════════════════════════════════════
             # STEP 12 — Breakdown 구성 (CAN SLIM 원칙 코드 표기)
@@ -6039,7 +6271,8 @@ class QuantNexusApp:
             # vol_impact = 변동성 조정 후 점수 - 슈퍼 그로스 직전 base
             # (괄호 누락 + super_mult 분할 보정의 클리핑 손실 문제 수정)
             vol_impact = va["adj_score"] - base_pre_super
-            breakdown = [
+            try:
+                breakdown = [
                 # ── CAN SLIM 7원칙 ───────────────────────────────────
                 ("[C] EPS 가속도 (Current QE)",
                  None if earn.get("data_missing") else round(earn["c_score"], 1),
@@ -6156,26 +6389,38 @@ class QuantNexusApp:
                   f"갭 방향 {'+위' if sent['gap_bias'] > 0 else '아래'}, "
                   f"종가 강도 {sent['close_strength']:.0%}예요."))]
 
-            # SCALPING 전용 단타 팩터 — 가중치>0 일 때만 Breakdown에 노출
-            if w.get("orb", 0) > 0 or w.get("nr7", 0) > 0 or w.get("bb_revert", 0) > 0:
-                breakdown.extend([
-                    ("[Scalp] ORB 돌파",
-                     round(f_orb * w["orb"], 1),
-                     f"ORB 신호: '{orb.get('signal', 'NONE')}' (점수 {orb.get('score', 0):.1f})"),
-                    ("[Scalp] NR7 압축",
-                     round(f_nr7 * w["nr7"], 1),
-                     f"NR7 신호: '{nr7.get('signal', 'NONE')}' (점수 {nr7.get('score', 0):.1f})"),
-                    ("[Scalp] BB 반등",
-                     round(f_bb_revert * w["bb_revert"], 1),
-                     f"BB 반등 신호: '{bb_rv.get('signal', 'NONE')}' (점수 {bb_rv.get('score', 0):.1f})")])
+                # SCALPING 전용 단타 팩터 — 가중치>0 일 때만 Breakdown에 노출
+                if w.get("orb", 0) > 0 or w.get("nr7", 0) > 0 or w.get("bb_revert", 0) > 0:
+                    breakdown.extend([
+                        ("[Scalp] ORB 돌파",
+                         round(f_orb * w["orb"], 1),
+                         f"ORB 신호: '{orb.get('signal', 'NONE')}' (점수 {orb.get('score', 0):.1f})"),
+                        ("[Scalp] NR7 압축",
+                         round(f_nr7 * w["nr7"], 1),
+                         f"NR7 신호: '{nr7.get('signal', 'NONE')}' (점수 {nr7.get('score', 0):.1f})"),
+                        ("[Scalp] BB 반등",
+                         round(f_bb_revert * w["bb_revert"], 1),
+                         f"BB 반등 신호: '{bb_rv.get('signal', 'NONE')}' (점수 {bb_rv.get('score', 0):.1f})")])
 
-            # CAN SLIM 원칙 요약을 Breakdown 첫 줄에 삽입
-            principle_summary = "\n".join(canslim_tags)
-            breakdown.insert(0, (
-                "══ CAN SLIM 원칙 요약 ══",
-                round(final, 1),
-                principle_summary
-            ))
+                # Bottom-Fishing Breakdown
+                if _bf_result.get("breakdown"):
+                    breakdown.extend(_bf_result["breakdown"])
+
+                # CAN SLIM 원칙 요약을 Breakdown 첫 줄에 삽입
+                principle_summary = "\n".join(canslim_tags)
+                breakdown.insert(0, (
+                    "══ CAN SLIM 원칙 요약 ══",
+                    round(final, 1),
+                    principle_summary
+                ))
+            except Exception:
+                # Breakdown 구성 중 포맷 에러 시 최소한의 원칙 요약만 표시
+                principle_summary = "\n".join(canslim_tags)
+                breakdown = [(
+                    "══ CAN SLIM 원칙 요약 ══",
+                    round(final, 1),
+                    principle_summary
+                )]
 
             # ── Breakdown 항목에 계산식 + 상세 과정 추가 ──────────
             def _md(inputs_str, raw, norm_desc, fv, wv):
@@ -6213,7 +6458,8 @@ class QuantNexusApp:
                 "[Scalp] ORB":      (f_orb,            _w.get("orb", 0)),
                 "[Scalp] NR7":      (f_nr7,            _w.get("nr7", 0)),
                 "[Scalp] BB":       (f_bb_revert,      _w.get("bb_revert", 0))}
-            _detail_inputs = {
+            try:
+                _detail_inputs = {
                 "[C]": (c_raw, f"_n01({c_raw:.1f}, best=60)",
                     f"• EPS 성장률: {earn['eps_growth']:+.0%}\n"
                     f"• 가속 성장: {'예 ✓' if earn.get('eps_acceleration') else '아니오'}\n"
@@ -6274,58 +6520,66 @@ class QuantNexusApp:
                     f"• 심리 신호: {sent['signal']}\n"
                     f"• 상승 거래량 비중: {sent['up_vol_ratio']:.0%}\n"
                     f"• 종가 강도: {sent['close_strength']:.0%}")}
+            except Exception:
+                _detail_inputs = {}
             for idx in range(1, len(breakdown)):
-                lbl, sc, desc = breakdown[idx][:3]
-                detail = ""
-                for prefix, (fv, wv) in _calc_info.items():
-                    if lbl.startswith(prefix):
-                        if wv > 0:
-                            contrib = fv * wv
-                            desc += f"\n📐 점수 {fv:.1f}/100 × 가중치 {wv*100:.1f}% = 기여도 {contrib:.1f}점"
-                        # 상세 과정 생성
-                        di = _detail_inputs.get(prefix)
-                        if di:
-                            raw_val, norm_str, inputs_str = di
-                            detail = _md(inputs_str, raw_val, norm_str, fv, wv)
-                        break
-                if lbl.startswith("[Adj]"):
-                    desc += f"\n📐 변동성 조정 {vol_impact:+.1f}점 · 슈퍼그로스 배율 ×{super_mult:.2f}"
-                    detail = (
-                        f"📊 입력 데이터\n"
-                        f"• 변동성 효율: {va['efficiency']}\n"
-                        f"• 슈퍼그로스 배율: ×{super_mult:.2f}\n"
-                        f"📐 계산 과정\n"
-                        f"① 변동성 조정 점수: {va['adj_score']:.1f}\n"
-                        f"② 조정 전 base: {base_pre_super:.1f}\n"
-                        f"③ 영향: {vol_impact:+.1f}점\n"
-                        f"④ 최종 점수에 {vol_impact:+.1f}점 반영"
-                    )
-                breakdown[idx] = (lbl, sc, desc, detail)
+                try:
+                    lbl, sc, desc = breakdown[idx][:3]
+                    detail = ""
+                    for prefix, (fv, wv) in _calc_info.items():
+                        if lbl.startswith(prefix):
+                            if wv > 0:
+                                contrib = fv * wv
+                                desc += f"\n📐 점수 {fv:.1f}/100 × 가중치 {wv*100:.1f}% = 기여도 {contrib:.1f}점"
+                            # 상세 과정 생성
+                            di = _detail_inputs.get(prefix)
+                            if di:
+                                raw_val, norm_str, inputs_str = di
+                                detail = _md(inputs_str, raw_val, norm_str, fv, wv)
+                            break
+                    if lbl.startswith("[Adj]"):
+                        desc += f"\n📐 변동성 조정 {vol_impact:+.1f}점 · 슈퍼그로스 배율 ×{super_mult:.2f}"
+                        detail = (
+                            f"📊 입력 데이터\n"
+                            f"• 변동성 효율: {va['efficiency']}\n"
+                            f"• 슈퍼그로스 배율: ×{super_mult:.2f}\n"
+                            f"📐 계산 과정\n"
+                            f"① 변동성 조정 점수: {va['adj_score']:.1f}\n"
+                            f"② 조정 전 base: {base_pre_super:.1f}\n"
+                            f"③ 영향: {vol_impact:+.1f}점\n"
+                            f"④ 최종 점수에 {vol_impact:+.1f}점 반영"
+                        )
+                    breakdown[idx] = (lbl, sc, desc, detail)
+                except Exception:
+                    pass  # 개별 항목 상세 실패 시 원본 유지
 
             # ── TopReason: 상위 이유 한줄 요약 생성 ──────────────
-            top_reasons = []
-            if mom["near_52w_high"]:
-                top_reasons.append("52주 신고가 근접")
-            if vol_a["s_confirmed"]:
-                top_reasons.append(f"거래량 {vol_a['ratio']:.1f}x 돌파")
-            if rs["is_leader"]:
-                top_reasons.append(f"RS {rs['rs_rating']} 주도주")
-            if earn["eps_acceleration"]:
-                top_reasons.append("EPS 가속")
-            if ff["roe_pass"]:
-                top_reasons.append(f"ROE {ff['roe']:.0%}")
-            if mr["rsi"] <= 30:
-                top_reasons.append(f"RSI {mr['rsi']:.0f} 과매도")
-            elif mr["rsi"] >= 70:
-                top_reasons.append(f"RSI {mr['rsi']:.0f} 과열")
-            if pt["upside"] and pt["upside"] > 0.15:
-                top_reasons.append(f"DCF +{pt['upside']:.0%}")
-            if fail_safe_triggered:
-                if earn["fail_safe_eps"]:
-                    top_reasons.insert(0, "⛔EPS<0")
-                if rs["fail_safe_rs"]:
-                    top_reasons.insert(0, f"⛔RS{rs['rs_rating']}<40")
-            top_reason_str = " · ".join(top_reasons[:4]) if top_reasons else "-"
+            try:
+                top_reasons = []
+                if mom["near_52w_high"]:
+                    top_reasons.append("52주 신고가 근접")
+                if vol_a["s_confirmed"]:
+                    top_reasons.append(f"거래량 {vol_a['ratio']:.1f}x 돌파")
+                if rs["is_leader"]:
+                    top_reasons.append(f"RS {rs['rs_rating']} 주도주")
+                if earn.get("eps_acceleration"):
+                    top_reasons.append("EPS 가속")
+                if ff.get("roe_pass"):
+                    top_reasons.append(f"ROE {ff['roe']:.0%}")
+                if mr["rsi"] <= 30:
+                    top_reasons.append(f"RSI {mr['rsi']:.0f} 과매도")
+                elif mr["rsi"] >= 70:
+                    top_reasons.append(f"RSI {mr['rsi']:.0f} 과열")
+                if pt.get("upside") and pt["upside"] > 0.15:
+                    top_reasons.append(f"DCF +{pt['upside']:.0%}")
+                if fail_safe_triggered:
+                    if earn.get("fail_safe_eps"):
+                        top_reasons.insert(0, "⛔EPS<0")
+                    if rs.get("fail_safe_rs"):
+                        top_reasons.insert(0, f"⛔RS{rs.get('rs_rating', 0)}<40")
+                top_reason_str = " · ".join(top_reasons[:4]) if top_reasons else "-"
+            except Exception:
+                top_reason_str = "-"
 
             # ── 진입 타이밍 신호 (Entry Timing · V5.1_TUNED) ────────────
             # 인라인 로직은 _compute_entry_status() 순수 함수로 추출됨
@@ -6434,7 +6688,7 @@ class QuantNexusApp:
                     elif any(k in _ph_joined for k in ("VWAP", "지지", "지지선")):
                         headline_action = "지지 확인 필요"
                     else:
-                        headline_action = "신호 혼조 — 다음 기회 대기"
+                        headline_action = "관망(혼조)"
                 else:  # AVOID
                     if any(k in _ph_joined for k in ("하락", "데드크로스", "약세")):
                         headline_action = "하락 추세 — 관망"
@@ -6443,7 +6697,7 @@ class QuantNexusApp:
                     elif any(k in _ph_joined for k in ("공매도", "숏")):
                         headline_action = "공매도 압력 — 관망"
                     else:
-                        headline_action = "관망 — 다음 기회 대기"
+                        headline_action = "관망"
 
                 _low_wr = _wr > 0 and _wr < 40
                 _low_rr = (_rr_now_v > 0 and _rr_now_v < 1.5) or (_rr_v > 0 and _rr_v < 1.5)
@@ -6494,6 +6748,9 @@ class QuantNexusApp:
                 "mdd_recovery": round(float(dd.get("recovery", 0.0) or 0.0) * 100, 1),
                 "size_suggestion": atr.get("size_suggestion", "NORMAL"),
                 "cvar_95": round(float(dd.get("cvar_95", 0.0) or 0.0) * 100, 2),
+                # B1: 진짜 단일 최악일 (None이면 데이터 부족 → 프론트 미표시)
+                "worst_day": (round(float(dd["worst_day"]) * 100, 2)
+                              if dd.get("worst_day") is not None else None),
                 # P4: velocity
                 "dd_velocity_5d": round(float(dd.get("dd_velocity_5d", 0.0) or 0.0) * 100, 2),
                 "dd_velocity_20d": round(float(dd.get("dd_velocity_20d", 0.0) or 0.0) * 100, 2),
@@ -6616,6 +6873,17 @@ class QuantNexusApp:
                 "_DivYield":        _normalize_div_yield(info.get("dividendYield")),
                 "_AvgVol20":        float(hist["Volume"].tail(20).mean()) if len(hist) >= 20 else 0.0,
                 "_AvgDollarVol20":  float((hist["Close"] * hist["Volume"]).tail(20).mean()) if len(hist) >= 20 else 0.0}
+
+            # ── Bottom-Fishing Score 결과 주입 ──
+            result["BFScore"]      = _bf_result.get("bf_score", 0)
+            result["BFSignal"]     = _bf_result.get("bf_signal", "NEUTRAL")
+            result["BFAxis1"]      = _bf_result.get("axis1_value", 0)
+            result["BFAxis2"]      = _bf_result.get("axis2_tech", 0)
+            result["BFAxis3"]      = _bf_result.get("axis3_macro", 0)
+            result["BFTags"]       = _bf_result.get("bf_tags", [])
+            result["PiotroskiF"]   = _bf_result.get("piotroski", {}).get("f_score", 0)
+            result["AltmanZ"]      = _bf_result.get("altman", {}).get("z_score")
+            result["AltmanZone"]   = _bf_result.get("altman", {}).get("zone", "UNKNOWN")
 
             # ── GreedZone 계산 (Zeiierman Pine Script 서버측 재구현) ──
             try:
@@ -6841,6 +7109,11 @@ class QuantNexusApp:
 
             _desc_map = self.KR_DESC if is_kr else self.US_DESC
             _desc = _desc_map.get(d['Ticker'], "")
+            _fv = d.get("FinValue")
+            fv_str = f"{_fv:.0f}" if _fv is not None else "-"
+            _bscore = d.get("BottleneckScore", 0) or 0
+            _bentry = d.get("BottleneckEntry") or ""
+            bn_str = f"{_bentry.split()[0]}{_bscore:.0f}" if (_bscore >= 60 and _bentry) else "-"
             vals = (
                 d.get("Sector", "")[:18],
                 d['Name'], _desc, price_str, target_str, sc_viz,
@@ -6850,6 +7123,8 @@ class QuantNexusApp:
                 f"{d.get('RSRating', 0)} {leader_mark}",
                 f"{d['ValueScore']:.0f}",
                 f"{d['QualityScore']:.0f}",
+                fv_str,
+                bn_str,
                 rsi_viz,
                 f"{d['VWAPDistance']:+.1%}",
                 f"{d['ATRPercent']:.1f}%",
@@ -7228,11 +7503,11 @@ class QuantNexusApp:
             sc = d['TotalScore']
             _desc_map = self.KR_DESC if is_kr else self.US_DESC
             _desc = _desc_map.get(d['Ticker'], "")
-            # 최종 렌더와 컬럼 수(20) 일치
+            # 최종 렌더와 컬럼 수(22) 일치
             vals = (
                 d.get("Sector", "")[:18],
                 d["Name"], _desc, price_str, "-",
-                f"{sc:.0f}", "", "", "", "", "", "", "", "", "", "", "",
+                f"{sc:.0f}", "", "", "", "", "", "", "", "", "", "", "", "", "",
                 "",
                 d.get("Signal", ""),
                 d.get("TopReason", "-"),
@@ -9260,7 +9535,7 @@ class QuantNexusApp:
         "012450.KS": "K9자주포·천무로켓", "064350.KS": "K2전차·레드백IFV",
         "047810.KS": "KF-21·위성체제조", "079550.KS": "유도무기·레이더",
         "042660.KS": "해군함정·잠수함", "272210.KS": "전자전·C4ISR",
-        "103140.KS": "탄약·동제련", "099320.KQ": "소형위성SAR",
+        "103140.KS": "탄약·동제련",
         # 조선·해운
         "329180.KS": "LNG·암모니아선건조", "009540.KS": "조선빅3지주",
         "010140.KS": "LNG선·드릴십", "082740.KS": "선박저속엔진",
@@ -9314,7 +9589,7 @@ class QuantNexusApp:
         "274090.KQ": "항공기구조물·발사체",
         # 건설·철강·화학
         "000720.KS": "아파트·해외플랜트", "005490.KS": "철강·리튬·이차전지",
-        "004020.KS": "고로일관제철", "051910.KS": "배터리소재·화학",
+        "004020.KS": "고로일관제철",
         "011170.KS": "에틸렌·기초화학",
         # 반도체 추가
         "007660.KS": "고다층PCB·AI서버기판",  # 이수페타시스
@@ -9333,20 +9608,20 @@ class QuantNexusApp:
         "036810.KQ": "BMS·배터리보호회로",
         "178920.KS": "PI필름·배터리절연소재",
         "011790.KS": "FC-BGA기판·동박",          # SKC
-        "131290.KQ": "반도체식각액·세정소재",   # 이엔에프테크놀로지
+        "131290.KQ": "반도체 테스트소켓·인터페이스",   # 티에스이
         "222800.KQ": "메모리모듈기판",            # 심텍
         # 온디바이스AI·통신
         "052710.KQ": "EMI필터·안테나모듈",       # 아모텍
-        "323280.KQ": "5G중계기·통신장비",         # 쏠리드
+        "323280.KQ": "반도체 PCB·도금장비",         # 태성
         "377480.KQ": "온디바이스AI부품",
         "405100.KQ": "AI엣지컴퓨팅모듈",
         "432720.KQ": "온디바이스AI반도체",
-        "010170.KQ": "머신비전카메라·의료영상",  # 뷰웍스
+        "010170.KQ": "광섬유·광케이블",            # 대한광통신
         "017670.KS": "5G무선통신서비스",           # SK텔레콤
         "030200.KS": "통신·클라우드·미디어",     # KT
         "032640.KS": "통신·인터넷·IPTV",          # LG유플러스
-        "084730.KQ": "광통신장비·부품",
-        "187790.KQ": "광케이블·광섬유제조",
+        "084730.KQ": "내비게이션·블랙박스·ADAS",   # 팅크웨어
+        "187790.KQ": "탈질촉매·대기환경설비",       # 나노
         # 전력 인프라 추가
         "025540.KS": "배전반·전력기기",
         "199820.KQ": "전력기기·전선소재",
@@ -9360,24 +9635,24 @@ class QuantNexusApp:
         "083650.KQ": "원전기자재·냉각기",
         "105840.KS": "원전계측제어",
         "096770.KS": "배터리·정유·화학",            # SK이노베이션
-        "322000.KS": "해상풍력타워·부품",           # 씨에스윈드
+        "322000.KS": "태양광 모듈·인버터",           # HD현대에너지솔루션
         "456040.KS": "ESS·태양광인버터",
         "475150.KS": "해상풍력·신재생에너지",
-        "462520.KS": "EV충전·수소연료전지",
+        "462520.KS": "내화물(제철·산업용)",          # 조선내화
         # 방산 추가
         "000880.KS": "한화지주·방산·항공",
         "064960.KS": "방산부품·총기모터",           # SNT모티브
-        "005810.KS": "탄약·발사체부품",              # 퍼스텍
-        "005870.KS": "방산전자·EMP방호",              # 빅텍
+        "005810.KS": "풍산그룹 지주(동제련·방산)",              # 풍산홀딩스
+        "005870.KS": "군 전술통신장비",              # 휴니드
         "010820.KS": "방산부품·전자전",
         "065450.KQ": "항공전자·방산부품",
         "321370.KQ": "드론·무인기부품",
         "377330.KQ": "소형위성·우주발사",
-        "437730.KQ": "항공기부품·알루미늄단조",    # 켄코아에어로스페이스
+        "437730.KQ": "전동화 구동시스템(모터·제어기)",    # 삼현
         # 조선 추가
         "097230.KS": "중소형선박·해양구조물",
         "439260.KS": "해양플랜트·선박",
-        "009070.KS": "LNG단열재·탄소소재",          # 한국카본
+        "009070.KS": "종합물류·항만하역",          # KCTC
         "017960.KS": "선박기자재·의장품",
         "077970.KS": "선박·항공엔진",
         "000120.KS": "택배·종합물류",                  # CJ대한통운
@@ -9393,7 +9668,7 @@ class QuantNexusApp:
         "298380.KQ": "항암신약개발",
         "326030.KS": "뇌전증신약·세노바메이트",    # SK바이오팜
         "006280.KS": "혈액제제·백신CMO",              # GC녹십자
-        "053030.KQ": "siRNA·진단키트",                  # 바이오니아
+        "053030.KQ": "바이오의약품 CMO·합성의약품",                  # 바이넥스
         "185750.KS": "CMO·원료의약품",
         "302440.KS": "백신CMO·바이오",                  # SK바이오사이언스
         "950210.KS": "바이오CDMO·위탁생산",              # 프레스티지바이오파마
@@ -9769,7 +10044,7 @@ class QuantNexusApp:
         "ADC": "어그리 리얼티",
         "ADI": "아날로그 디바이스",
         "ADM": "아처 대니얼스",
-        "ADP": "에이디피",
+        "ADP": "ADP",
         "AEHR": "에어테스트",
         "AEM": "애그니코 이글",
         "AEO": "아메리칸 이글",
@@ -9790,7 +10065,7 @@ class QuantNexusApp:
         "AMAT": "어플라이드 머티리얼즈",
         "AMBA": "암바렐라",
         "AMC": "AMC 엔터테인먼트",
-        "AMD": "에이엠디",
+        "AMD": "AMD",
         "AME": "아메텍",
         "AMG": "어필리에이티드",
         "AMGN": "암젠",
@@ -9809,7 +10084,7 @@ class QuantNexusApp:
         "ARM": "암홀딩스",
         "ARRY": "어레이 테크놀로지",
         "ARVN": "아비나스",
-        "ASML": "에이에스엠엘",
+        "ASML": "ASML",
         "ASTS": "AST 스페이스모바일",
         "ATR": "앱타그룹",
         "AU": "앵글로 골드",
@@ -9827,7 +10102,7 @@ class QuantNexusApp:
         "BALL": "볼 코퍼레이션",
         "BAM": "브룩필드 자산운용",
         "BBAI": "빅베어 AI",
-        "BCE": "비씨이",
+        "BCE": "BCE",
         "BE": "블룸 에너지",
         "BEAM": "빔 테라퓨틱스",
         "BEN": "프랭클린 템플턴",
@@ -9852,7 +10127,7 @@ class QuantNexusApp:
         "BURL": "벌링턴 스토어스",
         "BWXT": "BWX 테크놀로지스",
         "BX": "블랙스톤",
-        "BXP": "비엑스피",
+        "BXP": "BXP",
         "C": "시티그룹",
         "CACI": "카시 인터내셔널",
         "CAG": "코나그라 브랜즈",
@@ -9867,7 +10142,7 @@ class QuantNexusApp:
         "CCI": "크라운캐슬",
         "CCJ": "카메코",
         "CCK": "크라운 홀딩스",
-        "CDW": "씨디더블유",
+        "CDW": "CDW",
         "CE": "셀라니즈",
         "CEG": "컨스텔레이션 에너지",
         "CELH": "셀시우스",
@@ -9917,7 +10192,7 @@ class QuantNexusApp:
         "CRWV": "코어위브",
         "CSCO": "시스코",
         "CSGP": "코스타그룹",
-        "CSX": "씨에스엑스",
+        "CSX": "CSX",
         "CTVA": "코르테바",
         "CVCO": "카브코 인더스트리",
         "CVS": "CVS 헬스",
@@ -9990,7 +10265,7 @@ class QuantNexusApp:
         "FISV": "파이서브",
         "FIVE": "파이브 빌로우",
         "FLNC": "플루언스 에너지",
-        "FMC": "에프엠씨",
+        "FMC": "FMC",
         "FNV": "프랑코 네바다",
         "FORM": "폼팩터",
         "FOUR": "시프트포",
@@ -10034,8 +10309,8 @@ class QuantNexusApp:
         "HUM": "휴마나",
         "HUT": "헛에이트 마이닝",
         "HWM": "하우멧 에어로",
-        "IAC": "아이에이씨",
-        "IBM": "아이비엠",
+        "IAC": "IAC",
+        "IBM": "IBM",
         "ICE": "인터컨티넨탈 익스체인지",
         "ICHR": "아이코르 시스템즈",
         "IDXX": "아이덱스",
@@ -10063,8 +10338,8 @@ class QuantNexusApp:
         "KGC": "키나로스 골드",
         "KHC": "크래프트 하인즈",
         "KIM": "킴코리얼티",
-        "KKR": "케이케이알",
-        "KLAC": "케이엘에이",
+        "KKR": "KKR",
+        "KLAC": "KLA",
         "KLIC": "쿨리케앤 소파",
         "KMB": "킴벌리 클라크",
         "KMI": "킨더모건",
@@ -10130,7 +10405,7 @@ class QuantNexusApp:
         "MRNA": "모더나",
         "MRVL": "마벨 테크놀로지",
         "MS": "모건스탠리",
-        "MSCI": "엠에스씨아이",
+        "MSCI": "MSCI",
         "MSFT": "마이크로소프트",
         "MSI": "모토로라 솔루션즈",
         "MSTR": "마이크로스트래티지",
@@ -10160,7 +10435,7 @@ class QuantNexusApp:
         "NVCR": "노보큐어",
         "NVDA": "엔비디아",
         "NVO": "노보 노디스크",
-        "NVR": "엔브이알",
+        "NVR": "NVR",
         "NVS": "노바티스",
         "NVT": "엔벤트 일렉트릭",
         "NVTS": "나비타스 반도체",
@@ -10212,7 +10487,7 @@ class QuantNexusApp:
         "PSTG": "퓨어 스토리지",
         "PSX": "필립스66",
         "PUBM": "펍매틱",
-        "PVH": "피브이에이치",
+        "PVH": "PVH",
         "PWR": "퀀타 서비시즈",
         "PYPL": "페이팔",
         "QBTS": "디웨이브 퀀텀",
@@ -10287,7 +10562,7 @@ class QuantNexusApp:
         "SPOK": "스폭 홀딩스",
         "SPOT": "스포티파이",
         "XYZ": "블록",
-        "SQM": "에스큐엠",
+        "SQM": "SQM",
         "SRE": "셈프라",
         "STAG": "스태그 인더스트리얼",
         "STEM": "스템",
@@ -10325,7 +10600,7 @@ class QuantNexusApp:
         "TRV": "트래블러스",
         "TSCO": "트랙터 서플라이",
         "TSLA": "테슬라",
-        "TSM": "대만반도체(TSMC)",
+        "TSM": "TSMC",
         "TSN": "타이슨푸즈",
         "TT": "트레인테크",
         "TTD": "트레이드 데스크",
@@ -10339,13 +10614,13 @@ class QuantNexusApp:
         "UAL": "유나이티드 항공",
         "UBER": "우버",
         "UCTT": "울트라클린",
-        "UDR": "유디알",
+        "UDR": "UDR",
         "UEC": "우라늄 에너지",
         "UHS": "유니버설 헬스",
         "ULTA": "울타뷰티",
         "UNH": "유나이티드 헬스",
         "UNP": "유니언 퍼시픽",
-        "UPS": "유피에스",
+        "UPS": "UPS",
         "UPST": "업스타트",
         "USB": "US 뱅코프",
         "UUUU": "에너지 퓨얼즈",
@@ -10383,7 +10658,7 @@ class QuantNexusApp:
         "XEL": "엑셀 에너지",
         "XOM": "엑손모빌",
         "XPEV": "샤오펑",
-        "XPO": "엑스피오",
+        "XPO": "XPO",
         "YUM": "얌브랜즈",
         "ZBH": "짐머 바이오멧",
         "ZD": "지프 데이비스",
@@ -10417,7 +10692,7 @@ class QuantNexusApp:
         "BKR": "베이커 휴즈",
         "POWI": "파워 인티그레이션스",
         "STM": "ST마이크로일렉트로닉스",
-        "QXO": "큐엑스오",
+        "QXO": "QXO",
         "LPTH": "라이트패스 테크놀로지",
         "SLDP": "솔리드 파워",
         "SATS": "에코스타",
@@ -10486,10 +10761,10 @@ class QuantNexusApp:
         "VNOM": "바이퍼 에너지",
         "TTMI": "TTM 테크놀로지스",
         "LOGI": "로지텍 인터내셔널",
-        "PTC": "피티씨",
+        "PTC": "PTC",
         "EWBC": "이스트 웨스트 뱅코프",
         "SSNC": "SS&C 테크놀로지스 홀딩스",
-        "TPG": "티피지",
+        "TPG": "TPG",
         "GMAB": "젠맵 ADR",
         "NBIX": "뉴로크린 바이오사이언시스",
         "NDSN": "노드슨",
@@ -10560,7 +10835,7 @@ class QuantNexusApp:
         "MUFG": "미쓰비시 UFJ 파이낸셜 그룹 ADR",
         "BHP": "BHP 그룹 ADR",
         "TTE": "토탈에너지스",
-        "SAP": "에스에이피",
+        "SAP": "SAP",
         "TD": "토론토 도미니언 은행",
         "SAN": "방코 산탄데르 ADR",
         "UBS": "UBS 그룹 AG",
@@ -10573,7 +10848,7 @@ class QuantNexusApp:
         "BBVA": "방코 빌바오 비스카야 아르헨타리아 ADR",
         "MO": "알트리아그룹",
         "ENB": "엔브리지",
-        "BP": "비피",
+        "BP": "BP",
         "BN": "브룩필드",
         "BMO": "뱅크 오브 몬트리올",
         "MFG": "미즈호 파이낸셜그룹 ADR",
@@ -10604,7 +10879,7 @@ class QuantNexusApp:
         "VALE": "발레 ADR",
         "AON": "에이온",
         "ASX": "ASE 테크놀로지 홀딩 ADR",
-        "CRH": "씨알에이치",
+        "CRH": "CRH",
         "B": "바릭 마이닝",
         "CNI": "커네디언 내셔널 레일웨이",
         "FIX": "컴포트 시스템즈 USA",
@@ -10645,7 +10920,7 @@ class QuantNexusApp:
         "KB": "KB금융지주 ADR",
         "TKO": "TKO 그룹 홀딩스",
         "UI": "유비퀴티",
-        "EQT": "이큐티",
+        "EQT": "EQT",
         "PCG": "퍼시픽 가스 & 일렉트릭",
         "VG": "벤처 글로벌",
         "HAL": "할리버튼",
@@ -10674,7 +10949,7 @@ class QuantNexusApp:
         "ACB": "오로라카나비스",
         "ACHC": "아카디아 헬스케어",
         "AEE": "아메렌",
-        "AES": "에이이에스",
+        "AES": "AES",
         "ALLE": "알리지온",
         "ALSN": "앨리슨 트랜스미션",
         "ANF": "아베크롬비&피치",
@@ -10834,9 +11109,9 @@ class QuantNexusApp:
         "AROC": "아크록",
         "ASAN": "아사나",
         "ASB": "어소시에이티드 뱅크",
-        "ASGN": "에이에스지엔",
+        "ASGN": "ASGN",
         "ATHM": "오토홈",
-        "ATI": "에이티아이",
+        "ATI": "ATI",
         "ATKR": "앳코어",
         "AVA": "아비스타",
         "AVD": "아메리칸 뱅가드",
@@ -11088,7 +11363,7 @@ class QuantNexusApp:
         "LBRDA": "리버티 브로드밴드",
         "LBRT": "리버티 에너지",
         "LCII": "LCI 인더스트리스",
-        "LCNB": "엘씨엔비",
+        "LCNB": "LCNB",
         "LEGH": "레거시 하우징",
         "LEVI": "리바이스",
         "LGIH": "LGI 홈즈",
@@ -11143,7 +11418,7 @@ class QuantNexusApp:
         "NHI": "내셔널 헬스 인베스터스",
         "NMFC": "뉴마운틴 파이낸스",
         "NOG": "노던 오일앤가스",
-        "NOV": "엔오브이",
+        "NOV": "NOV",
         "NOVT": "노반타",
         "NSA": "내셔널 스토리지",
         "NSIT": "인사이트 엔터프라이시즈",
@@ -11200,18 +11475,18 @@ class QuantNexusApp:
         "RBC": "RBC 베어링스",
         "RCKT": "로켓 파마슈티컬스",
         "RELY": "레밋리",
-        "RES": "알피씨",
+        "RES": "RPC",
         "REYN": "레이놀즈 컨슈머",
         "RGEN": "레플리젠",
         "RHI": "로버트 하프",
-        "RLI": "알엘아이",
+        "RLI": "RLI",
         "RLX": "RLX 테크놀로지",
         "ROCK": "지브랄터 인더스트리스",
         "ROOT": "루트",
         "RPAY": "리페이",
         "RSI": "러시 스트리트",
         "RVLV": "리볼브",
-        "RXO": "알엑스오",
+        "RXO": "RXO",
         "RYAM": "레이오니어 어드밴스드",
         "SA": "시브릿지 골드",
         "SAIL": "세일포인트",
@@ -11307,7 +11582,7 @@ class QuantNexusApp:
         "VRDN": "비리디안 테라퓨틱스",
         "VRRM": "베라 모빌리티",
         "VSCO": "빅토리아 시크릿",
-        "VSEC": "브이에스이",
+        "VSEC": "VSE",
         "VSH": "비쉐이",
         "VTEX": "브이텍스",
         "WABC": "웨스트아메리카 뱅크",
@@ -11353,11 +11628,18 @@ class QuantNexusApp:
         "LOAN": "맨해튼브리지 캐피탈",
         "RDFN": "레드핀",
         "TERN": "턴즈",
+        "AXTI": "AXT",
+        "IQEPF": "IQE",
+        "SIVEF": "시버스 반도체",
     }
 
     # US_DESC — 미국 종목 한글 설명 (Name 컬럼 옆에 표시)
     # ─────────────────────────────────────────────────────────────────────
     US_DESC: dict[str, str] = {
+        # 공급망 병목(화합물반도체 기판·에피·레이저) — CPO/광 I-O 상류 희소층
+        "AXTI": "InP·GaAs 화합물반도체 기판(substrate) · CPO 광통신 핵심소재",
+        "SIVEF": "Sivers 반도체 · CW/DFB 머천트 레이저 광원 · CPO",
+        "IQEPF": "IQE · 화합물반도체 에피웨이퍼(epiwafer) · 포토닉스 소재",
         # Mag 7
         "AAPL": "아이폰 · 맥 · 애플 실리콘", "MSFT": "애저 클라우드 · 코파일럿",
         "NVDA": "AI GPU · 블랙웰 · HBM", "GOOGL": "검색 광고 · 유튜브 · 제미나이",
@@ -13073,6 +13355,8 @@ class QuantNexusApp:
                 "Semicon Equipment":    ["ACLS","AEHR","AEIS","AMAT","ASML","AZTA","CAMT","COHU","ENTG","FORM","ICHR","IPGP","KLAC",
                                       "KLIC","LRCX","MKSI","NVMI","ONTO","UCTT","VECO"],
                 "Memory & Packaging":   ["AMKR","CEVA","MU","NTAP","NVTS","PSTG","SIMO","SMCI","SNDK","STX","WDC"],
+                # 공급망 병목(상류 희소층) — 화합물반도체 기판·에피·머천트 레이저. CPO/광 I-O 슈퍼사이클 길목.
+                "Compound Semi & Substrates": ["AXTI","SIVEF","IQEPF"],
                 "Quantum Computing":    ["ARQQ","INFQ","IONQ","QBTS","QUBT","RGTI","XNDU"]
             },
 
@@ -13294,6 +13578,7 @@ class QuantNexusApp:
             "Fabless & Analog": "팹리스·아날로그",
             "Semicon Equipment": "반도체 장비",
             "Memory & Packaging": "메모리·패키징",
+            "Compound Semi & Substrates": "화합물 반도체·기판",
             "Crypto & Blockchain": "크립토·블록체인",
             "Fintech & Payments": "핀테크·결제",
             "Exchanges & Data": "거래소·데이터",
@@ -13305,6 +13590,7 @@ class QuantNexusApp:
             "Industrials": "산업재",
             "Transportation": "운송",
             "Oil & Gas Majors": "석유·가스 메이저",
+            "Oil Services": "유전 서비스",
             "Midstream & Pipeline": "미드스트림·파이프라인",
             "Clean Energy": "청정에너지",
             "Nuclear & Uranium": "원전·우라늄",
@@ -13366,14 +13652,14 @@ class QuantNexusApp:
             '🤖 AI 인프라': {
                 'AI플랫폼·클라우드': ['012510.KS', '018260.KS', '022100.KS', '035420.KS', '035720.KS', '053800.KQ', '064400.KS', '304100.KQ', '030520.KQ', '402030.KQ', '315640.KQ', '023590.KS', '377480.KQ', '032190.KQ', '093320.KQ', '486990.KQ', '058970.KS', '052400.KQ', '124500.KQ'],
                 '온디바이스AI': ['052710.KQ', '054450.KQ', '323280.KQ', '377480.KQ', '405100.KQ', '432720.KQ', '066570.KS', '011070.KS', '213420.KQ', '005930.KS', '009150.KS', '091700.KQ', '097520.KS', '122990.KQ', '045970.KQ', '053450.KQ', '033640.KQ'],
-                '통신·광네트워크': ['010170.KQ', '017670.KS', '030200.KS', '032640.KS', '084730.KQ', '187790.KQ', '056360.KQ', '122990.KQ', '032500.KQ', '039560.KQ', '037560.KS', '218410.KQ', '050890.KQ', '368770.KQ', '007660.KS', '060370.KQ', '443060.KS', '011070.KS', '018260.KS', '064400.KS', '032190.KQ', '138080.KQ'],
+                '통신·광네트워크': ['010170.KQ', '017670.KS', '030200.KS', '032640.KS', '056360.KQ', '122990.KQ', '032500.KQ', '039560.KQ', '037560.KS', '218410.KQ', '050890.KQ', '368770.KQ', '007660.KS', '060370.KQ', '011070.KS', '138080.KQ'],
             },
             '⚡ 전력 인프라': {
                 '변압기·전력기기': ['010120.KS', '025540.KS', '033100.KQ', '062040.KS', '103590.KS', '199820.KQ', '267260.KS', '298040.KS', '229640.KS', '009470.KS', '032820.KQ', '007610.KS', '160190.KQ', '006260.KS', '001440.KS', '000500.KS', '006340.KS', '034020.KS', '052690.KS', '051600.KS', '015760.KS'],
                 '전선·케이블': ['000500.KS', '001440.KS', '006260.KS', '006340.KS', '007610.KS', '229640.KS', '060370.KQ', '010120.KS', '010170.KQ', '103590.KS', '009470.KS', '368770.KQ', '025540.KS', '267260.KS', '298040.KS', '062040.KS', '033100.KQ', '007660.KS', '032500.KQ'],
                 '원전·SMR': ['015760.KS', '034020.KS', '051600.KS', '052690.KS', '083650.KQ', '105840.KS', '032820.KQ', '103590.KS', '271940.KS', '267260.KS', '036460.KS', '272210.KS', '475150.KS', '382900.KQ', '336260.KS', '298040.KS', '010120.KS', '028050.KS', '000720.KS', '329180.KS', '000150.KS'],
                 '신재생·ESS': ['009830.KS', '096770.KS', '112610.KS', '322000.KS', '336260.KS', '373220.KS', '456040.KS', '475150.KS', '178320.KQ', '011930.KS', '298040.KS', '272210.KS', '010060.KS', '382900.KQ', '383310.KQ', '282720.KQ', '229640.KS', '093370.KS', '298050.KS', '271940.KS', '060370.KQ', '950140.KS'],
-                'EV충전·수소모빌리티': ['120110.KS', '234300.KQ', '271940.KS', '298040.KS', '382900.KQ', '462520.KS', '475150.KS', '373220.KS', '336260.KS', '009830.KS', '096770.KS', '322000.KS', '105840.KS', '010120.KS', '417200.KQ', '012450.KS', '006400.KS', '009470.KS', '025540.KS', '012330.KS', '204320.KS', '018880.KS'],
+                'EV충전·수소모빌리티': ['120110.KS', '234300.KQ', '271940.KS', '298040.KS', '382900.KQ', '475150.KS', '373220.KS', '336260.KS', '009830.KS', '096770.KS', '322000.KS', '105840.KS', '010120.KS', '417200.KQ', '012450.KS', '006400.KS', '009470.KS', '025540.KS', '012330.KS', '204320.KS', '018880.KS'],
             },
             '🛡️ K-방산': {
                 '방산 대형주': ['000880.KS', '012450.KS', '047810.KS', '064350.KS', '064960.KS', '079550.KS', '272210.KS', '103140.KS', '005810.KS', '005870.KS', '003570.KS', '489790.KS', '329180.KS', '042660.KS', '017960.KS', '010820.KS', '065450.KQ', '125490.KQ', '437730.KQ', '099320.KQ'],
