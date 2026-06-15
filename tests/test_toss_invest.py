@@ -34,6 +34,7 @@ class TestTossInvest(unittest.TestCase):
     def setUp(self) -> None:
         toss_invest._TOKEN = None
         toss_invest._TOKEN_EXP = 0.0
+        toss_invest._LAST_ERROR = ""
 
     def test_missing_credentials_disables_client(self) -> None:
         with patch.dict(os.environ, {}, clear=True), patch("toss_invest._request") as request:
@@ -84,6 +85,57 @@ class TestTossInvest(unittest.TestCase):
         self.assertEqual(price_call.args[:2], ("GET", toss_invest.PRICES_PATH))
         self.assertEqual(price_call.kwargs["headers"]["Authorization"], "Bearer token-1")
         self.assertEqual(price_call.kwargs["params"], {"symbols": "005930"})
+
+    def test_get_daily_candles_maps_toss_candle_page(self) -> None:
+        env = {
+            "TOSSINVEST_CLIENT_ID": "client-id",
+            "TOSSINVEST_CLIENT_SECRET": "client-secret",
+        }
+        responses = [
+            _Response(200, {"access_token": "token-1", "token_type": "Bearer", "expires_in": 3600}),
+            _Response(
+                200,
+                {
+                    "result": {
+                        "candles": [
+                            {
+                                "timestamp": "2026-06-14T09:00:00+09:00",
+                                "openPrice": "100",
+                                "highPrice": "110",
+                                "lowPrice": "95",
+                                "closePrice": "108",
+                                "volume": "12345",
+                                "currency": "KRW",
+                            },
+                            {
+                                "timestamp": "2026-06-13T09:00:00+09:00",
+                                "openPrice": "90",
+                                "highPrice": "101",
+                                "lowPrice": "88",
+                                "closePrice": "100",
+                                "volume": "23456",
+                                "currency": "KRW",
+                            },
+                        ],
+                        "nextBefore": None,
+                    }
+                },
+            ),
+        ]
+
+        with patch.dict(os.environ, env, clear=True), patch("toss_invest._request", side_effect=responses) as request:
+            candles = toss_invest.get_daily_candles("005930.KS", count=250)
+
+        self.assertEqual([c["timestamp"] for c in candles], [
+            "2026-06-13T09:00:00+09:00",
+            "2026-06-14T09:00:00+09:00",
+        ])
+        self.assertEqual(candles[-1]["close"], 108.0)
+        candle_call = request.call_args_list[1]
+        self.assertEqual(candle_call.args[:2], ("GET", toss_invest.CANDLES_PATH))
+        self.assertEqual(candle_call.kwargs["params"]["symbol"], "005930")
+        self.assertEqual(candle_call.kwargs["params"]["interval"], "1d")
+        self.assertEqual(candle_call.kwargs["params"]["count"], "200")
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ import requests
 BASE_URL = os.environ.get("TOSSINVEST_BASE_URL", "https://openapi.tossinvest.com").rstrip("/")
 TOKEN_PATH = "/oauth2/token"
 PRICES_PATH = "/api/v1/prices"
+CANDLES_PATH = "/api/v1/candles"
 
 _SESSION = requests.Session()
 _TOKEN_LOCK = threading.Lock()
@@ -231,3 +232,53 @@ def get_quote(ticker: str) -> dict[str, Any] | None:
     if not symbol:
         return None
     return get_prices([symbol]).get(symbol)
+
+
+def get_daily_candles(ticker: str, count: int = 200) -> list[dict[str, Any]]:
+    """Return latest daily candles in chronological order."""
+    symbol = _normalize_symbol(ticker)
+    if not symbol:
+        return []
+    try:
+        n = max(1, min(200, int(count)))
+    except (TypeError, ValueError):
+        n = 200
+    data = _authed_get(
+        CANDLES_PATH,
+        {
+            "symbol": symbol,
+            "interval": "1d",
+            "count": str(n),
+            "adjusted": "true",
+        },
+    )
+    if not isinstance(data, dict):
+        return []
+    result = data.get("result") or {}
+    rows = result.get("candles") if isinstance(result, dict) else None
+    if not isinstance(rows, list):
+        return []
+
+    out: list[dict[str, Any]] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        close = _to_float(row.get("closePrice"))
+        high = _to_float(row.get("highPrice"))
+        low = _to_float(row.get("lowPrice"))
+        open_ = _to_float(row.get("openPrice"))
+        volume = _to_float(row.get("volume"))
+        if close is None or high is None or low is None:
+            continue
+        out.append({
+            "timestamp": row.get("timestamp"),
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": volume,
+            "currency": row.get("currency"),
+            "source": "tossinvest",
+        })
+    out.sort(key=lambda x: str(x.get("timestamp") or ""))
+    return out

@@ -456,6 +456,149 @@ def _quote_debug_enabled() -> bool:
         return False
 
 
+def _n01_score(raw: float, best: float = 35.0) -> float:
+    try:
+        return max(0.0, min(100.0, float(raw) / best * 100.0))
+    except (TypeError, ValueError, ZeroDivisionError):
+        return 0.0
+
+
+def _cs_n_weight() -> tuple[float, str]:
+    try:
+        strategy = (request.args.get("strategy") or "BALANCED").upper()
+    except RuntimeError:
+        strategy = "BALANCED"
+    try:
+        from quant_nexus_v20 import STRATEGY_WEIGHTS
+        weights = STRATEGY_WEIGHTS.get(strategy) or STRATEGY_WEIGHTS.get("BALANCED") or {}
+        return float(weights.get("cs_n", 0.05)), strategy
+    except Exception:
+        return 0.05, strategy
+
+
+def _as_float(value, default: float | None = None) -> float | None:
+    try:
+        if value is None:
+            return default
+        return float(str(value).replace(",", "").strip())
+    except (TypeError, ValueError):
+        return default
+
+
+def _find_n_breakdown(row: dict) -> tuple[int | None, list | None]:
+    bd = row.get("Breakdown")
+    if not isinstance(bd, list):
+        return None, None
+    for idx, item in enumerate(bd):
+        if isinstance(item, (list, tuple)) and item and str(item[0]).startswith("[N]"):
+            return idx, list(item)
+    return None, None
+
+
+def _strip_breakout_tags(signal: str) -> str:
+    out = str(signal or "")
+    for tag in (" 🔔[BREAKOUT]", "🔔[BREAKOUT]", " [PIVOT]", "[PIVOT]"):
+        out = out.replace(tag, "")
+    return " ".join(out.split())
+
+
+def _sync_kr_realtime_new_high(row: dict) -> None:
+    """상세 응답의 [N] 신고가·피벗 항목을 Toss 현재가/일봉 기준으로 보정한다."""
+    if not isinstance(row, dict) or row.get("_QuoteSource") != "tossinvest":
+        return
+    ticker = str(row.get("Ticker") or "")
+    current = _as_float(row.get("Price"))
+    if not ticker or current is None or current <= 0:
+        return
+    try:
+        import toss_invest
+        candles = toss_invest.get_daily_candles(ticker, count=200)
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+        return
+    if len(candles) < 25:
+        return
+
+    closes = [_as_float(c.get("close")) for c in candles]
+    highs = [_as_float(c.get("high")) for c in candles]
+    closes = [c for c in closes if c is not None and c > 0]
+    highs = [h for h in highs if h is not None and h > 0]
+    if len(closes) < 25 or not highs:
+        return
+    closes[-1] = current
+    high_52w = max(max(highs), current)
+    if high_52w <= 0:
+        return
+
+    dist = max(0.0, (high_52w - current) / high_52w)
+    near_high = dist <= 0.05
+    n_raw = 20.0 if near_high else 10.0 if dist < 0.10 else 0.0
+
+    prev_slice = closes[-25:-5]
+    recent_slice = closes[-5:]
+    pivot_breakout = False
+    if prev_slice and recent_slice:
+        prev_high = max(prev_slice)
+        recent_high = max(recent_slice)
+        pivot_breakout = bool(prev_high > 0 and recent_high > prev_high * 1.01 and current > prev_high * 1.005)
+    if pivot_breakout:
+        n_raw += 15.0
+
+    idx, item = _find_n_breakdown(row)
+    old_raw = _as_float(item[1], 0.0) if item and len(item) > 1 else None
+    new_norm = _n01_score(n_raw)
+    old_norm = _n01_score(old_raw or 0.0)
+    weight, strategy = _cs_n_weight()
+
+    if old_raw is not None and row.get("TotalScore") is not None:
+        super_mult = _as_float(row.get("SuperMult"), 1.0) or 1.0
+        delta = (new_norm - old_norm) * weight * super_mult
+        total = _as_float(row.get("TotalScore"))
+        if total is not None:
+            row["TotalScore"] = round(max(0.0, min(100.0, total + delta)), 1)
+
+    row["NearHighPass"] = near_high
+    row["_RealtimeNRaw"] = round(n_raw, 1)
+    row["_RealtimeNDist52w"] = round(dist, 4)
+    row["_RealtimePivotBreakout"] = pivot_breakout
+    row["_RealtimeHigh52w"] = round(high_52w, 2)
+
+    signal = _strip_breakout_tags(str(row.get("Signal") or ""))
+    if near_high and bool(row.get("SConfirmed")):
+        signal += " 🔔[BREAKOUT]"
+    elif pivot_breakout:
+        signal += " [PIVOT]"
+    row["Signal"] = signal
+
+    entry_plan = row.get("EntryPlan")
+    if isinstance(entry_plan, dict):
+        entry_plan["current"] = round(current, 2)
+        entry_plan["drawdown_pct"] = round(-dist * 100.0, 1)
+
+    if idx is not None and item is not None:
+        title = item[0]
+        summary = (
+            f"52주 최고가에서 {dist:.0%} 아래에 있어요. "
+            f"{'신고가 권역에 진입했어요.' if near_high else '아직 신고가까지 거리가 있어요.'}"
+            f"{' 컵앤핸들 피벗 돌파가 감지됐어요.' if pivot_breakout else ''}"
+            f"\n📐 점수 {new_norm:.1f}/100 × 가중치 {weight * 100:.1f}% = 기여도 {new_norm * weight:.1f}점"
+        )
+        detail = (
+            "📊 입력 데이터\n"
+            "• 기준: Toss 현재가/일봉\n"
+            f"• 52주 최고가: {high_52w:,.0f}\n"
+            f"• 52주 최고가 거리: {dist:.0%}\n"
+            f"• 신고가 근접: {'예 ✓' if near_high else '아니오'}\n"
+            f"• 피벗 돌파: {'예 ✓' if pivot_breakout else '아니오'}\n"
+            "📐 계산 과정\n"
+            f"① 원점수: {n_raw:.1f}\n"
+            f"② 정규화: _n01({n_raw:.1f}, best=35) → {new_norm:.1f}/100\n"
+            f"③ 가중치: {weight * 100:.1f}% ({strategy})\n"
+            f"④ 기여도: {new_norm:.1f} × {weight * 100:.1f}% = {new_norm * weight:.1f}점"
+        )
+        row["Breakdown"][idx] = [title, round(n_raw, 1), summary, detail]
+
+
 def _override_kr_day_chg(results: list) -> list:
     """KR 종목 Price/DayChg를 실시간 시세로 보정한다.
 
@@ -510,6 +653,7 @@ def _overlay_kr_realtime_quote(
     fetch_toss: bool = True,
     toss_configured: bool | None = None,
     toss_error: str = "",
+    sync_new_high: bool = False,
 ) -> dict:
     """단일 KR 결과의 Price/DayChg를 실시간 시세로 보정한다.
 
@@ -571,6 +715,8 @@ def _overlay_kr_realtime_quote(
         market_cap_oku = q.get("market_cap_oku")
         if market_cap_oku is not None and market_cap_oku > 0:
             row["_MarketCap"] = float(market_cap_oku) * 1e8
+        if sync_new_high:
+            _sync_kr_realtime_new_high(row)
         if _quote_debug_enabled():
             row["_TossConfigured"] = bool(toss_configured)
             row["_TossError"] = str(toss_error)[:240] if toss_error else ""
@@ -1600,14 +1746,14 @@ def api_ticker(ticker: str):
         _td_cached = _ticker_detail_cache.get(_td_key)
         if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
             # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
+            fresh = dict(_td_cached["data"])
+            if market_arg == "KR":
+                _overlay_kr_realtime_quote(fresh, sync_new_high=True)
             try:
                 from one_liner import annotate as _ol_annotate
-                fresh = dict(_td_cached["data"])
                 _ol_annotate([fresh])
             except Exception:
-                fresh = dict(_td_cached["data"])
-            if market_arg == "KR":
-                _overlay_kr_realtime_quote(fresh)
+                pass
             return jsonify(fresh)
     try:
         adapter = _make_adapter()
@@ -1630,7 +1776,7 @@ def api_ticker(ticker: str):
                         result["Name"] = fixed
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
-            _overlay_kr_realtime_quote(result)
+            _overlay_kr_realtime_quote(result, sync_new_high=True)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
         else:

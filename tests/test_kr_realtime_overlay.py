@@ -114,6 +114,58 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(rows[1]["Price"], 202000.0)
         self.assertAlmostEqual(rows[1]["DayChg"], 0.0234)
 
+    def test_detail_overlay_syncs_new_high_breakdown_from_toss_candles(self) -> None:
+        row = {
+            "Ticker": "005930.KS",
+            "Price": 100.0,
+            "TotalScore": 50.0,
+            "SuperMult": 1.0,
+            "Signal": "⭐ WATCH LIST — Accumulate [PIVOT]",
+            "NearHighPass": False,
+            "SConfirmed": True,
+            "EntryPlan": {"current": 100.0, "drawdown_pct": -20.0},
+            "Breakdown": [
+                ["[N] 신고가·피벗 돌파 (New Highs)", 0.0, "old summary", "old detail"],
+            ],
+        }
+        candles = [
+            {
+                "timestamp": f"2026-05-{idx + 1:02d}T09:00:00+09:00",
+                "open": 99.0,
+                "high": 101.0,
+                "low": 98.0,
+                "close": 100.0,
+                "volume": 1000.0,
+            }
+            for idx in range(25)
+        ]
+
+        with app.app.test_request_context("/?strategy=BALANCED"), patch(
+            "toss_invest.get_daily_candles",
+            return_value=candles,
+        ), patch(
+            "naver_finance.get_quote",
+            return_value={"price": 101.0, "change_pct": 1.23, "market_cap_oku": 1.0},
+        ):
+            app._overlay_kr_realtime_quote(
+                row,
+                toss_quote={"price": 112.0, "timestamp": "2026-06-15T12:39:55+09:00", "source": "tossinvest"},
+                fetch_toss=False,
+                sync_new_high=True,
+            )
+
+        self.assertEqual(row["Price"], 112.0)
+        self.assertTrue(row["NearHighPass"])
+        self.assertTrue(row["_RealtimePivotBreakout"])
+        self.assertEqual(row["_RealtimeNRaw"], 35.0)
+        self.assertEqual(row["Breakdown"][0][1], 35.0)
+        self.assertIn("Toss 현재가/일봉", row["Breakdown"][0][3])
+        self.assertIn("🔔[BREAKOUT]", row["Signal"])
+        self.assertNotIn("[PIVOT]", row["Signal"])
+        self.assertEqual(row["EntryPlan"]["current"], 112.0)
+        self.assertEqual(row["EntryPlan"]["drawdown_pct"], -0.0)
+        self.assertAlmostEqual(row["TotalScore"], 55.0)
+
 
 if __name__ == "__main__":
     unittest.main()
