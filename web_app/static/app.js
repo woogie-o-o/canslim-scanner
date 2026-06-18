@@ -47,6 +47,8 @@ let _currentResults = [];   // search/view basis
 let _oneLinerFilter = null; // OneLinerTag filter
 let _compareSet = new Set();
 let _renderToken = 0;
+let _renderInitialCapOverride = null;
+let _renderedInitialCap = 100;
 
 // ── 클라이언트 API 캐시 (sessionStorage) ──────────────────────────────
 const _clientCache = {
@@ -604,15 +606,44 @@ let _warmingRetries = 0;
 const _WARMING_MAX_RETRY = 12;            // 12회 × 5초 = 약 60초
 // 섹터 변경 race condition 가드: 늦게 도착한 stale 요청이 최신 요청 덮어쓰지 않게.
 let _scanToken = 0;
-let _lastAutoScanTs = 0;
+let _lastAutoScanTs = Date.now();
 
-async function runScan() {
+function _visibleRenderedStockCount() {
+  const mobileVisible = window.innerWidth <= 768;
+  if (mobileVisible) {
+    return document.querySelectorAll('#mobile-stock-list .stock-card[data-ticker]').length;
+  }
+  return document.querySelectorAll('#stock-list tr[data-ticker]').length;
+}
+
+function _captureRefreshViewState() {
+  return {
+    x: window.scrollX || 0,
+    y: window.scrollY || 0,
+    renderedCount: _visibleRenderedStockCount(),
+  };
+}
+
+function _restoreRefreshViewState(state) {
+  if (!state) return;
+  const restore = () => window.scrollTo(state.x || 0, state.y || 0);
+  requestAnimationFrame(restore);
+  window.setTimeout(restore, 80);
+  window.setTimeout(restore, 220);
+}
+
+async function runScan(options) {
+  const opts = options && typeof options === 'object' ? options : {};
+  const silent = !!opts.silent;
   const btn = document.getElementById('btn-scan');
-  if (btn) { btn.disabled = true; }
+  if (btn && !silent) { btn.disabled = true; }
 
-  setStatHTML('stat-total',  '…<span class="unit">개</span>');
-  setStatHTML('stat-strong', '…<span class="unit">개</span>');
-  showScanLoading();
+  const viewState = silent ? _captureRefreshViewState() : null;
+  if (!silent) {
+    setStatHTML('stat-total',  '…<span class="unit">개</span>');
+    setStatHTML('stat-strong', '…<span class="unit">개</span>');
+    showScanLoading();
+  }
 
   const myToken = ++_scanToken;
   const reqSector = currentSector;
@@ -651,20 +682,26 @@ async function runScan() {
     if (allStocks.length === 0 && res.headers.get('X-Warming-In-Progress') === 'true') {
       if (_warmingRetries < _WARMING_MAX_RETRY) {
         _warmingRetries += 1;
-        setStockListMsg(`데이터 준비 중… 자동으로 불러옵니다 (${_warmingRetries}/${_WARMING_MAX_RETRY})`);
-        setTimeout(() => { if (!document.hidden) runScan(); }, 5000);
+        if (!silent) setStockListMsg(`데이터 준비 중… 자동으로 불러옵니다 (${_warmingRetries}/${_WARMING_MAX_RETRY})`);
+        setTimeout(() => { if (!document.hidden) runScan({ silent }); }, 5000);
       } else {
         // 캡 도달 — 명시적 실패 안내, 카운터 리셋(사용자가 직접 다시 시도하면 재개).
-        setStockListMsg('서버 준비 지연 중임. 잠시 후 새로고침 ㄱㄱ');
+        if (!silent) setStockListMsg('서버 준비 지연 중임. 잠시 후 새로고침 ㄱㄱ');
         _warmingRetries = 0;
       }
       return;
     }
     _runScanAttempt = 0;  // 성공 시 카운터 리셋
     _warmingRetries = 0;
+    _lastAutoScanTs = Date.now();
+    if (silent && viewState) {
+      _renderInitialCapOverride = Math.max(100, viewState.renderedCount || 0);
+    }
     _refreshFilteredView();
+    if (silent) _restoreRefreshViewState(viewState);
   } catch (e) {
     console.error('runScan 실패:', e);
+    if (silent) return;
     // 콜드 스타트 / 네트워크 흔들림 — 백오프하며 자동 재시도.
     if (_runScanAttempt < _RUN_SCAN_MAX_RETRY) {
       const delay = _RUN_SCAN_BACKOFF_MS[_runScanAttempt] || 12000;
@@ -680,8 +717,8 @@ async function runScan() {
   } finally {
     // stale 요청이 최신 요청의 로딩 UI를 끄지 못하게 가드
     if (myToken === _scanToken) {
-      stopScanLoading();
-      if (btn) btn.disabled = false;
+      if (!silent) stopScanLoading();
+      if (btn && !silent) btn.disabled = false;
     }
   }
 }
@@ -1360,6 +1397,8 @@ function renderStockTable(stocks) {
   const tbody = document.getElementById('stock-list');
   if (!tbody) return;
   _currentResults = Array.isArray(stocks) ? stocks : [];
+  const renderCapOverride = _renderInitialCapOverride;
+  _renderInitialCapOverride = null;
 
   // 워치리스트 카운트 (전체 기준)
   const wlEl = document.getElementById('chip-watch-count');
@@ -1421,9 +1460,13 @@ function renderStockTable(stocks) {
   }
   // 보이는 뷰만 렌더링 — 데스크톱/모바일 중복 렌더링 제거 (1400종목 × 2 → × 1)
   // 초기 100개만 렌더링 → "더 보기" 버튼으로 나머지 로드 (DOM 부하 93% 절감)
-  const _INITIAL_CAP = 100;
+  const _INITIAL_CAP = Math.min(
+    view.length,
+    Math.max(100, Number(renderCapOverride) || 100)
+  );
   const capped = view.length > _INITIAL_CAP ? view.slice(0, _INITIAL_CAP) : view;
   const remaining = view.length - capped.length;
+  _renderedInitialCap = capped.length;
 
   if (window.innerWidth <= 768) {
     tbody.innerHTML = '';
@@ -1457,7 +1500,7 @@ function _renderAllStocks() {
   const token = window._pendingRenderToken;
   if (!view || token !== _renderToken) return;
   window._pendingFullView = null;
-  const _CAP = 100;
+  const _CAP = Number(_renderedInitialCap) || 100;
   const rest = view.slice(_CAP);
   if (window.innerWidth <= 768) {
     const mEl = document.getElementById('mobile-stock-list');
@@ -5024,7 +5067,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const interval = (isKrOpen || isUsOpen) ? 3 : 30;
       if ((Date.now() - (_lastAutoScanTs || 0)) >= interval * 60 * 1000) {
         _lastAutoScanTs = Date.now();
-        runScan();
+        runScan({ silent: true });
       }
     }, 60 * 1000);  // 1분마다 체크, 실제 갱신은 조건부
   }
