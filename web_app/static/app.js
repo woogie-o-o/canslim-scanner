@@ -4105,6 +4105,7 @@ function _renderDpMarketChart(rows) {
     }
     return '';
   };
+  const formatKrPrice = value => Math.round(Number(value)).toLocaleString('ko-KR');
 
   const chart = L.createChart(host, {
     autoSize: true,
@@ -4140,14 +4141,14 @@ function _renderDpMarketChart(rows) {
     borderUpColor: '#f04452', borderDownColor: '#3182f6',
     wickUpColor: '#f04452', wickDownColor: '#3182f6',
     priceLineColor: '#f04452', priceLineWidth: 1,
-    priceFormat: { type: 'price', precision: 0, minMove: 1 },
+    priceFormat: { type: 'custom', minMove: 1, formatter: formatKrPrice },
   }, 0);
   candleSeries.setData(candles.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close })));
 
   const addLine = (key, color) => {
     const series = chart.addSeries(L.LineSeries, {
       color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-      priceFormat: { type: 'price', precision: 0, minMove: 1 },
+      priceFormat: { type: 'custom', minMove: 1, formatter: formatKrPrice },
     }, 0);
     series.setData(rows.filter(r => r[key] != null).map(r => ({ time: r.time, value: r[key] })));
   };
