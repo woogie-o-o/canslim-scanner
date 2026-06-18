@@ -3946,6 +3946,7 @@ let _dpFourAxisLoadedFor = null;
 let _dpFourAxisLoadingFor = null;
 let _dpFourAxisReqSeq = 0;
 let _detailFourAxisReqSeq = 0;
+let _dpMarketChart = null;
 const FOUR_AXIS_FETCH_TIMEOUT_MS = 90000;
 
 /* ── F6: IntersectionObserver lazy load — 차트 섹션이 뷰포트 진입 시 1회 호출 ── */
@@ -4084,6 +4085,124 @@ async function loadDpUSInsight(ticker) {
   }
 }
 
+function _renderDpMarketChart(rows) {
+  const host = document.getElementById('dp-market-chart');
+  if (!host || !Array.isArray(rows) || rows.length < 20) return false;
+  const L = window.LightweightCharts;
+  if (!L || typeof L.createChart !== 'function') return false;
+
+  if (_dpMarketChart) {
+    try { _dpMarketChart.remove(); } catch (_) {}
+    _dpMarketChart = null;
+  }
+  host.innerHTML = '';
+
+  const chart = L.createChart(host, {
+    autoSize: true,
+    layout: {
+      background: { type: L.ColorType.Solid, color: '#ffffff' },
+      textColor: '#8b95a1',
+      fontFamily: 'Paperlogy, -apple-system, BlinkMacSystemFont, sans-serif',
+      fontSize: 10,
+      attributionLogo: true,
+      panes: { separatorColor: '#e8ebed', separatorHoverColor: '#d1d6db', enableResize: false },
+    },
+    grid: { vertLines: { color: '#f2f4f6' }, horzLines: { color: '#f2f4f6' } },
+    crosshair: {
+      mode: L.CrosshairMode.Normal,
+      vertLine: { color: '#9aa4af', width: 1, style: L.LineStyle.Dashed, labelBackgroundColor: '#3182f6' },
+      horzLine: { color: '#9aa4af', width: 1, style: L.LineStyle.Dashed, labelBackgroundColor: '#3182f6' },
+    },
+    rightPriceScale: { borderColor: '#e8ebed', scaleMargins: { top: 0.08, bottom: 0.08 } },
+    timeScale: { borderColor: '#e8ebed', timeVisible: false, rightOffset: 5, barSpacing: 7, minBarSpacing: 3 },
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+    handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+  });
+  _dpMarketChart = chart;
+
+  const candles = rows.filter(r => r.time && r.open != null && r.high != null && r.low != null && r.close != null);
+  const candleSeries = chart.addSeries(L.CandlestickSeries, {
+    upColor: '#f04452', downColor: '#3182f6',
+    borderUpColor: '#f04452', borderDownColor: '#3182f6',
+    wickUpColor: '#f04452', wickDownColor: '#3182f6',
+    priceLineColor: '#f04452', priceLineWidth: 1,
+  }, 0);
+  candleSeries.setData(candles.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close })));
+
+  const addLine = (key, color) => {
+    const series = chart.addSeries(L.LineSeries, {
+      color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+    }, 0);
+    series.setData(rows.filter(r => r[key] != null).map(r => ({ time: r.time, value: r[key] })));
+  };
+  addLine('ma5', '#f5a623');
+  addLine('ma20', '#f04452');
+  addLine('ma60', '#ff8a00');
+  addLine('ma120', '#8b5cf6');
+
+  const volumeSeries = chart.addSeries(L.HistogramSeries, {
+    priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: true,
+  }, 1);
+  volumeSeries.setData(rows.map(r => ({
+    time: r.time, value: r.volume || 0,
+    color: r.close >= r.open ? 'rgba(240,68,82,.72)' : 'rgba(49,130,246,.72)',
+  })));
+
+  const macdHist = chart.addSeries(L.HistogramSeries, { priceLineVisible: false, lastValueVisible: true, base: 0 }, 2);
+  macdHist.setData(rows.filter(r => r.macd_hist != null).map(r => ({
+    time: r.time, value: r.macd_hist,
+    color: r.macd_hist >= 0 ? 'rgba(240,68,82,.72)' : 'rgba(49,130,246,.72)',
+  })));
+  const macdLine = chart.addSeries(L.LineSeries, {
+    color: '#3182f6', lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+  }, 2);
+  macdLine.setData(rows.filter(r => r.macd != null).map(r => ({ time: r.time, value: r.macd })));
+  const signalLine = chart.addSeries(L.LineSeries, {
+    color: '#ff8a00', lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
+  }, 2);
+  signalLine.setData(rows.filter(r => r.macd_signal != null).map(r => ({ time: r.time, value: r.macd_signal })));
+
+  const rsiSeries = chart.addSeries(L.LineSeries, {
+    color: '#8b5cf6', lineWidth: 1, priceLineVisible: false, lastValueVisible: true,
+    crosshairMarkerVisible: false, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
+  }, 3);
+  rsiSeries.setData(rows.filter(r => r.rsi != null).map(r => ({ time: r.time, value: r.rsi })));
+  rsiSeries.createPriceLine({ price: 70, color: '#c7cdd4', lineWidth: 1, lineStyle: L.LineStyle.Dashed, axisLabelVisible: false });
+  rsiSeries.createPriceLine({ price: 30, color: '#c7cdd4', lineWidth: 1, lineStyle: L.LineStyle.Dashed, axisLabelVisible: false });
+
+  const tooltip = document.getElementById('dp-chart-tooltip');
+  const dateLabel = document.getElementById('dp-chart-date');
+  const byTime = new Map(rows.map(r => [String(r.time), r]));
+  chart.subscribeCrosshairMove(param => {
+    const rawTime = param?.time;
+    const time = typeof rawTime === 'string'
+      ? rawTime
+      : rawTime && rawTime.year
+        ? `${rawTime.year}-${String(rawTime.month).padStart(2, '0')}-${String(rawTime.day).padStart(2, '0')}`
+        : '';
+    const row = byTime.get(time);
+    if (!row) {
+      if (tooltip) tooltip.hidden = true;
+      if (dateLabel) dateLabel.textContent = '최근 4개월';
+      return;
+    }
+    if (dateLabel) dateLabel.textContent = time;
+    if (tooltip) {
+      tooltip.innerHTML = `<b>${esc(time)}</b><span>시 ${fmtPrice(row.open)}</span><span>고 ${fmtPrice(row.high)}</span><span>저 ${fmtPrice(row.low)}</span><span>종 ${fmtPrice(row.close)}</span>`;
+      tooltip.hidden = false;
+    }
+  });
+  chart.timeScale().fitContent();
+  requestAnimationFrame(() => {
+    const panes = chart.panes();
+    if (panes[0]) panes[0].setHeight(250);
+    if (panes[1]) panes[1].setHeight(82);
+    if (panes[2]) panes[2].setHeight(82);
+    if (panes[3]) panes[3].setHeight(82);
+  });
+  return true;
+}
+
 async function loadDpFourAxis(ticker) {
   const loading = document.getElementById('dp-fouraxis-loading');
   const errDiv  = document.getElementById('dp-fouraxis-error');
@@ -4113,23 +4232,10 @@ async function loadDpFourAxis(ticker) {
     // ── Hero 추세 차트 + 좌측 1일/52주 범위 ───────────────────────
     try {
       const panel = document.getElementById('dp-spark-panel');
-      const sparkEl = document.getElementById('dp-spark');
+      const chartRows = Array.isArray(d.market_chart) ? d.market_chart : [];
       const closes = Array.isArray(d.closes) ? d.closes : [];
-      if (panel && sparkEl && closes.length >= 2) {
+      if (panel && chartRows.length >= 20 && _renderDpMarketChart(chartRows)) {
         const current = d.range_current || (closes.length ? closes[closes.length - 1] : null);
-        const first = closes.length ? closes[0] : current;
-        const up = current != null && first != null ? Number(current) >= Number(first) : true;
-        const col = up ? '#22A463' : '#DC2626';
-        sparkEl.innerHTML = buildTossTrendSVG(closes, col, current);
-        const chgEl = document.getElementById('dp-spark-change');
-        if (chgEl && d.spark_change_pct != null) {
-          const s = d.spark_change_pct >= 0 ? '▲ ' : '▼ ';
-          chgEl.textContent = s + Math.abs(d.spark_change_pct).toFixed(1) + '%';
-          chgEl.classList.toggle('is-down', d.spark_change_pct < 0);
-        } else if (chgEl) {
-          chgEl.textContent = '';
-        }
-        if (chgEl) chgEl.style.color = up ? '' : 'var(--destructive)';
         _setRangeRow('dp-day', d.day_low, d.day_high, current);
         _setRangeRow('dp-wk52', d.wk52_low, d.wk52_high, current);
         const volEl = document.getElementById('dp-range-volume');
@@ -4139,7 +4245,7 @@ async function loadDpFourAxis(ticker) {
         }
         panel.style.display = '';
       }
-    } catch (e) { console.warn('hero spark render failed:', e); }
+    } catch (e) { console.warn('market chart render failed:', e); }
 
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     set('dp-fa-phase', d.phase || '');

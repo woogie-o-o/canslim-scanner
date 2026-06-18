@@ -277,7 +277,7 @@
               </div>
             </div>
           </div>
-          <div class="dp-hero-stats">
+          <div class="dp-hero-stats dp-hero-stats--flat">
             <div class="dp-hero-stat-cell">
               <span class="dp-hero-stat-label">현재가</span>
               <span id="dp-price" class="dp-hero-stat-value">—</span>
@@ -324,12 +324,21 @@
         </div>
         <div class="dp-hero-right">
       <div id="dp-spark-panel" style="display:none;">
-        <div class="dp-spark-head">
-          <span class="dp-spark-eyebrow">최근 추세</span>
-          <span id="dp-spark-change" class="dp-spark-change"></span>
+        <div class="dp-chart-toolbar">
+          <div class="dp-chart-title-group">
+            <strong>일봉</strong>
+            <span id="dp-chart-date">최근 4개월</span>
+          </div>
+          <div class="dp-chart-ma-legend" aria-label="이동평균선">
+            <span class="ma5">5</span><span class="ma20">20</span><span class="ma60">60</span><span class="ma120">120</span>
+          </div>
         </div>
         <div class="dp-spark-chart">
-          <div id="dp-spark"></div>
+          <div id="dp-market-chart"></div>
+          <div id="dp-chart-tooltip" class="dp-chart-tooltip" hidden></div>
+          <span class="dp-chart-pane-label dp-chart-pane-label--volume">거래량</span>
+          <span class="dp-chart-pane-label dp-chart-pane-label--macd">MACD</span>
+          <span class="dp-chart-pane-label dp-chart-pane-label--rsi">RSI(14)</span>
         </div>
       </div>
         </div><!-- /dp-hero-right -->
@@ -760,6 +769,7 @@
 
 <!-- socket.io: lazy-loaded on first chat open (45KB 초기 로드 제거) -->
 <!-- html2canvas: lazy-loaded on first capture (430KB 초기 로드 제거) -->
+<script src="/static/lib/lightweight-charts.standalone.production.js" defer></script>
 <script src="/static/app.js?v={{ v_app_js }}" defer></script>
 <script>
 /* ── Card Group Toggle + Section Nav ─────────────────────── */

@@ -3101,6 +3101,8 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
 
         # ── Hero 범위 차트용 경량 데이터 + 1일/52주 고저 ──
         try:
+            import pandas as pd
+
             _closes_full = [float(x) for x in hist["Close"].dropna().tolist()]
             _high_src = hist["High"] if "High" in hist else hist["Close"]
             _low_src = hist["Low"] if "Low" in hist else hist["Close"]
@@ -3113,6 +3115,7 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
             _day_high = _highs_full[-1] if _highs_full else _current
             _day_low = _lows_full[-1] if _lows_full else _current
             _day_volume = _vols_full[-1] if _vols_full else None
+            _chart_hist = hist[["Open", "High", "Low", "Close", "Volume"]].copy()
 
             if market == "KR":
                 try:
@@ -3122,12 +3125,28 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                         _qp = _as_float(_q.get("price"))
                         if _qp and _qp > 0:
                             _current = _qp
-                        _tc = toss_invest.get_daily_candles(ticker, count=5)
+                        _tc = toss_invest.get_daily_candles(ticker, count=200)
                         if _tc:
                             _last_c = _tc[-1]
                             _day_high = _as_float(_last_c.get("high")) or _day_high
                             _day_low = _as_float(_last_c.get("low")) or _day_low
                             _day_volume = _as_float(_last_c.get("volume")) or _day_volume
+                        if len(_tc) >= 30:
+                            _toss_rows = []
+                            for _c in _tc:
+                                _ts = pd.to_datetime(_c.get("timestamp"), errors="coerce")
+                                if pd.isna(_ts):
+                                    continue
+                                _toss_rows.append({
+                                    "Date": _ts,
+                                    "Open": _as_float(_c.get("open")),
+                                    "High": _as_float(_c.get("high")),
+                                    "Low": _as_float(_c.get("low")),
+                                    "Close": _as_float(_c.get("close")),
+                                    "Volume": _as_float(_c.get("volume")) or 0,
+                                })
+                            if _toss_rows:
+                                _chart_hist = pd.DataFrame(_toss_rows).set_index("Date").sort_index()
                 except Exception as _e:
                     logging.debug("hero range Toss payload: %s", _e)
 
@@ -3136,7 +3155,63 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
             if _current and _day_low:
                 _day_low = min(float(_day_low), float(_current))
 
+            # Toss 실시간가를 오늘 캔들에 반영해 상세 차트와 현재가를 맞춘다.
+            if _current and _chart_hist is not None and not _chart_hist.empty:
+                _last_idx = _chart_hist.index[-1]
+                _chart_hist.loc[_last_idx, "Close"] = float(_current)
+                _chart_hist.loc[_last_idx, "High"] = max(
+                    float(_chart_hist.loc[_last_idx, "High"]), float(_current)
+                )
+                _chart_hist.loc[_last_idx, "Low"] = min(
+                    float(_chart_hist.loc[_last_idx, "Low"]), float(_current)
+                )
+
+            _chart_hist = _chart_hist.apply(pd.to_numeric, errors="coerce")
+            _chart_close = _chart_hist["Close"]
+            for _period in (5, 20, 60, 120):
+                _chart_hist[f"MA{_period}"] = _chart_close.rolling(_period).mean()
+            _ema12 = _chart_close.ewm(span=12, adjust=False).mean()
+            _ema26 = _chart_close.ewm(span=26, adjust=False).mean()
+            _chart_hist["MACD"] = _ema12 - _ema26
+            _chart_hist["MACDSignal"] = _chart_hist["MACD"].ewm(span=9, adjust=False).mean()
+            _chart_hist["MACDHist"] = _chart_hist["MACD"] - _chart_hist["MACDSignal"]
+            _delta = _chart_close.diff()
+            _gain = _delta.clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean()
+            _loss = (-_delta.clip(upper=0)).ewm(alpha=1 / 14, adjust=False).mean()
+            _rs = _gain / _loss.replace(0, float("nan"))
+            _chart_hist["RSI14"] = 100 - (100 / (1 + _rs))
+
+            def _chart_num(value):
+                try:
+                    value = float(value)
+                    return round(value, 4) if np.isfinite(value) else None
+                except (TypeError, ValueError):
+                    return None
+
+            _chart_rows = []
+            for _idx, _row in _chart_hist.tail(90).iterrows():
+                _dt = pd.to_datetime(_idx, errors="coerce")
+                if pd.isna(_dt):
+                    continue
+                _chart_rows.append({
+                    "time": _dt.strftime("%Y-%m-%d"),
+                    "open": _chart_num(_row.get("Open")),
+                    "high": _chart_num(_row.get("High")),
+                    "low": _chart_num(_row.get("Low")),
+                    "close": _chart_num(_row.get("Close")),
+                    "volume": _chart_num(_row.get("Volume")) or 0,
+                    "ma5": _chart_num(_row.get("MA5")),
+                    "ma20": _chart_num(_row.get("MA20")),
+                    "ma60": _chart_num(_row.get("MA60")),
+                    "ma120": _chart_num(_row.get("MA120")),
+                    "macd": _chart_num(_row.get("MACD")),
+                    "macd_signal": _chart_num(_row.get("MACDSignal")),
+                    "macd_hist": _chart_num(_row.get("MACDHist")),
+                    "rsi": _chart_num(_row.get("RSI14")),
+                })
+
             payload["closes"] = _downsample_closes(_recent, max_points=24)
+            payload["market_chart"] = _chart_rows
             _hi = max(_highs_full[-252:]) if _highs_full else None
             _lo = min(_lows_full[-252:]) if _lows_full else None
             payload["wk52_high"] = _hi
