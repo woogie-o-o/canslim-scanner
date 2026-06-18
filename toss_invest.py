@@ -18,12 +18,15 @@ BASE_URL = os.environ.get("TOSSINVEST_BASE_URL", "https://openapi.tossinvest.com
 TOKEN_PATH = "/oauth2/token"
 PRICES_PATH = "/api/v1/prices"
 CANDLES_PATH = "/api/v1/candles"
+STOCKS_PATH = "/api/v1/stocks"
 
 _SESSION = requests.Session()
 _TOKEN_LOCK = threading.Lock()
 _TOKEN: str | None = None
 _TOKEN_EXP: float = 0.0
 _LAST_ERROR: str = ""
+_STOCKS_LOCK = threading.Lock()
+_STOCKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 
 
 def _env(*names: str) -> str:
@@ -82,6 +85,13 @@ def _timeout() -> float:
         return max(1.0, float(os.environ.get("TOSSINVEST_TIMEOUT_SEC", "5")))
     except (TypeError, ValueError):
         return 5.0
+
+
+def _stocks_ttl_sec() -> float:
+    try:
+        return max(60.0, float(os.environ.get("TOSSINVEST_STOCKS_TTL_SEC", "86400")))
+    except (TypeError, ValueError):
+        return 86400.0
 
 
 def _request(method: str, path: str, **kwargs):
@@ -150,7 +160,7 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
-def _authed_get(path: str, params: dict[str, str]):
+def _authed_get(path: str, params: dict[str, str], *, label: str = "request"):
     token = _access_token()
     if not token:
         return None
@@ -158,7 +168,7 @@ def _authed_get(path: str, params: dict[str, str]):
     try:
         resp = _request("GET", path, headers=headers, params=params)
     except requests.RequestException as exc:
-        _set_last_error(f"prices_request_error: {exc.__class__.__name__}")
+        _set_last_error(f"{label}_request_error: {exc.__class__.__name__}")
         raise
     if resp.status_code == 401:
         token = _access_token(force=True)
@@ -174,7 +184,7 @@ def _authed_get(path: str, params: dict[str, str]):
         time.sleep(wait)
         resp = _request("GET", path, headers=headers, params=params)
     if resp.status_code >= 400:
-        _set_last_error(_http_error("prices", resp))
+        _set_last_error(_http_error(label, resp))
     resp.raise_for_status()
     data = resp.json()
     _set_last_error("")
@@ -203,7 +213,7 @@ def get_prices(symbols: Iterable[str]) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     for idx in range(0, len(normalized), 200):
         chunk = normalized[idx : idx + 200]
-        data = _authed_get(PRICES_PATH, {"symbols": ",".join(chunk)})
+        data = _authed_get(PRICES_PATH, {"symbols": ",".join(chunk)}, label="prices")
         if not isinstance(data, dict):
             continue
         rows = data.get("result") or []
@@ -234,6 +244,78 @@ def get_quote(ticker: str) -> dict[str, Any] | None:
     return get_prices([symbol]).get(symbol)
 
 
+def get_stocks(symbols: Iterable[str]) -> dict[str, dict[str, Any]]:
+    """Return Toss stock master rows keyed by normalized symbol."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for symbol in symbols:
+        s = _normalize_symbol(symbol)
+        if s and s not in seen:
+            normalized.append(s)
+            seen.add(s)
+    if not normalized:
+        return {}
+    if not is_available():
+        _set_last_error("credentials_missing")
+        return {}
+
+    out: dict[str, dict[str, Any]] = {}
+    now = time.time()
+    ttl = _stocks_ttl_sec()
+    to_fetch: list[str] = []
+    with _STOCKS_LOCK:
+        for symbol in normalized:
+            cached = _STOCKS_CACHE.get(symbol)
+            if cached and now - cached[0] < ttl:
+                out[symbol] = dict(cached[1])
+            else:
+                to_fetch.append(symbol)
+    if not to_fetch:
+        return out
+
+    for idx in range(0, len(to_fetch), 200):
+        chunk = to_fetch[idx : idx + 200]
+        data = _authed_get(STOCKS_PATH, {"symbols": ",".join(chunk)}, label="stocks")
+        if not isinstance(data, dict):
+            continue
+        rows = data.get("result") or []
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            sym = _normalize_symbol(str(row.get("symbol") or ""))
+            if not sym:
+                continue
+            mapped = {
+                "ticker": sym,
+                "code": sym,
+                "name": str(row.get("name") or "").strip(),
+                "english_name": str(row.get("englishName") or "").strip(),
+                "isin_code": row.get("isinCode"),
+                "market": row.get("market"),
+                "security_type": row.get("securityType"),
+                "is_common_share": row.get("isCommonShare"),
+                "status": row.get("status"),
+                "currency": row.get("currency"),
+                "list_date": row.get("listDate"),
+                "delist_date": row.get("delistDate"),
+                "shares_outstanding": _to_float(row.get("sharesOutstanding")),
+                "source": "tossinvest",
+            }
+            out[sym] = mapped
+            with _STOCKS_LOCK:
+                _STOCKS_CACHE[sym] = (time.time(), dict(mapped))
+    return out
+
+
+def get_stock(ticker: str) -> dict[str, Any] | None:
+    symbol = _normalize_symbol(ticker)
+    if not symbol:
+        return None
+    return get_stocks([symbol]).get(symbol)
+
+
 def get_daily_candles(ticker: str, count: int = 200) -> list[dict[str, Any]]:
     """Return latest daily candles in chronological order."""
     symbol = _normalize_symbol(ticker)
@@ -251,6 +333,7 @@ def get_daily_candles(ticker: str, count: int = 200) -> list[dict[str, Any]]:
             "count": str(n),
             "adjusted": "true",
         },
+        label="candles",
     )
     if not isinstance(data, dict):
         return []

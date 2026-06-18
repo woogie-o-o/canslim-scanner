@@ -522,11 +522,28 @@ class ScanAdapter:
         _kr_names_d = getattr(self, "KR_NAMES", {})
         _us_names_d = getattr(_qn.QuantNexusApp, "US_NAMES", {})
         _sw = _qn._SWING_SCAN_STOCK_NAMES
+        _toss_stocks: dict[str, dict] = {}
+        if self._market == "KR" and not cache_only:
+            try:
+                import toss_invest
+                if toss_invest.is_available():
+                    _toss_stocks = toss_invest.get_stocks(tickers)
+            except Exception as _e:
+                logging.debug("[ScanAdapter] Toss stock master skipped: %s", _e)
         _name_pre: dict[str, str] = {}
         for _nt in tickers:
             _is_kr_nt = _nt.endswith(".KS") or _nt.endswith(".KQ")
             _nn = None
-            if _is_kr_nt and _sw is not None:
+            if _is_kr_nt:
+                try:
+                    _c6t = _nt.split(".")[0].zfill(6)
+                    _ti = _toss_stocks.get(_c6t) or {}
+                    _tn = str(_ti.get("name") or "").strip()
+                    if _tn and _tn != _c6t:
+                        _nn = _tn
+                except Exception:
+                    pass
+            if _is_kr_nt and not _nn and _sw is not None:
                 try:
                     _c6n = _nt.split(".")[0].zfill(6)
                     _nn2 = _sw.get_name(_c6n)
@@ -570,6 +587,35 @@ class ScanAdapter:
     def _resolve_display_name(self, ticker: str, current_name: str = "") -> str:
         """Forward QuantNexusApp's display name resolver onto the adapter instance."""
         return _qn.QuantNexusApp._resolve_display_name(self, ticker, current_name)
+
+    def curated_sector_for_ticker(self, ticker: str) -> str:
+        """Return the UI-facing curated sector used by scan rows."""
+        target = str(ticker or "").strip().upper()
+        if not target:
+            return ""
+        base = target.split(".")[0].zfill(6) if target.split(".")[0].isdigit() else target.split(".")[0]
+        for sector, tickers in self._sectors.items():
+            for item in tickers:
+                sym = str(item or "").strip().upper()
+                if not sym:
+                    continue
+                sym_base = sym.split(".")[0].zfill(6) if sym.split(".")[0].isdigit() else sym.split(".")[0]
+                if sym == target or sym_base == base:
+                    return sector
+        return ""
+
+    def apply_curated_sector(self, row, ticker: str = ""):
+        """Keep detail rows on the same curated sector taxonomy as scan rows."""
+        if not isinstance(row, dict) or self._market != "KR":
+            return row
+        sector = self.curated_sector_for_ticker(ticker or row.get("Ticker", ""))
+        if not sector:
+            return row
+        old = str(row.get("Sector") or "").strip()
+        if old and old != sector:
+            row.setdefault("_EngineSector", old)
+        row["Sector"] = sector
+        return row
     # ── 공개 API ─────────────────────────────────────────────────────────
 
     def get_sectors(self) -> dict[str, list[str]]:
@@ -613,7 +659,7 @@ class ScanAdapter:
                 strategy_key = f"{ticker}__{self._scan_strategy}__{_date}"
                 cached = self.cache.get(strategy_key, max_age_minutes=60 * 24 * (_days_back + 1))
                 if cached:
-                    return apply_to_row(cached)
+                    return self.apply_curated_sector(apply_to_row(cached), ticker)
             if cache_only:
                 return None
         prev_force = getattr(self, "_force_refresh", False)
@@ -622,7 +668,7 @@ class ScanAdapter:
             result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
         finally:
             self._force_refresh = prev_force
-        return apply_to_row(result) if result else result
+        return self.apply_curated_sector(apply_to_row(result), ticker) if result else result
 
     def scan_sector(self, sector: str, *, max_workers: int = int(os.environ.get("SCAN_WORKERS", "8")), prefer_cache: bool = False, cache_only: bool = False) -> list[dict]:
         """특정 섹터 종목을 병렬 분석 후 TotalScore 내림차순 반환."""

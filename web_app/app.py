@@ -160,6 +160,9 @@ _CONSENSUS_TTL_SEC = 900  # 15분
 _CONSENSUS_MAX = 200
 _consensus_cache: dict[str, dict] = {}
 _consensus_cache_lock = threading.Lock()
+_BROKER_TARGET_TTL_SEC = 6 * 3600
+_broker_target_cache: dict[str, dict] = {}
+_broker_target_cache_lock = threading.Lock()
 
 # ── 티커 상세 응답 캐시 (드로어 재오픈 시 즉시 응답) ──
 _TICKER_DETAIL_TTL_SEC = 1800  # 30분
@@ -241,6 +244,58 @@ def _store_scan_cache(key: tuple, ts: int, rows: list) -> bytes:
     with _scan_gz_cache_lock:
         _scan_gz_cache[key] = compressed
     return compressed
+
+
+def _mark_json_no_store(resp: Response) -> Response:
+    resp.headers["Cache-Control"] = "no-store, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
+
+def _scan_universe(adapter) -> set[str]:
+    try:
+        return {t for ts in adapter.get_sectors().values() for t in ts}
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+        return set()
+
+
+def _attach_scan_deltas(
+    results: list,
+    market: str,
+    *,
+    adapter=None,
+    sector: str = "",
+    save_snapshot: bool = False,
+    async_snapshot: bool = False,
+) -> list:
+    """ScoreDelta/RankDelta를 캐시 저장 직전 기준으로 일관되게 부착한다."""
+    if not results:
+        return results
+    try:
+        import history
+        results = history.annotate_deltas(results, market)
+        if save_snapshot and not sector:
+            universe = _scan_universe(adapter) if adapter is not None else None
+
+            def _save(_r=list(results), _m=market, _u=universe):
+                try:
+                    import history as _h
+                    _h.save_snapshot(_r, _m, universe=_u)
+                except Exception as _e:
+                    logging.warning("history snapshot save failed: %s", _e)
+
+            if async_snapshot:
+                threading.Thread(target=_save, daemon=True).start()
+            else:
+                _save()
+    except Exception as he:
+        logging.warning("history annotate/save failed: %s", he)
+    return results
+
+
+def _scan_rows_have_deltas(rows: list) -> bool:
+    return any(isinstance(r, dict) and "ScoreDelta" in r for r in (rows or []))
 
 
 _scan_snapshot_lock = threading.Lock()
@@ -599,6 +654,139 @@ def _sync_kr_realtime_new_high(row: dict) -> None:
         row["Breakdown"][idx] = [title, round(n_raw, 1), summary, detail]
 
 
+def _apply_kr_toss_stock_names(results: list) -> bool:
+    """KR 결과의 표시 종목명을 Toss 종목 기본정보 기준으로 보정한다."""
+    if not results:
+        return False
+    kr_items = [
+        r for r in results
+        if isinstance(r, dict) and isinstance(r.get("Ticker"), str)
+        and _kr_quote_symbol(r["Ticker"])
+    ]
+    if not kr_items:
+        return False
+    try:
+        import toss_invest
+        stocks = toss_invest.get_stocks([r["Ticker"] for r in kr_items])
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+        return False
+    if not stocks:
+        return False
+
+    changed = False
+    for row in kr_items:
+        symbol = _kr_quote_symbol(row.get("Ticker"))
+        info = stocks.get(symbol) if symbol else None
+        if not isinstance(info, dict):
+            continue
+        name = str(info.get("name") or "").strip()
+        if not name or name == symbol:
+            continue
+        if row.get("Name") != name[:20]:
+            row["Name"] = name[:20]
+            changed = True
+        market = str(info.get("market") or "").strip()
+        if market:
+            row["_TossMarket"] = market
+        shares = _as_float(info.get("shares_outstanding"))
+        price = _as_float(row.get("Price"))
+        if shares and shares > 0:
+            row["_SharesOutstanding"] = shares
+            if price and price > 0 and not row.get("_MarketCap"):
+                row["_MarketCap"] = shares * price
+    return changed
+
+
+def _parse_int_value(value) -> int:
+    try:
+        return int(str(value or "").replace(",", "").strip())
+    except Exception:
+        return 0
+
+
+def _fetch_kr_consensus_target(ticker: str) -> dict:
+    symbol = _kr_quote_symbol(ticker)
+    if not symbol:
+        return {}
+    now = int(time.time())
+    with _broker_target_cache_lock:
+        cached = _broker_target_cache.get(symbol)
+        if cached and now - cached.get("_ts", 0) < _BROKER_TARGET_TTL_SEC:
+            return dict(cached.get("data") or {})
+
+    out: dict = {}
+    try:
+        url = f"https://m.stock.naver.com/api/stock/{symbol}/integration"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        ci = data.get("consensusInfo") or {}
+        target = _parse_int_value(ci.get("priceTargetMean"))
+        if target > 0:
+            created = str(ci.get("createDate") or "").strip()
+            source = "네이버증권 컨센서스 평균"
+            if created:
+                source += f" ({created})"
+            out = {
+                "target": float(target),
+                "source": source,
+                "count": _parse_int_value(
+                    ci.get("targetPriceCount") or ci.get("consensusCount") or ci.get("stockFirmCount")
+                ),
+            }
+    except Exception as _e:
+        logging.debug("KR consensus target fetch failed for %s: %s", symbol, _e)
+
+    with _broker_target_cache_lock:
+        _broker_target_cache[symbol] = {"_ts": now, "data": dict(out)}
+        if len(_broker_target_cache) > 1000:
+            _broker_target_cache.pop(next(iter(_broker_target_cache)), None)
+    return out
+
+
+def _apply_kr_broker_target_fallback(results: list, *, limit=120) -> bool:
+    """BrokerTarget이 비어 있으면 상세 컨센서스 평균값으로 채운다."""
+    if not results:
+        return False
+    candidates = []
+    for row in results:
+        if not isinstance(row, dict) or not _kr_quote_symbol(str(row.get("Ticker") or "")):
+            continue
+        current = _as_float(row.get("BrokerTarget"), 0.0) or 0.0
+        if current <= 0:
+            candidates.append(row)
+    if limit is not None:
+        candidates = candidates[: max(0, int(limit))]
+    if not candidates:
+        return False
+
+    changed = False
+
+    def _fetch(row):
+        return row, _fetch_kr_consensus_target(str(row.get("Ticker") or ""))
+
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        workers = min(8, max(1, len(candidates)))
+        with ThreadPoolExecutor(max_workers=workers) as ex:
+            fetched = list(ex.map(_fetch, candidates))
+    except Exception:
+        fetched = [_fetch(row) for row in candidates]
+
+    for row, data in fetched:
+        target = _as_float((data or {}).get("target"), 0.0) or 0.0
+        if target <= 0:
+            continue
+        row["BrokerTarget"] = target
+        row["BrokerTargetSource"] = data.get("source") or "네이버증권 컨센서스 평균"
+        count = _parse_int_value((data or {}).get("count"))
+        if count:
+            row["BrokerAnalystCount"] = count
+        changed = True
+    return changed
+
+
 def _override_kr_day_chg(results: list) -> list:
     """KR 종목 Price/DayChg를 실시간 시세로 보정한다.
 
@@ -644,6 +832,8 @@ def _override_kr_day_chg(results: list) -> list:
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=8) as ex:
         list(ex.map(_fetch, kr_items))
+    _apply_kr_toss_stock_names(results)
+    _apply_kr_broker_target_fallback(results)
     return results
 
 
@@ -766,6 +956,20 @@ def _make_adapter():
     return adapter
 
 
+def _apply_curated_detail_sector(row: dict, market: str = "KR") -> dict:
+    """상세 응답의 Sector도 목록과 같은 큐레이션 섹터로 맞춘다."""
+    if not isinstance(row, dict) or (market or "").upper() != "KR":
+        return row
+    try:
+        adapter = _make_adapter()
+        apply_sector = getattr(adapter, "apply_curated_sector", None)
+        if callable(apply_sector):
+            apply_sector(row, row.get("Ticker", ""))
+    except Exception as _e:
+        logging.debug("silent except (app.py): %s", _e)
+    return row
+
+
 def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
     key = (market, strategy, sector)
     with _scan_refresh_lock:
@@ -778,15 +982,6 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
             adapter_cls = _get_scan_adapter_cls()
             adapter = adapter_cls(market=market, strategy=strategy)
             results = adapter.scan_sector(sector, prefer_cache=True, cache_only=True) if sector else adapter.scan_all(prefer_cache=True, cache_only=True, max_workers=20)
-            try:
-                import history
-                results = history.annotate_deltas(results, market)
-                if not sector:
-                    # 전체 유니버스를 같이 넘겨 실패 종목도 missing=True로 기록
-                    universe = {t for ts in adapter.get_sectors().values() for t in ts}
-                    history.save_snapshot(results, market, universe=universe)
-            except Exception as he:
-                logging.warning("background history annotate/save failed: %s", he)
             # 네이버 KR 실시간 등락률 오버라이드도 BG에서 처리 — 사용자 응답 지연 회피
             if market == "KR":
                 try:
@@ -806,6 +1001,13 @@ def _refresh_scan_background(market: str, strategy: str, sector: str) -> None:
                 results = _enrich_greedzone_batch(results)
             except Exception as _e:
                 logging.warning("background GreedZone enrichment failed: %s", _e)
+            results = _attach_scan_deltas(
+                results,
+                market,
+                adapter=adapter,
+                sector=sector,
+                save_snapshot=not bool(sector),
+            )
             # 스캔 결과 전체 캐시 갱신 (Breakdown 제거 + 사전 압축)
             if results:
                 _cached_results = _strip_heavy(results)
@@ -1043,6 +1245,7 @@ def _warmup_fill_cache(market: str) -> None:
                 logging.debug("silent except (app.py): %s", _e)
             # 캐시 즉시 저장 — 네이버 오버레이/GreedZone 없이도 첫 API 응답 즉시 가능
             _apply_moat_bonus(results)
+            results = _attach_scan_deltas(results, market, adapter=adapter, save_snapshot=True)
             results = _strip_heavy(results)
             ts = int(time.time())
             _store_scan_cache((market, "BALANCED", ""), ts, results)
@@ -1066,6 +1269,7 @@ def _warmup_fill_cache(market: str) -> None:
                         logging.warning("%s GreedZone bg failed: %s", _mkt, _e)
                     if _res:
                         _apply_moat_bonus(_res)
+                        _res = _attach_scan_deltas(_res, _mkt, adapter=adapter, save_snapshot=True)
                         _s = _strip_heavy(_res)
                         _t = int(time.time())
                         _store_scan_cache((_mkt, "BALANCED", ""), _t, _s)
@@ -1138,6 +1342,7 @@ def _kr_warmup_loop(interval_sec: int = 1800, initial_delay: float = 0.0) -> Non
                         except Exception as _e:
                             logging.warning("KR slow-refresh GreedZone enrichment failed: %s", _e)
                         _apply_moat_bonus(results)
+                        results = _attach_scan_deltas(results, "KR", adapter=adapter, save_snapshot=True)
                         results = _strip_heavy(results)
                         ts = int(time.time())
                         _store_scan_cache(("KR", "BALANCED", ""), ts, results)
@@ -1417,6 +1622,26 @@ def api_scan():
             _age_sec = _sr_now - _sr_cached.get("_ts", 0)
             if _age_sec > _SCAN_RESULTS_TTL_SEC:
                 _refresh_scan_background(market, strategy, sector)
+            _cached_dirty = False
+            if not _scan_rows_have_deltas(_sr_cached.get("data") or []):
+                _sr_cached["data"] = _attach_scan_deltas(
+                    _sr_cached.get("data") or [],
+                    market,
+                    adapter=None,
+                    sector=sector,
+                    save_snapshot=False,
+                )
+                _cached_dirty = True
+            if market == "KR":
+                try:
+                    if _apply_kr_toss_stock_names(_sr_cached["data"]):
+                        _cached_dirty = True
+                    if _apply_kr_broker_target_fallback(_sr_cached["data"]):
+                        _cached_dirty = True
+                except Exception as ne:
+                    logging.warning("cached KR scan overrides failed: %s", ne)
+            if _cached_dirty:
+                _store_scan_cache(_sr_key, _sr_cached.get("_ts", _sr_now), _sr_cached["data"])
             # 사전 압축 캐시 히트 — flask_compress 재압축 완전 우회
             with _scan_gz_cache_lock:
                 _gz_bytes = _scan_gz_cache.get(_sr_key)
@@ -1434,7 +1659,7 @@ def api_scan():
                 resp.headers["X-Warming-In-Progress"] = "true" if _age_sec > _SCAN_RESULTS_TTL_SEC else "false"
             except Exception as _e:
                 logging.debug("silent except (app.py): %s", _e)
-            return resp
+            return _mark_json_no_store(resp)
 
         adapter = _make_adapter()
         results = []
@@ -1462,24 +1687,6 @@ def api_scan():
                     warming_in_progress = True
         else:
             results = adapter.scan_sector(sector) if sector else adapter.scan_all()
-        # 히스토리 델타 주석/스냅샷 저장
-        try:
-            import history
-            results = history.annotate_deltas(results, market)
-            # 섹터 스캔이 아닐 때만 스냅샷 저장 — 백그라운드로 이동해 응답 차단 제거
-            if not sector:
-                _snap_rows = list(results)
-                _snap_market = market
-                _snap_universe = {t for ts in adapter.get_sectors().values() for t in ts}
-                def _bg_snap(_r=_snap_rows, _m=_snap_market, _u=_snap_universe):
-                    try:
-                        import history as _h
-                        _h.save_snapshot(_r, _m, universe=_u)
-                    except Exception as _e:
-                        logging.warning("bg save_snapshot failed: %s", _e)
-                threading.Thread(target=_bg_snap, daemon=True).start()
-        except Exception as he:
-            logging.warning("history annotate/save failed: %s", he)
         # KR 종목은 네이버 실시간 등락률로 즉시 오버라이드 (yfinance 장중 고착 회피).
         # 8-worker 병렬 호출이라 50종목 기준 ~1~2초 추가. 사용자가 fallback을 원치 않음.
         if market == "KR":
@@ -1502,6 +1709,14 @@ def api_scan():
                 results = _apply_aq_fusion(results, market, top_n=aq_top)
             except Exception as ae:
                 logging.warning("aq fusion failed: %s", ae)
+        results = _attach_scan_deltas(
+            results,
+            market,
+            adapter=adapter,
+            sector=sector,
+            save_snapshot=not bool(sector),
+            async_snapshot=True,
+        )
         # ── 스캔 결과 전체 캐시 저장 (Breakdown 제거 + 사전 압축) ──
         results = _strip_heavy(results)
         _gz_bytes = _store_scan_cache(_sr_key, _sr_now, results) if results else b""
@@ -1520,7 +1735,7 @@ def api_scan():
             resp.headers["X-Warming-In-Progress"] = "true" if warming_in_progress else "false"
         except Exception as _e:
             logging.debug("silent except (app.py): %s", _e)
-        return resp
+        return _mark_json_no_store(resp)
     except Exception as e:
         logging.exception("api_scan")
         return jsonify({"error": str(e)}), 500
@@ -1751,6 +1966,9 @@ def api_ticker(ticker: str):
             # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
             fresh = dict(_td_cached["data"])
             if market_arg == "KR":
+                _apply_kr_toss_stock_names([fresh])
+                _apply_curated_detail_sector(fresh, market_arg)
+                _apply_kr_broker_target_fallback([fresh], limit=None)
                 _overlay_kr_realtime_quote(fresh, sync_new_high=True)
             try:
                 from one_liner import annotate as _ol_annotate
@@ -1765,6 +1983,9 @@ def api_ticker(ticker: str):
         if result is None:
             return jsonify({"error": "해당 티커의 데이터를 찾을 수 없습니다."}), 404
         if market == "KR":
+            _apply_kr_toss_stock_names([result])
+            _apply_curated_detail_sector(result, market)
+            _apply_kr_broker_target_fallback([result], limit=None)
             code6 = _strip_kr_suffix(ticker).zfill(6)
             name_now = str(result.get("Name") or "").strip()
             if not name_now or name_now in {ticker, code6, f"{code6}.KS", f"{code6}.KQ"}:
@@ -3369,6 +3590,7 @@ def _cold_start_live_scan(market: str) -> None:
         except Exception:
             pass
         _apply_moat_bonus(results)
+        results = _attach_scan_deltas(results, market, adapter=adapter, save_snapshot=True)
         results = _strip_heavy(results)
         ts = int(time.time())
         _store_scan_cache((market, "BALANCED", ""), ts, results)

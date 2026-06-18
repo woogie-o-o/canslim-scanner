@@ -35,6 +35,7 @@ class TestTossInvest(unittest.TestCase):
         toss_invest._TOKEN = None
         toss_invest._TOKEN_EXP = 0.0
         toss_invest._LAST_ERROR = ""
+        toss_invest._STOCKS_CACHE.clear()
 
     def test_missing_credentials_disables_client(self) -> None:
         with patch.dict(os.environ, {}, clear=True), patch("toss_invest._request") as request:
@@ -85,6 +86,48 @@ class TestTossInvest(unittest.TestCase):
         self.assertEqual(price_call.args[:2], ("GET", toss_invest.PRICES_PATH))
         self.assertEqual(price_call.kwargs["headers"]["Authorization"], "Bearer token-1")
         self.assertEqual(price_call.kwargs["params"], {"symbols": "005930"})
+
+    def test_get_stocks_maps_stock_master_name(self) -> None:
+        env = {
+            "TOSSINVEST_CLIENT_ID": "client-id",
+            "TOSSINVEST_CLIENT_SECRET": "client-secret",
+        }
+        responses = [
+            _Response(200, {"access_token": "token-1", "token_type": "Bearer", "expires_in": 3600}),
+            _Response(
+                200,
+                {
+                    "result": [
+                        {
+                            "symbol": "005930",
+                            "name": "삼성전자",
+                            "englishName": "SamsungElec",
+                            "isinCode": "KR7005930003",
+                            "market": "KOSPI",
+                            "securityType": "STOCK",
+                            "isCommonShare": True,
+                            "status": "ACTIVE",
+                            "currency": "KRW",
+                            "listDate": "1975-06-11",
+                            "sharesOutstanding": "5919637922",
+                        }
+                    ]
+                },
+            ),
+        ]
+
+        with patch.dict(os.environ, env, clear=True), patch("toss_invest._request", side_effect=responses) as request:
+            stocks = toss_invest.get_stocks(["005930.KS"])
+
+        self.assertEqual(stocks["005930"]["name"], "삼성전자")
+        self.assertEqual(stocks["005930"]["english_name"], "SamsungElec")
+        self.assertEqual(stocks["005930"]["isin_code"], "KR7005930003")
+        self.assertEqual(stocks["005930"]["market"], "KOSPI")
+        self.assertEqual(stocks["005930"]["shares_outstanding"], 5919637922.0)
+
+        stock_call = request.call_args_list[1]
+        self.assertEqual(stock_call.args[:2], ("GET", toss_invest.STOCKS_PATH))
+        self.assertEqual(stock_call.kwargs["params"], {"symbols": "005930"})
 
     def test_get_daily_candles_maps_toss_candle_page(self) -> None:
         env = {

@@ -83,6 +83,97 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         get_quote.assert_not_called()
         self.assertEqual(row["Price"], 100.0)
 
+    def test_apply_kr_toss_stock_names_replaces_english_name(self) -> None:
+        rows = [
+            {"Ticker": "005930.KS", "Name": "Samsung Electronics", "Price": 340000.0},
+            {"Ticker": "AAPL", "Name": "Apple", "Price": 200.0},
+        ]
+
+        with patch(
+            "toss_invest.get_stocks",
+            return_value={
+                "005930": {
+                    "name": "삼성전자",
+                    "market": "KOSPI",
+                    "shares_outstanding": 5919637922.0,
+                }
+            },
+        ) as get_stocks:
+            changed = app._apply_kr_toss_stock_names(rows)
+
+        self.assertTrue(changed)
+        get_stocks.assert_called_once_with(["005930.KS"])
+        self.assertEqual(rows[0]["Name"], "삼성전자")
+        self.assertEqual(rows[0]["_TossMarket"], "KOSPI")
+        self.assertEqual(rows[0]["_MarketCap"], 5919637922.0 * 340000.0)
+        self.assertEqual(rows[1]["Name"], "Apple")
+
+    def test_attach_scan_deltas_adds_delta_fields_before_cache_store(self) -> None:
+        rows = [{"Ticker": "005930.KS", "TotalScore": 80.0}]
+
+        def annotate(results: list[dict], market: str) -> list[dict]:
+            self.assertEqual(market, "KR")
+            results[0]["ScoreDelta"] = 2.9
+            results[0]["RankDelta"] = 1
+            results[0]["DeltaDays"] = 1
+            results[0]["IsNew"] = False
+            return results
+
+        with patch("history.annotate_deltas", side_effect=annotate), patch("history.save_snapshot") as save_snapshot:
+            out = app._attach_scan_deltas(rows, "KR", save_snapshot=False)
+
+        save_snapshot.assert_not_called()
+        self.assertIs(out, rows)
+        self.assertTrue(app._scan_rows_have_deltas(rows))
+        self.assertEqual(rows[0]["ScoreDelta"], 2.9)
+        self.assertEqual(rows[0]["RankDelta"], 1)
+
+    def test_apply_curated_detail_sector_uses_scan_taxonomy(self) -> None:
+        row = {"Ticker": "005930.KS", "Sector": "기술"}
+
+        class _Adapter:
+            def apply_curated_sector(self, item: dict, ticker: str = "") -> dict:
+                self_applied = ticker == "005930.KS"
+                if self_applied:
+                    item["_EngineSector"] = item["Sector"]
+                    item["Sector"] = "메모리·HBM"
+                return item
+
+        with patch("app._make_adapter", return_value=_Adapter()):
+            app._apply_curated_detail_sector(row, "KR")
+
+        self.assertEqual(row["Sector"], "메모리·HBM")
+        self.assertEqual(row["_EngineSector"], "기술")
+
+    def test_apply_kr_broker_target_fallback_uses_consensus_mean(self) -> None:
+        rows = [{"Ticker": "005930.KS", "Name": "삼성전자", "Price": 350500.0, "BrokerTarget": 0.0}]
+
+        with patch(
+            "app._fetch_kr_consensus_target",
+            return_value={
+                "target": 455833.0,
+                "source": "네이버증권 컨센서스 평균 (2026-06-17)",
+                "count": 12,
+            },
+        ) as fetch_target:
+            changed = app._apply_kr_broker_target_fallback(rows, limit=None)
+
+        self.assertTrue(changed)
+        fetch_target.assert_called_once_with("005930.KS")
+        self.assertEqual(rows[0]["BrokerTarget"], 455833.0)
+        self.assertEqual(rows[0]["BrokerTargetSource"], "네이버증권 컨센서스 평균 (2026-06-17)")
+        self.assertEqual(rows[0]["BrokerAnalystCount"], 12)
+
+    def test_apply_kr_broker_target_fallback_keeps_existing_target(self) -> None:
+        rows = [{"Ticker": "005930.KS", "BrokerTarget": 420000.0}]
+
+        with patch("app._fetch_kr_consensus_target") as fetch_target:
+            changed = app._apply_kr_broker_target_fallback(rows, limit=None)
+
+        self.assertFalse(changed)
+        fetch_target.assert_not_called()
+        self.assertEqual(rows[0]["BrokerTarget"], 420000.0)
+
     def test_override_batches_toss_prices_for_scan_results(self) -> None:
         rows = [
             {"Ticker": "005930.KS", "Price": 1.0},
@@ -104,7 +195,7 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         ) as get_prices, patch("toss_invest.get_quote") as get_quote, patch(
             "naver_finance.get_quote",
             side_effect=naver_quote,
-        ):
+        ), patch("app._fetch_kr_consensus_target", return_value={}):
             app._override_kr_day_chg(rows)
 
         get_prices.assert_called_once_with(["005930.KS", "000660.KS"])
