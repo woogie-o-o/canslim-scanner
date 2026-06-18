@@ -203,9 +203,12 @@ _MOAT_DATA_STRIP: frozenset = frozenset({"scores", "evidence_source", "story_ris
 def _apply_moat_bonus(rows: list) -> None:
     """MoatBonus를 TotalScore에 반영한다. 모든 캐시 저장 경로에서 호출."""
     for r in rows:
+        if not isinstance(r, dict) or r.get("_MoatBonusApplied"):
+            continue
         bonus = r.get("MoatBonus", 0)
         if bonus and isinstance(r.get("TotalScore"), (int, float)):
             r["TotalScore"] = min(100.0, r["TotalScore"] + bonus)
+            r["_MoatBonusApplied"] = True
 
 
 def _strip_heavy(rows: list) -> list:
@@ -492,6 +495,7 @@ def _annotate_moats(results: list, force: bool = False):
                 r.pop("Moat", None)
                 r.pop("MoatCategory", None)
                 r.pop("MoatData", None)
+                r.pop("_MoatBonusApplied", None)
     _moat_annotate(results)
     return results
 

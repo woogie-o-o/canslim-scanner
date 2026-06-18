@@ -174,6 +174,15 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         fetch_target.assert_not_called()
         self.assertEqual(rows[0]["BrokerTarget"], 420000.0)
 
+    def test_apply_moat_bonus_is_idempotent(self) -> None:
+        rows = [{"Ticker": "005930.KS", "TotalScore": 70.0, "MoatBonus": 7.5}]
+
+        app._apply_moat_bonus(rows)
+        app._apply_moat_bonus(rows)
+
+        self.assertEqual(rows[0]["TotalScore"], 77.5)
+        self.assertTrue(rows[0]["_MoatBonusApplied"])
+
     def test_override_batches_toss_prices_for_scan_results(self) -> None:
         rows = [
             {"Ticker": "005930.KS", "Price": 1.0},
