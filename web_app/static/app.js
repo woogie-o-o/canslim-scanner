@@ -454,6 +454,26 @@ function fmtPrice(v) {
   return n.toFixed(2);
 }
 
+function _setRangeRow(prefix, low, high, current) {
+  const lowN = Number(low);
+  const highN = Number(high);
+  const curN = Number(current);
+  const lowEl = document.getElementById(`${prefix}-low`);
+  const highEl = document.getElementById(`${prefix}-high`);
+  const marker = document.getElementById(`${prefix}-marker`);
+  if (lowEl) lowEl.textContent = isFinite(lowN) && lowN > 0 ? fmtPrice(lowN) : '—';
+  if (highEl) highEl.textContent = isFinite(highN) && highN > 0 ? fmtPrice(highN) : '—';
+  if (!marker) return;
+  if (!isFinite(lowN) || !isFinite(highN) || !isFinite(curN) || highN <= lowN) {
+    marker.style.left = '50%';
+    marker.title = '';
+    return;
+  }
+  const pos = Math.max(0, Math.min(100, ((curN - lowN) / (highN - lowN)) * 100));
+  marker.style.left = `${pos.toFixed(1)}%`;
+  marker.title = `현재 위치 ${pos.toFixed(0)}%`;
+}
+
 function _fmtAvgVol(v) {
   if (v == null || !isFinite(v) || v <= 0) return '—';
   const n = Number(v);
@@ -4090,31 +4110,31 @@ async function loadDpFourAxis(ticker) {
     _dpFourAxisLoadedFor = ticker;
     _dpFourAxisLoadingFor = null;
 
-    // ── Hero 스파크라인 + 52주 위치 ─────────────────────────────
+    // ── Hero 범위 차트 + 1일/52주 위치 ─────────────────────────────
     try {
       const panel = document.getElementById('dp-spark-panel');
-      const sparkEl = document.getElementById('dp-spark');
       const closes = Array.isArray(d.closes) ? d.closes : [];
-      if (panel && sparkEl && closes.length >= 2) {
-        const up = closes[closes.length - 1] >= closes[0];
-        const col = up ? '#22A463' : '#DC2626';
-        sparkEl.innerHTML = buildSparklineSVG(closes, col);
-        const lastEl = document.getElementById('dp-spark-last');
-        if (lastEl) { lastEl.textContent = fmtPrice(closes[closes.length - 1]); lastEl.style.color = col; }
+      if (panel) {
+        const current = d.range_current || (closes.length ? closes[closes.length - 1] : null);
+        const first = closes.length ? closes[0] : current;
+        const up = current != null && first != null ? Number(current) >= Number(first) : true;
         const chgEl = document.getElementById('dp-spark-change');
         if (chgEl && d.spark_change_pct != null) {
           const s = d.spark_change_pct >= 0 ? '▲ ' : '▼ ';
           chgEl.textContent = s + Math.abs(d.spark_change_pct).toFixed(1) + '%';
           chgEl.classList.toggle('is-down', d.spark_change_pct < 0);
+        } else if (chgEl) {
+          chgEl.textContent = '';
         }
-        const bar = document.getElementById('dp-wk52-bar');
-        const wlbl = document.getElementById('dp-wk52-label');
-        if (bar && wlbl && d.wk52_high != null && d.wk52_low != null && d.wk52_high > d.wk52_low) {
-          const cur = closes[closes.length - 1];
-          const posPct = Math.max(0, Math.min(100, ((cur - d.wk52_low) / (d.wk52_high - d.wk52_low)) * 100));
-          bar.style.width = posPct.toFixed(0) + '%';
-          const gapFromHigh = Math.round(posPct - 100);  // 고가=0%, 멀수록 큰 음수
-          wlbl.textContent = gapFromHigh === 0 ? '0%' : '−' + Math.abs(gapFromHigh) + '%';
+        if (chgEl) chgEl.style.color = up ? '' : 'var(--destructive)';
+        _setRangeRow('dp-day', d.day_low, d.day_high, current);
+        _setRangeRow('dp-wk52', d.wk52_low, d.wk52_high, current);
+        const curEl = document.getElementById('dp-range-current');
+        if (curEl) curEl.textContent = current ? fmtPrice(current) : '—';
+        const volEl = document.getElementById('dp-range-volume');
+        if (volEl) {
+          const vol = d.day_volume != null ? d.day_volume : d.volume?.details?.volume;
+          volEl.textContent = vol != null ? _fmtAvgVol(Number(vol)) : '—';
         }
         panel.style.display = '';
       }

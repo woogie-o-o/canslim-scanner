@@ -3099,14 +3099,52 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
             "structured_analysis": rd.get("structured_analysis", ""),
         }
 
-        # ── Hero 스파크라인용 경량 데이터 (20~24 포인트) + 52주 고저 ──
+        # ── Hero 범위 차트용 경량 데이터 + 1일/52주 고저 ──
         try:
             _closes_full = [float(x) for x in hist["Close"].dropna().tolist()]
+            _high_src = hist["High"] if "High" in hist else hist["Close"]
+            _low_src = hist["Low"] if "Low" in hist else hist["Close"]
+            _vol_src = hist["Volume"] if "Volume" in hist else None
+            _highs_full = [float(x) for x in _high_src.dropna().tolist()]
+            _lows_full = [float(x) for x in _low_src.dropna().tolist()]
+            _vols_full = [float(x) for x in _vol_src.dropna().tolist()] if _vol_src is not None else []
             _recent = _closes_full[-60:] if len(_closes_full) > 60 else _closes_full
+            _current = _closes_full[-1] if _closes_full else None
+            _day_high = _highs_full[-1] if _highs_full else _current
+            _day_low = _lows_full[-1] if _lows_full else _current
+            _day_volume = _vols_full[-1] if _vols_full else None
+
+            if market == "KR":
+                try:
+                    import toss_invest
+                    if toss_invest.is_available():
+                        _q = toss_invest.get_quote(ticker) or {}
+                        _qp = _as_float(_q.get("price"))
+                        if _qp and _qp > 0:
+                            _current = _qp
+                        _tc = toss_invest.get_daily_candles(ticker, count=5)
+                        if _tc:
+                            _last_c = _tc[-1]
+                            _day_high = _as_float(_last_c.get("high")) or _day_high
+                            _day_low = _as_float(_last_c.get("low")) or _day_low
+                            _day_volume = _as_float(_last_c.get("volume")) or _day_volume
+                except Exception as _e:
+                    logging.debug("hero range Toss payload: %s", _e)
+
+            if _current and _day_high:
+                _day_high = max(float(_day_high), float(_current))
+            if _current and _day_low:
+                _day_low = min(float(_day_low), float(_current))
+
             payload["closes"] = _downsample_closes(_recent, max_points=24)
-            _hi, _lo = _wk52_high_low(_closes_full[-252:])
+            _hi = max(_highs_full[-252:]) if _highs_full else None
+            _lo = min(_lows_full[-252:]) if _lows_full else None
             payload["wk52_high"] = _hi
             payload["wk52_low"] = _lo
+            payload["day_high"] = _day_high
+            payload["day_low"] = _day_low
+            payload["day_volume"] = _day_volume
+            payload["range_current"] = _current
             payload["spark_change_pct"] = (
                 round((_recent[-1] / _recent[0] - 1) * 100, 1)
                 if len(_recent) >= 2 and _recent[0] else None
