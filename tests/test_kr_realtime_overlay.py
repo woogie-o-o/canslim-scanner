@@ -174,6 +174,14 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         fetch_target.assert_not_called()
         self.assertEqual(rows[0]["BrokerTarget"], 420000.0)
 
+    def test_broker_target_scan_limit_covers_full_kr_scan_by_default(self) -> None:
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("BROKER_TARGET_SCAN_LIMIT", None)
+            self.assertEqual(app._broker_target_scan_limit(), 1000)
+
+        with patch.dict(os.environ, {"BROKER_TARGET_SCAN_LIMIT": "0"}):
+            self.assertIsNone(app._broker_target_scan_limit())
+
     def test_apply_moat_bonus_is_idempotent(self) -> None:
         rows = [{"Ticker": "005930.KS", "TotalScore": 70.0, "MoatBonus": 7.5}]
 

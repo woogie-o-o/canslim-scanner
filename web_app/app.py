@@ -709,6 +709,15 @@ def _parse_int_value(value) -> int:
         return 0
 
 
+def _broker_target_scan_limit() -> int | None:
+    raw = os.environ.get("BROKER_TARGET_SCAN_LIMIT", "1000")
+    try:
+        limit = int(raw)
+    except (TypeError, ValueError):
+        limit = 1000
+    return None if limit <= 0 else max(1, limit)
+
+
 def _fetch_kr_consensus_target(ticker: str) -> dict:
     symbol = _kr_quote_symbol(ticker)
     if not symbol:
@@ -837,7 +846,7 @@ def _override_kr_day_chg(results: list) -> list:
     with ThreadPoolExecutor(max_workers=8) as ex:
         list(ex.map(_fetch, kr_items))
     _apply_kr_toss_stock_names(results)
-    _apply_kr_broker_target_fallback(results)
+    _apply_kr_broker_target_fallback(results, limit=_broker_target_scan_limit())
     return results
 
 
@@ -1640,7 +1649,7 @@ def api_scan():
                 try:
                     if _apply_kr_toss_stock_names(_sr_cached["data"]):
                         _cached_dirty = True
-                    if _apply_kr_broker_target_fallback(_sr_cached["data"]):
+                    if _apply_kr_broker_target_fallback(_sr_cached["data"], limit=_broker_target_scan_limit()):
                         _cached_dirty = True
                 except Exception as ne:
                     logging.warning("cached KR scan overrides failed: %s", ne)
