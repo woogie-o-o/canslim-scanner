@@ -4114,7 +4114,7 @@ function _renderDpMarketChart(rows) {
       textColor: '#8b95a1',
       fontFamily: 'Paperlogy, -apple-system, BlinkMacSystemFont, sans-serif',
       fontSize: 10,
-      attributionLogo: true,
+      attributionLogo: false,
       panes: { separatorColor: '#e8ebed', separatorHoverColor: '#d1d6db', enableResize: false },
     },
     localization: { dateFormat: 'yyyy-MM-dd' },
@@ -4158,21 +4158,16 @@ function _renderDpMarketChart(rows) {
   addLine('ma120', '#8b5cf6');
 
   const volumeSeries = chart.addSeries(L.HistogramSeries, {
-    priceFormat: { type: 'volume' }, priceLineVisible: false, lastValueVisible: true,
-  }, 1);
+    priceScaleId: '',
+    priceFormat: { type: 'volume' },
+    priceLineVisible: false,
+    lastValueVisible: false,
+  }, 0);
   volumeSeries.setData(rows.map(r => ({
     time: r.time, value: r.volume || 0,
-    color: r.close >= r.open ? 'rgba(240,68,82,.72)' : 'rgba(49,130,246,.72)',
+    color: r.close >= r.open ? 'rgba(240,68,82,.55)' : 'rgba(49,130,246,.55)',
   })));
-
-  const rsiSeries = chart.addSeries(L.LineSeries, {
-    color: '#8b5cf6', lineWidth: 1, priceLineVisible: false, lastValueVisible: true,
-    priceFormat: { type: 'price', precision: 1, minMove: 0.1 },
-    crosshairMarkerVisible: false, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
-  }, 2);
-  rsiSeries.setData(rows.filter(r => r.rsi != null).map(r => ({ time: r.time, value: r.rsi })));
-  rsiSeries.createPriceLine({ price: 70, color: '#c7cdd4', lineWidth: 1, lineStyle: L.LineStyle.Dashed, axisLabelVisible: false });
-  rsiSeries.createPriceLine({ price: 30, color: '#c7cdd4', lineWidth: 1, lineStyle: L.LineStyle.Dashed, axisLabelVisible: false });
+  volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
 
   const tooltip = document.getElementById('dp-chart-tooltip');
   const dateLabel = document.getElementById('dp-chart-date');
@@ -4199,9 +4194,7 @@ function _renderDpMarketChart(rows) {
   });
   requestAnimationFrame(() => {
     const panes = chart.panes();
-    if (panes[0]) panes[0].setHeight(330);
-    if (panes[1]) panes[1].setHeight(80);
-    if (panes[2]) panes[2].setHeight(90);
+    if (panes[0]) panes[0].setHeight(500);
   });
   return true;
 }

@@ -3170,12 +3170,6 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
             _chart_close = _chart_hist["Close"]
             for _period in (5, 20, 60, 120):
                 _chart_hist[f"MA{_period}"] = _chart_close.rolling(_period).mean()
-            _delta = _chart_close.diff()
-            _gain = _delta.clip(lower=0).ewm(alpha=1 / 14, adjust=False).mean()
-            _loss = (-_delta.clip(upper=0)).ewm(alpha=1 / 14, adjust=False).mean()
-            _rs = _gain / _loss.replace(0, float("nan"))
-            _chart_hist["RSI14"] = 100 - (100 / (1 + _rs))
-
             def _chart_num(value):
                 try:
                     value = float(value)
@@ -3199,7 +3193,6 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                     "ma20": _chart_num(_row.get("MA20")),
                     "ma60": _chart_num(_row.get("MA60")),
                     "ma120": _chart_num(_row.get("MA120")),
-                    "rsi": _chart_num(_row.get("RSI14")),
                 })
 
             payload["closes"] = _downsample_closes(_recent, max_points=24)

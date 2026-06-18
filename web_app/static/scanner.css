@@ -2003,17 +2003,6 @@ td.score-col {
 }
 .dp-chart-tooltip[hidden] { display: none; }
 .dp-chart-tooltip b { color: #333d4b; }
-.dp-chart-pane-label {
-  position: absolute;
-  z-index: 3;
-  left: 8px;
-  color: #8b95a1;
-  font-size: 9px;
-  font-weight: 700;
-  pointer-events: none;
-}
-.dp-chart-pane-label--volume { top: 337px; }
-.dp-chart-pane-label--rsi { top: 417px; }
 .dp-market-summary {
   display: flex;
   flex-direction: column;
