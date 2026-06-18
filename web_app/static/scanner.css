@@ -762,6 +762,7 @@ td.score-col {
   font-weight: 600;
   font-size: 14px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   min-width: 0;
