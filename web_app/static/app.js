@@ -74,24 +74,48 @@ function _scheduleDeferredRender(callback) {
   window.setTimeout(callback, 16);
 }
 
-function _renderHtmlInBatches(container, items, renderItem, initialBatch, batchSize, renderToken) {
+function _renderHtmlInBatches(container, items, renderItem, initialBatch, batchSize, renderToken, onComplete) {
   if (!container) return;
   const initialHtml = items.slice(0, initialBatch).map((item, i) => renderItem(item, i + 1)).join('');
   container.innerHTML = initialHtml;
-  if (items.length <= initialBatch) return;
+  if (items.length <= initialBatch) {
+    if (typeof onComplete === 'function') onComplete();
+    return;
+  }
 
   let offset = initialBatch;
   const appendBatch = () => {
     if (renderToken !== _renderToken) return;
-    if (offset >= items.length) return;
+    if (offset >= items.length) {
+      if (typeof onComplete === 'function') onComplete();
+      return;
+    }
     const end = Math.min(offset + batchSize, items.length);
     const html = items.slice(offset, end).map((item, i) => renderItem(item, offset + i + 1)).join('');
     container.insertAdjacentHTML('beforeend', html);
     offset = end;
-    if (offset < items.length) _scheduleDeferredRender(appendBatch);
+    if (offset < items.length) {
+      _scheduleDeferredRender(appendBatch);
+    } else if (typeof onComplete === 'function') {
+      onComplete();
+    }
   };
 
   _scheduleDeferredRender(appendBatch);
+}
+
+function _appendHtmlInBatches(container, items, renderItem, startRank, batchSize, renderToken) {
+  if (!container || !items || items.length === 0) return;
+  let offset = 0;
+  const appendBatch = () => {
+    if (renderToken !== _renderToken) return;
+    const end = Math.min(offset + batchSize, items.length);
+    const html = items.slice(offset, end).map((item, i) => renderItem(item, startRank + offset + i)).join('');
+    container.insertAdjacentHTML('beforeend', html);
+    offset = end;
+    if (offset < items.length) _scheduleDeferredRender(appendBatch);
+  };
+  appendBatch();
 }
 
 // html2canvas lazy-loader — 캡쳐/공유 카드 클릭 시에만 430KB 로드
@@ -1403,28 +1427,24 @@ function renderStockTable(stocks) {
 
   if (window.innerWidth <= 768) {
     tbody.innerHTML = '';
-    _updateMobileList(capped, null, renderToken);
-    if (remaining > 0) {
+    _updateMobileList(capped, null, renderToken, () => {
+      if (renderToken !== _renderToken || remaining <= 0) return;
       const mEl = document.getElementById('mobile-stock-list');
-      if (mEl) {
-        const btn = document.createElement('div');
-        btn.className = 'load-more-btn';
-        btn.innerHTML = `<button onclick="this.parentElement.remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>`;
-        mEl.appendChild(btn);
-      }
-    }
+      if (!mEl) return;
+      const btn = document.createElement('div');
+      btn.className = 'load-more-btn';
+      btn.innerHTML = `<button onclick="this.parentElement.remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>`;
+      mEl.appendChild(btn);
+    });
   } else {
-    _renderHtmlInBatches(tbody, view.slice(0, _INITIAL_CAP), renderStockRow, 30, 50, renderToken);
-    if (remaining > 0) {
-      _scheduleDeferredRender(() => {
-        if (renderToken !== _renderToken) return;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="${_colCount()}" class="center" style="padding:12px;">
-          <button class="load-more-btn-inner" onclick="this.closest('tr').remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>
-        </td>`;
-        tbody.appendChild(tr);
-      });
-    }
+    _renderHtmlInBatches(tbody, view.slice(0, _INITIAL_CAP), renderStockRow, 30, 50, renderToken, () => {
+      if (renderToken !== _renderToken || remaining <= 0) return;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="${_colCount()}" class="center" style="padding:12px;">
+        <button class="load-more-btn-inner" onclick="this.closest('tr').remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>
+      </td>`;
+      tbody.appendChild(tr);
+    });
   }
   // 전체 뷰 저장 (더 보기 클릭 시 사용)
   window._pendingFullView = remaining > 0 ? view : null;
@@ -1441,16 +1461,10 @@ function _renderAllStocks() {
   const rest = view.slice(_CAP);
   if (window.innerWidth <= 768) {
     const mEl = document.getElementById('mobile-stock-list');
-    if (mEl) _renderHtmlInBatches(mEl, rest, renderMobileCard, 15, 30, token);
+    if (mEl) _appendHtmlInBatches(mEl, rest, renderMobileCard, _CAP + 1, 30, token);
   } else {
     const tbody = document.getElementById('stock-list');
-    if (tbody) {
-      const html = rest.map((item, i) => renderStockRow(item, _CAP + i + 1)).join('');
-      // 배치로 분할 삽입
-      const frag = document.createElement('tbody');
-      frag.innerHTML = html;
-      while (frag.firstChild) tbody.appendChild(frag.firstChild);
-    }
+    if (tbody) _appendHtmlInBatches(tbody, rest, renderStockRow, _CAP + 1, 50, token);
   }
 }
 
@@ -1676,7 +1690,7 @@ function renderStockRow(stock, rank) {
 </tr>`;
 }
 
-function _updateMobileList(view, emptyMsg, renderToken) {
+function _updateMobileList(view, emptyMsg, renderToken, onComplete) {
   const el = document.getElementById('mobile-stock-list');
   if (!el) return;
   const token = renderToken == null ? ++_renderToken : renderToken;
@@ -1684,7 +1698,7 @@ function _updateMobileList(view, emptyMsg, renderToken) {
     el.innerHTML = `<div class="mobile-stock-list-msg">${emptyMsg || '결과 없음'}</div>`;
     return;
   }
-  _renderHtmlInBatches(el, view, renderMobileCard, 15, 30, token);
+  _renderHtmlInBatches(el, view, renderMobileCard, 15, 30, token, onComplete);
 }
 
 // Mobile override: clearer hierarchy and lighter information density on small screens.
