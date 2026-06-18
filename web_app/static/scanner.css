@@ -2012,52 +2012,50 @@ td.score-col {
   font-weight: 700;
   pointer-events: none;
 }
-.dp-chart-pane-label--volume { top: 257px; }
-.dp-chart-pane-label--macd { top: 339px; }
-.dp-chart-pane-label--rsi { top: 421px; }
+.dp-chart-pane-label--volume { top: 337px; }
+.dp-chart-pane-label--rsi { top: 417px; }
 .dp-market-summary {
   display: flex;
   flex-direction: column;
-  gap: 11px;
-  padding: 14px 0 0;
+  gap: 8px;
+  padding: 13px 0 0;
   border-top: 1px solid var(--border);
 }
 .dp-range-row {
   display: grid;
-  grid-template-columns: 58px minmax(60px, auto) minmax(54px, 1fr) minmax(60px, auto);
+  grid-template-columns: 58px 82px minmax(48px, 1fr) 82px;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
+  min-height: 18px;
 }
 .dp-range-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  color: #8b95a1;
   white-space: nowrap;
 }
 .dp-range-edge {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  color: #4e5968;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .dp-range-edge:last-child { text-align: right; }
 .dp-range-track {
   position: relative;
-  height: 3px;
-  background: #e8ebed;
-  border-radius: 999px;
+  height: 2px;
+  background: #dfe3e8;
 }
 .dp-range-marker {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 7px;
+  width: 3px;
   height: 7px;
   transform: translate(-50%, -50%);
-  border-radius: 50%;
+  border-radius: 1px;
   background: var(--success);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 14%, transparent);
 }
 .dp-market-facts {
   display: grid;

@@ -461,8 +461,9 @@ function _setRangeRow(prefix, low, high, current) {
   const lowEl = document.getElementById(`${prefix}-low`);
   const highEl = document.getElementById(`${prefix}-high`);
   const marker = document.getElementById(`${prefix}-marker`);
-  if (lowEl) lowEl.textContent = isFinite(lowN) && lowN > 0 ? fmtPrice(lowN) : '—';
-  if (highEl) highEl.textContent = isFinite(highN) && highN > 0 ? fmtPrice(highN) : '—';
+  const suffix = currentMarket === 'KR' ? '원' : '';
+  if (lowEl) lowEl.textContent = isFinite(lowN) && lowN > 0 ? `${fmtPrice(lowN)}${suffix}` : '—';
+  if (highEl) highEl.textContent = isFinite(highN) && highN > 0 ? `${fmtPrice(highN)}${suffix}` : '—';
   if (!marker) return;
   if (!isFinite(lowN) || !isFinite(highN) || !isFinite(curN) || highN <= lowN) {
     marker.style.left = '50%';
@@ -4097,6 +4098,14 @@ function _renderDpMarketChart(rows) {
   }
   host.innerHTML = '';
 
+  const formatChartDate = rawTime => {
+    if (typeof rawTime === 'string') return rawTime.slice(0, 10);
+    if (rawTime && rawTime.year) {
+      return `${rawTime.year}-${String(rawTime.month).padStart(2, '0')}-${String(rawTime.day).padStart(2, '0')}`;
+    }
+    return '';
+  };
+
   const chart = L.createChart(host, {
     autoSize: true,
     layout: {
@@ -4107,6 +4116,7 @@ function _renderDpMarketChart(rows) {
       attributionLogo: true,
       panes: { separatorColor: '#e8ebed', separatorHoverColor: '#d1d6db', enableResize: false },
     },
+    localization: { dateFormat: 'yyyy-MM-dd' },
     grid: { vertLines: { color: '#f2f4f6' }, horzLines: { color: '#f2f4f6' } },
     crosshair: {
       mode: L.CrosshairMode.Normal,
@@ -4114,7 +4124,11 @@ function _renderDpMarketChart(rows) {
       horzLine: { color: '#9aa4af', width: 1, style: L.LineStyle.Dashed, labelBackgroundColor: '#3182f6' },
     },
     rightPriceScale: { borderColor: '#e8ebed', scaleMargins: { top: 0.08, bottom: 0.08 } },
-    timeScale: { borderColor: '#e8ebed', timeVisible: false, rightOffset: 5, barSpacing: 7, minBarSpacing: 3 },
+    timeScale: {
+      borderColor: '#e8ebed', timeVisible: false, rightOffset: 4,
+      barSpacing: 10, minBarSpacing: 5,
+      tickMarkFormatter: formatChartDate,
+    },
     handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
   });
@@ -4126,12 +4140,14 @@ function _renderDpMarketChart(rows) {
     borderUpColor: '#f04452', borderDownColor: '#3182f6',
     wickUpColor: '#f04452', wickDownColor: '#3182f6',
     priceLineColor: '#f04452', priceLineWidth: 1,
+    priceFormat: { type: 'price', precision: 0, minMove: 1 },
   }, 0);
   candleSeries.setData(candles.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close })));
 
   const addLine = (key, color) => {
     const series = chart.addSeries(L.LineSeries, {
       color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+      priceFormat: { type: 'price', precision: 0, minMove: 1 },
     }, 0);
     series.setData(rows.filter(r => r[key] != null).map(r => ({ time: r.time, value: r[key] })));
   };
@@ -4148,24 +4164,11 @@ function _renderDpMarketChart(rows) {
     color: r.close >= r.open ? 'rgba(240,68,82,.72)' : 'rgba(49,130,246,.72)',
   })));
 
-  const macdHist = chart.addSeries(L.HistogramSeries, { priceLineVisible: false, lastValueVisible: true, base: 0 }, 2);
-  macdHist.setData(rows.filter(r => r.macd_hist != null).map(r => ({
-    time: r.time, value: r.macd_hist,
-    color: r.macd_hist >= 0 ? 'rgba(240,68,82,.72)' : 'rgba(49,130,246,.72)',
-  })));
-  const macdLine = chart.addSeries(L.LineSeries, {
-    color: '#3182f6', lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
-  }, 2);
-  macdLine.setData(rows.filter(r => r.macd != null).map(r => ({ time: r.time, value: r.macd })));
-  const signalLine = chart.addSeries(L.LineSeries, {
-    color: '#ff8a00', lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false,
-  }, 2);
-  signalLine.setData(rows.filter(r => r.macd_signal != null).map(r => ({ time: r.time, value: r.macd_signal })));
-
   const rsiSeries = chart.addSeries(L.LineSeries, {
     color: '#8b5cf6', lineWidth: 1, priceLineVisible: false, lastValueVisible: true,
+    priceFormat: { type: 'price', precision: 1, minMove: 0.1 },
     crosshairMarkerVisible: false, autoscaleInfoProvider: () => ({ priceRange: { minValue: 0, maxValue: 100 } }),
-  }, 3);
+  }, 2);
   rsiSeries.setData(rows.filter(r => r.rsi != null).map(r => ({ time: r.time, value: r.rsi })));
   rsiSeries.createPriceLine({ price: 70, color: '#c7cdd4', lineWidth: 1, lineStyle: L.LineStyle.Dashed, axisLabelVisible: false });
   rsiSeries.createPriceLine({ price: 30, color: '#c7cdd4', lineWidth: 1, lineStyle: L.LineStyle.Dashed, axisLabelVisible: false });
@@ -4175,11 +4178,7 @@ function _renderDpMarketChart(rows) {
   const byTime = new Map(rows.map(r => [String(r.time), r]));
   chart.subscribeCrosshairMove(param => {
     const rawTime = param?.time;
-    const time = typeof rawTime === 'string'
-      ? rawTime
-      : rawTime && rawTime.year
-        ? `${rawTime.year}-${String(rawTime.month).padStart(2, '0')}-${String(rawTime.day).padStart(2, '0')}`
-        : '';
+    const time = formatChartDate(rawTime);
     const row = byTime.get(time);
     if (!row) {
       if (tooltip) tooltip.hidden = true;
@@ -4192,13 +4191,16 @@ function _renderDpMarketChart(rows) {
       tooltip.hidden = false;
     }
   });
-  chart.timeScale().fitContent();
+  const lastLogical = candles.length - 1;
+  chart.timeScale().setVisibleLogicalRange({
+    from: Math.max(0, lastLogical - 47),
+    to: lastLogical + 4,
+  });
   requestAnimationFrame(() => {
     const panes = chart.panes();
-    if (panes[0]) panes[0].setHeight(250);
-    if (panes[1]) panes[1].setHeight(82);
-    if (panes[2]) panes[2].setHeight(82);
-    if (panes[3]) panes[3].setHeight(82);
+    if (panes[0]) panes[0].setHeight(330);
+    if (panes[1]) panes[1].setHeight(80);
+    if (panes[2]) panes[2].setHeight(90);
   });
   return true;
 }
