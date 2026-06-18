@@ -297,6 +297,30 @@
               <span id="dp-rs-label" class="dp-hero-stat-hint">/ 99</span>
             </div>
           </div>
+          <div class="dp-market-summary">
+            <div class="dp-range-row">
+              <span class="dp-range-label">1일 범위</span>
+              <span id="dp-day-low" class="dp-range-edge">—</span>
+              <div class="dp-range-track"><span id="dp-day-marker" class="dp-range-marker"></span></div>
+              <span id="dp-day-high" class="dp-range-edge">—</span>
+            </div>
+            <div class="dp-range-row">
+              <span class="dp-range-label">52주 범위</span>
+              <span id="dp-wk52-low" class="dp-range-edge">—</span>
+              <div class="dp-range-track"><span id="dp-wk52-marker" class="dp-range-marker"></span></div>
+              <span id="dp-wk52-high" class="dp-range-edge">—</span>
+            </div>
+            <div class="dp-market-facts">
+              <div class="dp-market-fact">
+                <span class="dp-spark-fact-label">거래량</span>
+                <span id="dp-range-volume" class="dp-spark-fact-val">—</span>
+              </div>
+              <div class="dp-market-fact">
+                <span class="dp-spark-fact-label">시총</span>
+                <span id="dp-mktcap" class="dp-spark-fact-val">—</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="dp-hero-right">
       <div id="dp-spark-panel" style="display:none;">
@@ -304,33 +328,8 @@
           <span class="dp-spark-eyebrow">최근 추세</span>
           <span id="dp-spark-change" class="dp-spark-change"></span>
         </div>
-        <div class="dp-range-stack">
-          <div class="dp-range-row">
-            <span class="dp-range-label">1일 범위</span>
-            <span id="dp-day-low" class="dp-range-edge">—</span>
-            <div class="dp-range-track"><span id="dp-day-marker" class="dp-range-marker"></span></div>
-            <span id="dp-day-high" class="dp-range-edge">—</span>
-          </div>
-          <div class="dp-range-row">
-            <span class="dp-range-label">52주 범위</span>
-            <span id="dp-wk52-low" class="dp-range-edge">—</span>
-            <div class="dp-range-track"><span id="dp-wk52-marker" class="dp-range-marker"></span></div>
-            <span id="dp-wk52-high" class="dp-range-edge">—</span>
-          </div>
-        </div>
-        <div class="dp-spark-facts">
-          <div class="dp-spark-fact">
-            <span class="dp-spark-fact-label">현재가</span>
-            <span id="dp-range-current" class="dp-spark-fact-val">—</span>
-          </div>
-          <div class="dp-spark-fact">
-            <span class="dp-spark-fact-label">거래량</span>
-            <span id="dp-range-volume" class="dp-spark-fact-val">—</span>
-          </div>
-          <div class="dp-spark-fact">
-            <span class="dp-spark-fact-label">시총</span>
-            <span id="dp-mktcap" class="dp-spark-fact-val">—</span>
-          </div>
+        <div class="dp-spark-chart">
+          <div id="dp-spark"></div>
         </div>
       </div>
         </div><!-- /dp-hero-right -->

@@ -4110,14 +4110,17 @@ async function loadDpFourAxis(ticker) {
     _dpFourAxisLoadedFor = ticker;
     _dpFourAxisLoadingFor = null;
 
-    // ── Hero 범위 차트 + 1일/52주 위치 ─────────────────────────────
+    // ── Hero 추세 차트 + 좌측 1일/52주 범위 ───────────────────────
     try {
       const panel = document.getElementById('dp-spark-panel');
+      const sparkEl = document.getElementById('dp-spark');
       const closes = Array.isArray(d.closes) ? d.closes : [];
-      if (panel) {
+      if (panel && sparkEl && closes.length >= 2) {
         const current = d.range_current || (closes.length ? closes[closes.length - 1] : null);
         const first = closes.length ? closes[0] : current;
         const up = current != null && first != null ? Number(current) >= Number(first) : true;
+        const col = up ? '#22A463' : '#DC2626';
+        sparkEl.innerHTML = buildTossTrendSVG(closes, col, current);
         const chgEl = document.getElementById('dp-spark-change');
         if (chgEl && d.spark_change_pct != null) {
           const s = d.spark_change_pct >= 0 ? '▲ ' : '▼ ';
@@ -4129,8 +4132,6 @@ async function loadDpFourAxis(ticker) {
         if (chgEl) chgEl.style.color = up ? '' : 'var(--destructive)';
         _setRangeRow('dp-day', d.day_low, d.day_high, current);
         _setRangeRow('dp-wk52', d.wk52_low, d.wk52_high, current);
-        const curEl = document.getElementById('dp-range-current');
-        if (curEl) curEl.textContent = current ? fmtPrice(current) : '—';
         const volEl = document.getElementById('dp-range-volume');
         if (volEl) {
           const vol = d.day_volume != null ? d.day_volume : d.volume?.details?.volume;
@@ -4229,6 +4230,48 @@ function buildSparklineSVG(closes, color) {
     + `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`
     + `<circle cx="${x(last).toFixed(1)}" cy="${y(closes[last]).toFixed(1)}" r="4.5" fill="${color}"/>`
     + `<circle cx="${x(last).toFixed(1)}" cy="${y(closes[last]).toFixed(1)}" r="9" fill="${color}" opacity=".18"/>`
+    + `</svg>`
+  );
+}
+
+// Toss-style trend chart: axis-free area line with an emphasized current point.
+function buildTossTrendSVG(closes, color, current) {
+  if (!Array.isArray(closes) || closes.length < 2) return '';
+  const values = closes.map(Number).filter(Number.isFinite);
+  if (values.length < 2) return '';
+  const W = 420, H = 150;
+  const padX = 8, padTop = 16, padBottom = 12, labelSpace = 70;
+  const chartRight = W - labelSpace;
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const span = (hi - lo) || 1;
+  const x = i => padX + (i / (values.length - 1)) * (chartRight - padX);
+  const y = v => padTop + (1 - (v - lo) / span) * (H - padTop - padBottom);
+  const pts = values.map((v, i) => [x(i), y(v)]);
+  let line = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1];
+    const point = pts[i];
+    const midX = ((prev[0] + point[0]) / 2).toFixed(1);
+    line += ` C ${midX} ${prev[1].toFixed(1)}, ${midX} ${point[1].toFixed(1)}, ${point[0].toFixed(1)} ${point[1].toFixed(1)}`;
+  }
+  const last = pts[pts.length - 1];
+  const area = `${line} L ${last[0].toFixed(1)} ${H} L ${pts[0][0].toFixed(1)} ${H} Z`;
+  const gid = `tossTrend_${values.length}_${Math.abs(Math.round(hi))}`;
+  const label = current != null && Number.isFinite(Number(current)) ? fmtPrice(Number(current)) : '';
+  return (
+    `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="최근 가격 추세" style="width:100%;height:100%;display:block;overflow:visible;">`
+    + `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`
+    + `<stop offset="0" stop-color="${color}" stop-opacity=".20"/>`
+    + `<stop offset=".82" stop-color="${color}" stop-opacity=".04"/>`
+    + `<stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>`
+    + `<path d="${area}" fill="url(#${gid})"/>`
+    + `<path d="${line}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`
+    + `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="8" fill="${color}" opacity=".12"/>`
+    + `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4" fill="${color}"/>`
+    + (label
+      ? `<text x="${(last[0] + 10).toFixed(1)}" y="${Math.max(14, Math.min(H - 5, last[1] + 4)).toFixed(1)}" fill="${color}" font-size="13" font-weight="800">${label}</text>`
+      : '')
     + `</svg>`
   );
 }

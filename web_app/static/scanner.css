@@ -1974,23 +1974,25 @@ td.score-col {
   color: var(--destructive);
   background: color-mix(in srgb, var(--destructive) 12%, transparent);
 }
-.dp-spark-chart { position: relative; flex: 1; min-height: 96px; }
-.dp-spark-chart > #dp-spark { position: absolute; inset: 0; }
-.dp-spark-last {
-  position: absolute; right: 0; top: 0;
-  font-size: 12px; font-weight: 800; color: var(--success);
+.dp-spark-chart {
+  position: relative;
+  flex: 1;
+  min-height: 148px;
+  overflow: hidden;
 }
-.dp-range-stack {
+.dp-spark-chart > #dp-spark { position: absolute; inset: 0; }
+.dp-market-summary {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px 0 10px;
+  gap: 9px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
 }
 .dp-range-row {
   display: grid;
-  grid-template-columns: 62px minmax(64px, auto) minmax(120px, 1fr) minmax(64px, auto);
+  grid-template-columns: 54px minmax(56px, auto) minmax(72px, 1fr) minmax(56px, auto);
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 .dp-range-label {
   font-size: 12px;
@@ -2023,17 +2025,23 @@ td.score-col {
   background: var(--success);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--success) 14%, transparent);
 }
-.dp-spark-facts { display: flex; margin-top: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
-.dp-spark-fact { flex: 1; padding-left: 14px; border-left: 1px solid var(--border); }
-.dp-spark-fact:first-child { padding-left: 0; border-left: none; }
-.dp-spark-fact--wide { flex: 1.2; }
+.dp-market-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+  padding-top: 9px;
+}
+.dp-market-fact { min-width: 0; }
+.dp-market-fact + .dp-market-fact {
+  border-left: 1px solid var(--border);
+  padding-left: 12px;
+}
 .dp-spark-fact-label {
   display: block; font-size: 9px; letter-spacing: 0.06em;
   color: var(--text-tertiary); font-weight: 700; text-transform: uppercase;
 }
 .dp-spark-fact-val { font-size: 15px; font-weight: 700; color: var(--text-primary); }
-.dp-wk52-track { height: 4px; background: var(--surface-muted, #eef0f2); border-radius: 9px; margin: 7px 12px 6px 0; position: relative; }
-.dp-wk52-fill { position: absolute; left: 0; top: 0; height: 4px; background: var(--success); border-radius: 9px; }
 @media (max-width: 768px) {
   .dp-range-row {
     grid-template-columns: 56px minmax(54px, auto) 1fr minmax(54px, auto);
@@ -2041,7 +2049,6 @@ td.score-col {
   }
   .dp-range-label,
   .dp-range-edge { font-size: 11px; }
-  .dp-spark-facts { gap: 0; }
 }
 
 /* 투자자 동향 — 명세표(2열, 모바일 1열). 표 격자 제거 */
