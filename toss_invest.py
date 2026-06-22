@@ -322,46 +322,62 @@ def get_daily_candles(ticker: str, count: int = 200) -> list[dict[str, Any]]:
     if not symbol:
         return []
     try:
-        n = max(1, min(200, int(count)))
+        n = max(1, min(600, int(count)))
     except (TypeError, ValueError):
         n = 200
-    data = _authed_get(
-        CANDLES_PATH,
-        {
-            "symbol": symbol,
-            "interval": "1d",
-            "count": str(n),
-            "adjusted": "true",
-        },
-        label="candles",
-    )
-    if not isinstance(data, dict):
-        return []
-    result = data.get("result") or {}
-    rows = result.get("candles") if isinstance(result, dict) else None
-    if not isinstance(rows, list):
+    if not is_available():
+        _set_last_error("credentials_missing")
         return []
 
     out: list[dict[str, Any]] = []
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        close = _to_float(row.get("closePrice"))
-        high = _to_float(row.get("highPrice"))
-        low = _to_float(row.get("lowPrice"))
-        open_ = _to_float(row.get("openPrice"))
-        volume = _to_float(row.get("volume"))
-        if close is None or high is None or low is None:
-            continue
-        out.append({
-            "timestamp": row.get("timestamp"),
-            "open": open_,
-            "high": high,
-            "low": low,
-            "close": close,
-            "volume": volume,
-            "currency": row.get("currency"),
-            "source": "tossinvest",
-        })
+    before: str | None = None
+    seen_ts: set[str] = set()
+    while len(out) < n:
+        page_count = min(200, n - len(out))
+        params = {
+            "symbol": symbol,
+            "interval": "1d",
+            "count": str(page_count),
+            "adjusted": "true",
+        }
+        if before:
+            params["before"] = before
+        data = _authed_get(CANDLES_PATH, params, label="candles")
+        if not isinstance(data, dict):
+            break
+        result = data.get("result") or {}
+        rows = result.get("candles") if isinstance(result, dict) else None
+        if not isinstance(rows, list) or not rows:
+            break
+        added = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            ts = str(row.get("timestamp") or "")
+            if ts and ts in seen_ts:
+                continue
+            close = _to_float(row.get("closePrice"))
+            high = _to_float(row.get("highPrice"))
+            low = _to_float(row.get("lowPrice"))
+            open_ = _to_float(row.get("openPrice"))
+            volume = _to_float(row.get("volume"))
+            if close is None or high is None or low is None:
+                continue
+            if ts:
+                seen_ts.add(ts)
+            out.append({
+                "timestamp": row.get("timestamp"),
+                "open": open_,
+                "high": high,
+                "low": low,
+                "close": close,
+                "volume": volume,
+                "currency": row.get("currency"),
+                "source": "tossinvest",
+            })
+            added += 1
+        before = result.get("nextBefore") if isinstance(result, dict) else None
+        if not before or added == 0:
+            break
     out.sort(key=lambda x: str(x.get("timestamp") or ""))
-    return out
+    return out[-n:]

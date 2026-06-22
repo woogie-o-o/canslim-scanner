@@ -5464,23 +5464,69 @@ class QuantNexusApp:
             _liq_cap_thr     = 20_000_000_000 if _is_kr else 20_000_000  # KR 200억 / US $20M
             low_liquidity = avg_turnover < _liq_cap_thr
 
-            # ── KR 밸류 팩터 보강 (단일 진실원천) ──────────────────────
-            # yfinance 는 .KS/.KQ 의 priceToBook·trailingPE 를 거의 항상
-            # None 으로 준다. 그 결과 fama_french 의 value_score 가 0 으로
-            # 고정돼 '밸류 팩터'가 집계되지 않았다. 화면 표시 _PER/_PBR 과
-            # 동일한 소스(_fetch_naver_fundamentals 네이버 연간 재무 API)를
-            # fama_french 호출 '전에' info 에 주입 → 화면·점수 불일치 제거.
-            # (_fetch_naver_fundamentals 는 캐시되므로 5277행 재호출은 무비용.)
+            # ── KR 재무 팩터 보강 (점수·표시 단일 기준) ─────────────────
+            # KR 종목은 yfinance 재무 필드가 비거나 지연되는 경우가 많다.
+            # 상세 화면에는 네이버 분기/TTM 기반 PER·PBR·ROE가 자연스러운
+            # "현재 투자정보"로 보이므로, 같은 값을 fama_french 호출 전에
+            # info에 주입한다. 이 순서가 깨지면 [A] 카드/TopReason과
+            # 실적 한눈에 카드가 서로 다른 ROE를 표시한다.
+            _kr_ttm_fin = None
+            _kr_annual_fin = None
             if _is_kr_t:
                 try:
-                    if not info.get("trailingPE") or not info.get("priceToBook"):
-                        _nf = self._fetch_naver_fundamentals(ticker)
-                        if _nf.get("per") and not info.get("trailingPE"):
-                            info["trailingPE"] = float(_nf["per"])
-                        if _nf.get("pbr") and not info.get("priceToBook"):
-                            info["priceToBook"] = float(_nf["pbr"])
+                    if _NAVERQ_OK and _naver_q is not None:
+                        _nq = _naver_q.get_ttm_financials(ticker)
+                        if _nq.get("available"):
+                            _kr_ttm_fin = _nq
+                    if _kr_ttm_fin:
+                        _roe_pct = safe_get(_kr_ttm_fin.get("roe"), 0.0)
+                        _debt_pct = safe_get(_kr_ttm_fin.get("debt_ratio"), 0.0)
+                        _rev = safe_get(_kr_ttm_fin.get("revenue"), 0.0)
+                        _op = safe_get(_kr_ttm_fin.get("operating_income"), 0.0)
+                        _ni = safe_get(_kr_ttm_fin.get("net_income"), 0.0)
+                        _eps = safe_get(_kr_ttm_fin.get("eps"), 0.0)
+                        _bps = safe_get(_kr_ttm_fin.get("bps"), 0.0)
+                        _shares = safe_get(_kr_ttm_fin.get("shares_outstanding"), 0.0)
+                        if _roe_pct:
+                            info["returnOnEquity"] = _roe_pct / 100.0
+                        if _debt_pct:
+                            info["debtToEquity"] = _debt_pct
+                        if _rev > 0:
+                            if _op:
+                                info["operatingMargins"] = _op / _rev
+                            if _ni:
+                                info["profitMargins"] = _ni / _rev
+                        if _eps > 0:
+                            info["trailingEps"] = _eps
+                            if cur > 0:
+                                info["trailingPE"] = cur / _eps
+                        if _bps > 0:
+                            info["bookValue"] = _bps
+                            if cur > 0:
+                                info["priceToBook"] = cur / _bps
+                        if _shares > 0:
+                            info["sharesOutstanding"] = _shares
+                        if _op:
+                            info["freeCashflow"] = _op
+                            info["ebitda"] = _kr_ttm_fin.get("ebitda") or _op
+                    else:
+                        _kr_annual_fin = self._fetch_naver_fundamentals(ticker) or {}
+                        if _kr_annual_fin.get("roe"):
+                            info["returnOnEquity"] = float(_kr_annual_fin["roe"]) / 100.0
+                        if _kr_annual_fin.get("operating_margin"):
+                            info["operatingMargins"] = float(_kr_annual_fin["operating_margin"]) / 100.0
+                        if _kr_annual_fin.get("debt_ratio"):
+                            info["debtToEquity"] = float(_kr_annual_fin["debt_ratio"])
+                        if _kr_annual_fin.get("per"):
+                            info["trailingPE"] = float(_kr_annual_fin["per"])
+                        if _kr_annual_fin.get("pbr"):
+                            info["priceToBook"] = float(_kr_annual_fin["pbr"])
+                        if _kr_annual_fin.get("eps_naver"):
+                            info["trailingEps"] = float(_kr_annual_fin["eps_naver"])
+                        if _kr_annual_fin.get("bps_naver"):
+                            info["bookValue"] = float(_kr_annual_fin["bps_naver"])
                 except Exception as _e:
-                    logging.debug(f"[KR value] {ticker} PER/PBR 보강 실패: {_e}")
+                    logging.debug(f"[KR finance] {ticker} 재무 보강 실패: {_e}")
 
             # ════════════════════════════════════════════════════════════
             # STEP 1 — 19개 전략 계산
@@ -5510,8 +5556,8 @@ class QuantNexusApp:
                 # 2026 기준 데이터 우선순위:
                 #   1) 네이버 분기 TTM (직전 분기 + 차기 분기 컨센서스 포함 → 2026 기준)
                 #   2) 네이버 연간
-                fin = None
-                if _NAVERQ_OK and _naver_q is not None:
+                fin = _kr_ttm_fin
+                if fin is None and _NAVERQ_OK and _naver_q is not None:
                     try:
                         nq = _naver_q.get_ttm_financials(ticker)
                         if nq.get("available"):
@@ -5554,7 +5600,7 @@ class QuantNexusApp:
                     target_source = f"DCF ({src_tag} {fin.get('fiscal_period','')})"
                 else:
                     # 마지막 폴백: 네이버 연간
-                    nf = self._fetch_naver_fundamentals(ticker) or {}
+                    nf = _kr_annual_fin or self._fetch_naver_fundamentals(ticker) or {}
                     if nf.get('eps_naver'):
                         info["trailingEps"] = nf['eps_naver']
                     if nf.get('bps_naver'):
@@ -6898,10 +6944,29 @@ class QuantNexusApp:
                 result["GreedZoneDays"]  = 0
                 result["GreedZoneScore"] = 0
 
-            # 한국 종목: 네이버 증권 재무 데이터로 보강
+            # 한국 종목: 점수 계산에 사용한 같은 재무 기준으로 표시 필드 보강
             if _is_kr:
-                nf = self._fetch_naver_fundamentals(ticker)
-                if nf:
+                if _kr_ttm_fin:
+                    _rev = safe_get(_kr_ttm_fin.get("revenue"), 0.0)
+                    _op = safe_get(_kr_ttm_fin.get("operating_income"), 0.0)
+                    _eps = safe_get(_kr_ttm_fin.get("eps"), 0.0)
+                    _bps = safe_get(_kr_ttm_fin.get("bps"), 0.0)
+                    if _eps > 0 and cur > 0:
+                        result['_PER'] = cur / _eps
+                    if _bps > 0 and cur > 0:
+                        result['_PBR'] = cur / _bps
+                    if _kr_ttm_fin.get("roe"):
+                        result['_ROE'] = safe_get(_kr_ttm_fin.get("roe"), 0.0) / 100.0
+                    if _rev > 0 and _op:
+                        result['_OperatingMargin'] = _op / _rev
+                    if _kr_ttm_fin.get("debt_ratio"):
+                        result['_DebtRatio'] = safe_get(_kr_ttm_fin.get("debt_ratio"), result.get('_DebtRatio'))
+                    if _kr_ttm_fin.get("shares_outstanding") and cur > 0:
+                        result['_MarketCap'] = cur * safe_get(_kr_ttm_fin.get("shares_outstanding"), 0.0)
+                else:
+                    nf = _kr_annual_fin or self._fetch_naver_fundamentals(ticker)
+                    if not nf:
+                        nf = {}
                     if 'per' in nf:
                         result['_PER'] = nf['per']
                     if 'pbr' in nf:
@@ -6914,6 +6979,7 @@ class QuantNexusApp:
                         result['_DebtRatio'] = nf['debt_ratio']
                     if 'div_yield_naver' in nf:
                         result['_DivYield'] = nf['div_yield_naver'] / 100.0   # % → decimal
+                result["_DataSchema"] = "kr_toss_price_naver_ttm_v1"
 
             self.cache.set(strategy_key, result)
             return result

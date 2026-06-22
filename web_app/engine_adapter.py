@@ -76,6 +76,13 @@ def _has_bf_breakdown(row: dict | None) -> bool:
     )
 
 
+_KR_DETAIL_DATA_SCHEMA = "kr_toss_price_naver_ttm_v1"
+
+
+def _has_current_kr_detail_schema(row: dict | None) -> bool:
+    return isinstance(row, dict) and row.get("_DataSchema") == _KR_DETAIL_DATA_SCHEMA
+
+
 try:
     from web_app.valuation_context import attach_valuation_context as _attach_val_ctx
 except Exception:
@@ -673,7 +680,10 @@ class ScanAdapter:
                 strategy_key = f"{ticker}__{self._scan_strategy}__{_date}"
                 cached = self.cache.get(strategy_key, max_age_minutes=60 * 24 * (_days_back + 1))
                 if cached:
-                    if self._scan_market == "KR" and not _has_bf_breakdown(cached):
+                    if self._scan_market == "KR" and (
+                        not _has_bf_breakdown(cached)
+                        or not _has_current_kr_detail_schema(cached)
+                    ):
                         needs_refresh = True
                         break
                     return self.apply_curated_sector(apply_to_row(cached), ticker)

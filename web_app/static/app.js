@@ -2423,15 +2423,10 @@ function populateDetail(d) {
   const _detBrkSrc = document.getElementById('detail-broker-src');
   if (_detBrkSrc) {
     if (d.BrokerTarget) {
-      // 짧은 출처명 + 애널리스트 수
-      let shortSrc = d.BrokerTargetSource || '증권사 컨센서스';
-      if (shortSrc.includes('네이버')) shortSrc = '네이버증권 컨센서스';
-      else if (shortSrc.includes('Yahoo')) {
-        shortSrc = 'Yahoo Finance';
-        if (d.BrokerAnalystCount) shortSrc += ` (목표가 제시 애널리스트 ${d.BrokerAnalystCount}명)`;
-      }
-      _detBrkSrc.textContent = shortSrc;
-      _detBrkSrc.title = d.BrokerTargetSource;  // 풀 텍스트는 툴팁
+      _detBrkSrc.textContent = d.BrokerAnalystCount
+        ? `증권사 컨센서스 ${d.BrokerAnalystCount}곳`
+        : '증권사 컨센서스';
+      _detBrkSrc.removeAttribute('title');
     } else {
       _detBrkSrc.textContent = '컨센서스 없음';
       _detBrkSrc.title = '';
@@ -2516,14 +2511,13 @@ function _renderEarningsSummary(d, cardId = 'detail-earnings-card', wrapId = 'de
   if (!hasAnyFinance) { card.style.display = 'none'; return; }
 
   const metrics = [];
-  const epsBasis = d._EPSGrowthBasis || '최근 분기 EPS/순이익 YoY';
 
   if (d._EPSGrowth != null && d._EPSGrowth !== 0) {
     const v = d._EPSGrowth * 100;
-    metrics.push([epsBasis, (v >= 0 ? '+' : '') + fmt(v, 1) + '%',
-      v >= 25 ? 'var(--success)' : v < 0 ? 'var(--destructive)' : null, epsBasis]);
+    metrics.push(['EPS 성장률', (v >= 0 ? '+' : '') + fmt(v, 1) + '%',
+      v >= 25 ? 'var(--success)' : v < 0 ? 'var(--destructive)' : null, 'EPS 성장률']);
   } else {
-    metrics.push([epsBasis, '—', null, epsBasis]);
+    metrics.push(['EPS 성장률', '—', null, 'EPS 성장률']);
   }
 
   if (d._ROE) {
@@ -3023,14 +3017,10 @@ function _populatePanelDetail(d, skipFourAxis) {
   const brkSrcEl = document.getElementById('dp-broker-src');
   if (brkSrcEl) {
     if (d.BrokerTarget) {
-      let shortSrc = d.BrokerTargetSource || '증권사 컨센서스';
-      if (shortSrc.includes('네이버')) shortSrc = '네이버증권 컨센서스';
-      else if (shortSrc.includes('Yahoo')) {
-        shortSrc = 'Yahoo Finance';
-        if (d.BrokerAnalystCount) shortSrc += ` (목표가 제시 애널리스트 ${d.BrokerAnalystCount}명)`;
-      }
-      brkSrcEl.textContent = shortSrc;
-      brkSrcEl.title = d.BrokerTargetSource;
+      brkSrcEl.textContent = d.BrokerAnalystCount
+        ? `증권사 컨센서스 ${d.BrokerAnalystCount}곳`
+        : '증권사 컨센서스';
+      brkSrcEl.removeAttribute('title');
     } else {
       brkSrcEl.textContent = '컨센서스 없음';
       brkSrcEl.removeAttribute('title');
@@ -4041,7 +4031,6 @@ function _renderFinanceTab(d) {
 
   const roeRaw = d._ROE ? fmt(d._ROE * 100, 1) + '%' + _roeLbl(d._ROE) : '—';
   const epsRaw = (d._EPSGrowth != null && d._EPSGrowth !== 0) ? (d._EPSGrowth >= 0 ? '+' : '') + fmt(d._EPSGrowth*100,1)+'%' + _epsLbl(d._EPSGrowth) : '—';
-  const epsBasis = d._EPSGrowthBasis || '최근 분기 EPS/순이익 YoY';
   const perLbl = d._PER ? (d._PER < 15 ? ' · 저평가 가능' : d._PER > 40 ? ' · 고평가 주의' : '') : '';
   const pbrLbl = d._PBR ? (d._PBR < 1 ? ' · 자산 대비 저평가' : d._PBR > 5 ? ' · 고평가' : '') : '';
   const omLbl  = d._OperatingMargin ? (d._OperatingMargin > 0.20 ? ' · 우수' : d._OperatingMargin > 0.10 ? ' · 양호' : d._OperatingMargin > 0 ? ' · 보통' : ' · 손실') : '';
@@ -4054,7 +4043,7 @@ function _renderFinanceTab(d) {
     ['PER',       d._PER   ? fmt(d._PER, 1) + perLbl  : '—', '주가÷순이익 · 15↓ 저평가 · 40↑ 고평가',    d._PER && d._PER < 15 ? 'var(--success)' : d._PER > 40 ? 'var(--destructive)' : null],
     ['PBR',       d._PBR   ? fmt(d._PBR, 2) + pbrLbl  : '—', '주가÷순자산 · 1↓ 자산 대비 저렴',           null],
     ['ROE',       roeRaw,                                      '자기자본이익률 · 17%↑ 오닐 기준 합격',     d._ROE > 0.15 ? 'var(--success)' : null],
-    [epsBasis,    epsRaw,                                      epsBasis + ' · 25%↑ 성장주 기준',    d._EPSGrowth > 0 ? 'var(--success)' : 'var(--destructive)'],
+    ['EPS 성장률', epsRaw,                                     'EPS 성장률 · 25%↑ 성장주 기준',     d._EPSGrowth > 0 ? 'var(--success)' : 'var(--destructive)'],
     ['EPS 가속',  epsAccelRaw,                                 '전분기 대비 성장 가속 중인가 (CAN SLIM C원칙)', epsAccelCol],
     ['영업이익률',d._OperatingMargin ? fmt(d._OperatingMargin*100,1)+'%' + omLbl : '—', '매출 대비 영업이익 · 20%↑ 우수',  null],
   ];

@@ -183,6 +183,13 @@ def _has_bf_breakdown(row: dict | None) -> bool:
     )
 
 
+_KR_DETAIL_DATA_SCHEMA = "kr_toss_price_naver_ttm_v1"
+
+
+def _has_current_kr_detail_schema(row: dict | None) -> bool:
+    return isinstance(row, dict) and row.get("_DataSchema") == _KR_DETAIL_DATA_SCHEMA
+
+
 _scan_refresh_lock = threading.Lock()
 _scan_refresh_inflight: set[tuple[str, str, str]] = set()
 _SUPPORTED_MARKETS = frozenset({"KR"})
@@ -584,7 +591,7 @@ def _sync_kr_realtime_new_high(row: dict) -> None:
         return
     try:
         import toss_invest
-        candles = toss_invest.get_daily_candles(ticker, count=200)
+        candles = toss_invest.get_daily_candles(ticker, count=260)
     except Exception as _e:
         logging.debug("silent except (app.py): %s", _e)
         return
@@ -599,6 +606,8 @@ def _sync_kr_realtime_new_high(row: dict) -> None:
         return
     closes[-1] = current
     high_52w = max(max(highs), current)
+    lows = [l for l in [_as_float(c.get("low")) for c in candles] if l is not None and l > 0]
+    low_52w = min(lows) if lows else current
     if high_52w <= 0:
         return
 
@@ -634,6 +643,18 @@ def _sync_kr_realtime_new_high(row: dict) -> None:
     row["_RealtimeNDist52w"] = round(dist, 4)
     row["_RealtimePivotBreakout"] = pivot_breakout
     row["_RealtimeHigh52w"] = round(high_52w, 2)
+    row["_YearHigh"] = round(high_52w, 2)
+    row["_YearLow"] = round(low_52w, 2)
+    last_candle = candles[-1] if candles else {}
+    last_vol = _as_float(last_candle.get("volume"))
+    if last_vol is not None:
+        row["Volume"] = last_vol
+    last_high = _as_float(last_candle.get("high"))
+    last_low = _as_float(last_candle.get("low"))
+    if last_high is not None:
+        row["_DayHigh"] = max(last_high, current)
+    if last_low is not None:
+        row["_DayLow"] = min(last_low, current)
 
     signal = _strip_breakout_tags(str(row.get("Signal") or ""))
     if near_high and bool(row.get("SConfirmed")):
@@ -657,7 +678,6 @@ def _sync_kr_realtime_new_high(row: dict) -> None:
         )
         detail = (
             "📊 입력 데이터\n"
-            "• 기준: Toss 현재가/일봉\n"
             f"• 52주 최고가: {high_52w:,.0f}\n"
             f"• 52주 최고가 거리: {dist:.0%}\n"
             f"• 신고가 근접: {'예 ✓' if near_high else '아니오'}\n"
@@ -2003,7 +2023,10 @@ def api_ticker(ticker: str):
             _ticker_detail_cache.pop(_td_key, None)
         _td_cached = None if force_refresh else _ticker_detail_cache.get(_td_key)
         if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
-            if market_arg == "KR" and not _has_bf_breakdown(_td_cached.get("data")):
+            if market_arg == "KR" and (
+                not _has_bf_breakdown(_td_cached.get("data"))
+                or not _has_current_kr_detail_schema(_td_cached.get("data"))
+            ):
                 _ticker_detail_cache.pop(_td_key, None)
             else:
                 # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
@@ -3155,7 +3178,7 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                         _qp = _as_float(_q.get("price"))
                         if _qp and _qp > 0:
                             _current = _qp
-                        _tc = toss_invest.get_daily_candles(ticker, count=200)
+                        _tc = toss_invest.get_daily_candles(ticker, count=260)
                         if _tc:
                             _last_c = _tc[-1]
                             _day_high = _as_float(_last_c.get("high")) or _day_high
@@ -3177,6 +3200,11 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                                 })
                             if _toss_rows:
                                 _chart_hist = pd.DataFrame(_toss_rows).set_index("Date").sort_index()
+                                _closes_full = [float(x) for x in _chart_hist["Close"].dropna().tolist()]
+                                _highs_full = [float(x) for x in _chart_hist["High"].dropna().tolist()]
+                                _lows_full = [float(x) for x in _chart_hist["Low"].dropna().tolist()]
+                                _vols_full = [float(x) for x in _chart_hist["Volume"].dropna().tolist()]
+                                _recent = _closes_full[-60:] if len(_closes_full) > 60 else _closes_full
                 except Exception as _e:
                     logging.debug("hero range Toss payload: %s", _e)
 
@@ -3195,6 +3223,12 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                 _chart_hist.loc[_last_idx, "Low"] = min(
                     float(_chart_hist.loc[_last_idx, "Low"]), float(_current)
                 )
+                _closes_full[-1:] = [float(_current)] if _closes_full else [float(_current)]
+                if _highs_full:
+                    _highs_full[-1] = max(float(_highs_full[-1]), float(_current))
+                if _lows_full:
+                    _lows_full[-1] = min(float(_lows_full[-1]), float(_current))
+                _recent = _closes_full[-60:] if len(_closes_full) > 60 else _closes_full
 
             _chart_hist = _chart_hist.apply(pd.to_numeric, errors="coerce")
             try:
