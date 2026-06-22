@@ -659,7 +659,7 @@ def get_market_regime(market: str) -> RegimeResult:
     if cached is not None:
         return cached
 
-    ohlcv = _fetch_daily(ticker, years=3)
+    ohlcv = _fetch_daily(ticker, years=5)
     if ohlcv is None or len(ohlcv) == 0:
         res = RegimeResult(state=R_CHOP, probs={r: 1/3 for r in _REGIMES},
                            p_next={r: 1/3 for r in _REGIMES},

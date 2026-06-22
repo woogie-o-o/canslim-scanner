@@ -285,6 +285,23 @@ html, body {
   white-space: nowrap;
 }
 
+.regime-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 980px;
+  white-space: nowrap;
+}
+.regime-badge.bull { color: #16a34a; background: rgba(22,163,74,.10); border-color: rgba(22,163,74,.22); }
+.regime-badge.bear { color: #dc2626; background: rgba(220,38,38,.09); border-color: rgba(220,38,38,.20); }
+.regime-badge.chop { color: #d97706; background: rgba(217,119,6,.09); border-color: rgba(217,119,6,.20); }
+.regime-badge.early-exit { animation: regime-pulse 1.8s ease-in-out infinite; }
+.regime-badge.early-long { animation: regime-pulse 1.8s ease-in-out infinite; }
+@keyframes regime-pulse { 50% { opacity: .6; } }
+
 /* ── Overflow More Menu (⋯) ───────────────────────────────── */
 .topbar-more-wrap {
   position: relative;
@@ -2470,6 +2487,19 @@ td.score-col {
   flex-wrap: wrap;
   margin-bottom: 6px;
 }
+.dp-entry-judge {
+  margin: 3px 0 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--warning);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.dp-entry-judge strong { color: var(--text-primary); }
+.dp-entry-judge[data-risk="LOW"] { border-left-color: var(--success); }
+.dp-entry-judge[data-risk="HIGH"],
+.dp-entry-judge[data-risk="EXTREME"] { border-left-color: var(--destructive); }
 #dp-fa-phase { font-size: 15px; font-weight: 700; color: var(--text-primary); }
 #dp-fa-stars { font-size: 16px; color: var(--warning); }
 #dp-fa-stars-meaning { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
@@ -3466,7 +3496,7 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     border-radius: 14px;
   }
   .search-icon { left: 12px; }
-  #btn-export, #btn-share, .topbar-date, a[href="/settings"] { display: none; }
+  #btn-export, #btn-share, .topbar-date, .regime-badge, a[href="/settings"] { display: none; }
   #btn-capture-list { padding: 0; width: 44px; min-width: 44px; }
   #btn-capture-list svg { width: 16px; height: 16px; }
   #btn-capture-list .capture-label { display: none; }

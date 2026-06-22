@@ -868,6 +868,15 @@ def _overlay_kr_realtime_quote(
     ticker = str(row.get("Ticker") or "")
     if not _kr_quote_symbol(ticker):
         return row
+    cached_price = _as_float(row.get("Price"))
+    cached_day_chg = _as_float(row.get("DayChg"))
+    previous_close = None
+    if (
+        cached_price and cached_price > 0
+        and cached_day_chg is not None
+        and -0.95 < cached_day_chg < 10
+    ):
+        previous_close = cached_price / (1.0 + cached_day_chg)
     toss_q = toss_quote
     if fetch_toss and toss_q is None:
         try:
@@ -889,10 +898,6 @@ def _overlay_kr_realtime_quote(
         logging.debug("silent except (app.py): %s", _e)
     try:
         q = naver_q
-        pct = q.get("change_pct")
-        if pct is not None:
-            row["DayChg"] = float(pct) / 100.0
-            row["_DayChgPct"] = float(pct)
         price_source = ""
         price_ts = None
         price = (toss_q or {}).get("price") if isinstance(toss_q, dict) else None
@@ -905,6 +910,15 @@ def _overlay_kr_realtime_quote(
                 price_source = str(q.get("source") or "finance.naver.com")
         if price is not None and price > 0:
             row["Price"] = float(price)
+            if price_source == "tossinvest" and previous_close and previous_close > 0:
+                live_change = row["Price"] / previous_close - 1.0
+                row["DayChg"] = live_change
+                row["_DayChgPct"] = live_change * 100.0
+            else:
+                pct = q.get("change_pct")
+                if pct is not None:
+                    row["DayChg"] = float(pct) / 100.0
+                    row["_DayChgPct"] = float(pct)
             if price_source:
                 row["_QuoteSource"] = price_source
             if price_ts:
@@ -3167,6 +3181,13 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                 )
 
             _chart_hist = _chart_hist.apply(pd.to_numeric, errors="coerce")
+            try:
+                from regime_classifier import get_market_regime
+                from stock_judge import build_judgment
+                _regime_state = get_market_regime("KR").state if market == "KR" else None
+                payload["entry_judge"] = build_judgment(_chart_hist, _regime_state)
+            except Exception as _e:
+                logging.debug("entry judge payload: %s", _e)
             _chart_close = _chart_hist["Close"]
             for _period in (5, 20, 60, 120):
                 _chart_hist[f"MA{_period}"] = _chart_close.rolling(_period).mean()
@@ -3333,6 +3354,53 @@ def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> Non
             logging.debug("4axis pre-warm: %s/%s failed: %s", market, ticker, err)
     finally:
         _four_axis_render_lock.release()
+
+
+_regime_cache: dict = {}
+_regime_cache_lock = threading.Lock()
+
+
+@app.route("/api/regime")
+def api_market_regime():
+    """현재 KOSPI 시장 레짐과 다음 상태 확률을 반환한다."""
+    now = int(time.time())
+    with _regime_cache_lock:
+        if _regime_cache.get("_ts") and now - _regime_cache["_ts"] < 900:
+            return jsonify(_regime_cache["data"])
+
+    try:
+        from regime_classifier import get_market_regime, R_BULL, R_BEAR, R_CHOP
+
+        result = get_market_regime("KR")
+        emojis = {R_BULL: "🟢", R_BEAR: "🔴", R_CHOP: "🟡"}
+        labels = {R_BULL: "Bull", R_BEAR: "Bear", R_CHOP: "Chop"}
+        descriptions = {R_BULL: "상승 추세", R_BEAR: "하락 추세", R_CHOP: "횡보"}
+        state_codes = {R_BULL: "BULL", R_BEAR: "BEAR", R_CHOP: "CHOP"}
+        signal = result.transition_signal or {}
+        data = {
+            "state": state_codes.get(result.state, "CHOP"),
+            "raw_state": result.state,
+            "emoji": emojis.get(result.state, "⚪"),
+            "label": labels.get(result.state, result.state),
+            "desc": descriptions.get(result.state, ""),
+            "confidence": round(result.probs.get(result.state, 0.0), 3),
+            "model": result.model_status,
+            "p_next": {
+                "bull": round(result.p_next.get(R_BULL, 0.0), 3),
+                "bear": round(result.p_next.get(R_BEAR, 0.0), 3),
+                "chop": round(result.p_next.get(R_CHOP, 0.0), 3),
+            },
+            "early_exit": bool(signal.get("early_exit", False)),
+            "early_long": bool(signal.get("early_long", False)),
+            "strength": round(float(signal.get("strength", 0.0)), 3),
+        }
+        with _regime_cache_lock:
+            _regime_cache["data"] = data
+            _regime_cache["_ts"] = now
+        return jsonify(data)
+    except Exception as exc:
+        logging.warning("api_regime: %s", exc)
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/api/four_axis/<ticker>")

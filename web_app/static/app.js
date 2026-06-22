@@ -4210,6 +4210,11 @@ async function loadDpFourAxis(ticker) {
   header.style.display = 'none';
   obsDiv.style.display = 'none';
   errDiv.style.display = 'none';
+  const judgeEl = document.getElementById('dp-entry-judge');
+  if (judgeEl) {
+    judgeEl.hidden = true;
+    judgeEl.innerHTML = '';
+  }
   loading.style.display = 'block';
   _dpFourAxisLoadingFor = ticker;
   const reqSeq = ++_dpFourAxisReqSeq;
@@ -4273,6 +4278,19 @@ async function loadDpFourAxis(ticker) {
     const _haText = _rec?.EntryPlan?.headline_action;
     const _meaningText = _haText || _starMeaningTbl[_stars] || '';
     set('dp-fa-stars-meaning', _meaningText ? `· ${_meaningText}` : '');
+    const _judgeEl = document.getElementById('dp-entry-judge');
+    if (_judgeEl) {
+      const judge = d.entry_judge;
+      if (judge && judge.label) {
+        const reason = Array.isArray(judge.reasons) ? judge.reasons.slice(0, 2).join(' · ') : '';
+        _judgeEl.dataset.risk = judge.risk || 'MED';
+        _judgeEl.innerHTML = `<strong>${esc(judge.label)}</strong> · ${esc(judge.timing || '')}${reason ? `<br>${esc(reason)}` : ''}`;
+        _judgeEl.hidden = false;
+      } else {
+        _judgeEl.hidden = true;
+        _judgeEl.innerHTML = '';
+      }
+    }
     // 주도주 배지: RS Rating 80+ + EPS 가속 동시 충족
     const _leaderBadge = document.getElementById('dp-leader-badge');
     if (_leaderBadge) {
@@ -5159,6 +5177,31 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
+// ── 시장 레짐 배지 ─────────────────────────────────────────────────────
+
+async function fetchRegimeBadge() {
+  const el = document.getElementById('regime-badge');
+  if (!el) return;
+  try {
+    const res = await fetch('/api/regime');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.error) return;
+    const cls = data.state === 'BULL' ? 'bull' : data.state === 'BEAR' ? 'bear' : 'chop';
+    const confidence = Math.round((data.confidence || 0) * 100);
+    let tip = `${data.desc} · 확신도 ${confidence}%`;
+    tip += `\n다음 Bull ${Math.round((data.p_next?.bull || 0) * 100)}%`;
+    tip += ` / Bear ${Math.round((data.p_next?.bear || 0) * 100)}%`;
+    tip += ` / Chop ${Math.round((data.p_next?.chop || 0) * 100)}%`;
+    if (data.early_exit) tip += '\nBear 압력 증가 - 비중 관리 필요';
+    if (data.early_long) tip += '\nBull 전환 가능성 증가';
+    el.className = `regime-badge ${cls}${data.early_exit ? ' early-exit' : data.early_long ? ' early-long' : ''}`;
+    el.textContent = `${data.emoji} KOSPI ${data.label} ${confidence}%`;
+    el.title = tip;
+    el.hidden = false;
+  } catch (_) {}
+}
+
 // ── 초기화 ───────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -5206,6 +5249,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } else {
     // ── 스캐너 페이지
+    fetchRegimeBadge();
+    setInterval(fetchRegimeBadge, 15 * 60 * 1000);
     initFilterChips();
     initIndexBar();
     loadIndexMeta();
