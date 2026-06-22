@@ -2453,61 +2453,6 @@ td.score-col {
 .dp-split-limits { display:flex; gap:14px; margin-top:11px; padding-top:9px; border-top:1px solid var(--border); color:var(--text-secondary); font-size:11px; }
 .dp-split-limits b { color:var(--text-primary); font-variant-numeric:tabular-nums; }
 
-.dp-quant-highlights {
-  margin: 12px 18px 4px;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--card);
-}
-.dp-qh-head {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  font-weight: 800;
-  margin-bottom: 9px;
-}
-.dp-qh-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-.dp-qh-card {
-  min-width: 0;
-  padding: 10px 9px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface-subtle);
-  text-align: left;
-  cursor: pointer;
-}
-.dp-qh-card:hover { background: var(--surface-muted); }
-.dp-qh-title {
-  display: block;
-  color: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 750;
-}
-.dp-qh-card strong {
-  display: block;
-  margin-top: 4px;
-  color: var(--text-primary);
-  font-size: 20px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.dp-qh-card.score-high strong { color: var(--success); }
-.dp-qh-card.score-mid strong { color: var(--warning); }
-.dp-qh-card.score-low strong { color: var(--destructive); }
-.dp-qh-hint,
-.dp-qh-card em {
-  display: block;
-  margin-top: 6px;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  line-height: 1.35;
-  font-style: normal;
-}
-
 /* ── Header Actions (inline style → CSS) ────────────────────── */
 .dp-header-actions {
   display: flex;
@@ -3967,14 +3912,12 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
   .dp-fa-reasons,
   .dp-haiku-secondary,
   .dp-timing-summary,
-  .dp-timing-mini,
-  .dp-quant-highlights { margin-left: 14px; margin-right: 14px; }
+  .dp-timing-mini { margin-left: 14px; margin-right: 14px; }
   .dvp-word { font-size: 30px; }
   .dp-fa-reasons ul { gap: 7px; }
   .dp-timing-summary { flex-wrap: wrap; }
   .dp-timing-summary p { margin-left: 0; text-align: left; flex-basis: 100%; }
   .dp-split-plan { margin-left: 14px; margin-right: 14px; }
-  .dp-qh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   /* Loading screen mobile */
   .scan-loading { padding: 40px 16px 32px; }

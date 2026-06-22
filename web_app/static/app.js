@@ -2948,7 +2948,7 @@ function _clearPanelDetail() {
   const _nb = document.getElementById('dp-news-bar');
   if (_nb) _nb.style.display = 'none';
   ['dp-verdict-poster', 'dp-entry-summary', 'dp-fa-reasons', 'dp-timing-summary',
-   'dp-timing-mini', 'dp-split-plan', 'dp-quant-highlights'].forEach(id => {
+   'dp-timing-mini', 'dp-split-plan'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   });
@@ -3115,7 +3115,6 @@ function _populatePanelDetail(d, skipFourAxis) {
 
   if (Array.isArray(d.Breakdown)) {
     renderBreakdown(d.Breakdown);
-    _renderQuantHighlights(d);
   }
 
   // KR 마켓일 때 공시·뉴스 탭 표시
@@ -3351,41 +3350,6 @@ function _renderFourAxisReasons(d) {
       timingEl.innerHTML = '';
     }
   }
-}
-
-function _renderQuantHighlights(d) {
-  const el = document.getElementById('dp-quant-highlights');
-  if (!el) return;
-  const items = Array.isArray(d.Breakdown) ? d.Breakdown : [];
-  const wanted = [
-    ['Mean Reversion', '평균회귀'],
-    ['Stat Arb Z-Score', '통계적 Z-Score'],
-    ['Kalman Filter', '칼만 필터'],
-    ['Hurst Exponent', '허스트 지수'],
-  ];
-  const cards = [];
-  for (const [needle, fallback] of wanted) {
-    const item = items.find(x => String(x?.[0] || '').includes(needle));
-    if (!item) continue;
-    const [label, score, desc] = item;
-    const clean = String(label || '').replace(/^\[[^\]]+\]\s*/, '');
-    const mapped = _LABEL_KO[clean];
-    const title = mapped ? mapped[0] : fallback;
-    const hint = mapped ? mapped[1] : '';
-    const lines = String(desc || '').split('\n').filter(Boolean).filter(line => !line.startsWith('📐'));
-    const summary = _trKo(lines.slice(0, 2).join(' · '));
-    const scoreNum = Number(score);
-    const cls = Number.isFinite(scoreNum) ? scoreClass(scoreNum) : '';
-    const val = Number.isFinite(scoreNum) ? fmt(scoreNum, 1) : '—';
-    cards.push(`<button type="button" class="dp-qh-card ${cls}" onclick="openCalcPopup(${items.indexOf(item)})">
-      <span class="dp-qh-title">${esc(title)}</span>
-      <strong>${esc(val)}</strong>
-      ${hint ? `<span class="dp-qh-hint">${esc(hint)}</span>` : ''}
-      ${summary ? `<em>${esc(summary)}</em>` : ''}
-    </button>`);
-  }
-  el.innerHTML = cards.length ? `<div class="dp-qh-head">퀀트·수학 하이라이트</div><div class="dp-qh-grid">${cards.join('')}</div>` : '';
-  el.style.display = cards.length ? '' : 'none';
 }
 
 // ── Finnhub 뉴스 헤드라인 리스트 (US, 최근 7일) ──────────────────────────
