@@ -2947,6 +2947,10 @@ function _clearPanelDetail() {
   if (_el) _el.style.display = 'none';
   const _nb = document.getElementById('dp-news-bar');
   if (_nb) _nb.style.display = 'none';
+  ['dp-entry-summary', 'dp-fa-reasons', 'dp-timing-summary', 'dp-split-plan'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+  });
   ['dp-name','dp-ticker','dp-sector','dp-about','dp-score','dp-signal',
    'dp-price','dp-day-chg','dp-target','dp-broker-target',
    'dp-axis-eps-val','dp-axis-roe-val','dp-axis-mom-val','dp-axis-rs-val'].forEach(id => setText(id, '…'));
@@ -3094,7 +3098,9 @@ function _populatePanelDetail(d, skipFourAxis) {
   // 실적 한눈에 카드 (Hero 바로 아래)
   _renderEarningsSummary(d, 'dp-earnings-card', 'dp-earnings-chips');
 
-  // 진입 타이밍 카드
+  // 상세 결론 및 분할 진입 가격대. 4축 근거는 비동기 분석 응답으로 보강한다.
+  _renderEntrySummary(d);
+  _renderSplitPlan(d);
 
   // 종합×진입 2축 사분면 배지
   _renderQuadrant(d);
@@ -3150,6 +3156,118 @@ function _populatePanelDetail(d, skipFourAxis) {
     const tk = (document.getElementById('dp-ticker')?.textContent || '').trim();
     if (tk && tk !== '—' && tk !== '…' && _dpFourAxisLoadedFor !== tk) {
       _scheduleLoadDpFourAxis(tk);
+    }
+  }
+}
+
+function _entryTone(entryScore, totalScore, status) {
+  const score = Number(entryScore);
+  if (Number.isFinite(score) && score >= 70) return { cls: 'good', label: '진입 조건 충족' };
+  if (String(status || '').toUpperCase() === 'STRONG') return { cls: 'good', label: '진입 조건 양호' };
+  if (Number.isFinite(score) && score >= 40) return { cls: 'wait', label: '눌림 대기' };
+  if (Number(totalScore) >= 65) return { cls: 'wait', label: '관찰 유지' };
+  return { cls: 'risk', label: '진입 보류' };
+}
+
+function _renderEntrySummary(d) {
+  const el = document.getElementById('dp-entry-summary');
+  if (!el) return;
+  const plan = d.EntryPlan || {};
+  const score = Number(d.EntryScore);
+  const tone = _entryTone(score, d.TotalScore, d.EntryStatus);
+  const price = Number(d.Price);
+  const entry = Number(plan.entry);
+  const discount = Number(plan.entry_discount);
+  const action = plan.headline_action || plan.entry_type || d.EntryPhrase || '';
+  const reason = plan.one_reason || '';
+  const entryText = Number.isFinite(entry) && entry > 0 ? fmtPrice(entry) : '산출 중';
+  const discountText = Number.isFinite(discount) ? `${discount > 0 ? '-' : '+'}${Math.abs(discount).toFixed(1)}%` : '';
+  const rr = Number(plan.rr_now || plan.rr);
+  const currentText = Number.isFinite(price) && price > 0 ? fmtPrice(price) : '—';
+
+  el.className = `dp-entry-summary ${tone.cls}`;
+  el.innerHTML = `
+    <div class="dp-entry-summary-head">
+      <div><span class="dp-entry-summary-kicker">진입 판단</span><strong>${esc(tone.label)}</strong></div>
+      ${Number.isFinite(score) ? `<span class="dp-entry-score">타이밍 ${Math.round(score)}점</span>` : ''}
+    </div>
+    <p class="dp-entry-summary-action">${esc(action || '현재 기술·수급 데이터를 종합 분석 중입니다.')}</p>
+    ${reason ? `<p class="dp-entry-summary-reason">${esc(reason)}</p>` : ''}
+    <div class="dp-entry-summary-stats">
+      <span><small>현재가</small><b>${currentText}</b></span>
+      <span><small>계획 진입가</small><b>${entryText}${discountText ? `<em>${discountText}</em>` : ''}</b></span>
+      ${Number.isFinite(rr) && rr > 0 ? `<span><small>손익비</small><b>${rr.toFixed(1)}R</b></span>` : ''}
+    </div>`;
+  el.style.display = '';
+}
+
+function _renderSplitPlan(d) {
+  const el = document.getElementById('dp-split-plan');
+  if (!el) return;
+  const plan = d.EntryPlan || {};
+  const current = Number(d.Price || plan.current);
+  const planned = Number(plan.entry);
+  const stop = Number(plan.stop);
+  const target = Number(plan.t1);
+  const atrPct = Number(plan.atr_pct || d.ATRPercent);
+  if (!Number.isFinite(current) || current <= 0) { el.style.display = 'none'; return; }
+
+  const entryScore = Number(d.EntryScore);
+  const weights = entryScore >= 70 ? [40, 35, 25] : entryScore >= 40 ? [25, 35, 40] : [15, 30, 55];
+  const second = Number.isFinite(planned) && planned > 0 ? planned : current * (1 - Math.max(atrPct || 3, 2) / 100);
+  const third = second * (1 - Math.max(atrPct || 3, 2) * 1.5 / 100);
+  const cells = [
+    ['1차', weights[0], current, '현재가 부근'],
+    ['2차', weights[1], second, '계획 진입가'],
+    ['3차', weights[2], third, 'ATR 추가 조정 시'],
+  ].map(([step, weight, value, note]) => `
+    <div class="dp-split-step"><span>${step} · ${weight}%</span><b>${fmtPrice(value)}</b><small>${note}</small></div>`).join('');
+  const limits = [
+    Number.isFinite(stop) && stop > 0 ? `<span>손절 기준 <b>${fmtPrice(stop)}</b></span>` : '',
+    Number.isFinite(target) && target > 0 ? `<span>1차 목표 <b>${fmtPrice(target)}</b></span>` : '',
+  ].filter(Boolean).join('');
+  el.innerHTML = `<div class="dp-split-title">분할 진입 계획 <span>ATR 변동성 기준</span></div><div class="dp-split-steps">${cells}</div>${limits ? `<div class="dp-split-limits">${limits}</div>` : ''}`;
+  el.style.display = '';
+}
+
+function _renderFourAxisReasons(d) {
+  const reasonsEl = document.getElementById('dp-fa-reasons');
+  const timingEl = document.getElementById('dp-timing-summary');
+  if (!reasonsEl && !timingEl) return;
+  const pros = [];
+  const warnings = [];
+  const axes = [
+    [d.trend, '추세가 강합니다', '추세 방향이 불안정합니다'],
+    [d.momentum, '가격 모멘텀이 양호합니다', '가격 모멘텀이 약합니다'],
+    [d.volatility, '변동성이 안정적입니다', '변동성이 큰 구간입니다'],
+    [d.volume, '수급이 추세를 뒷받침합니다', '수급 확인이 필요합니다'],
+  ];
+  axes.forEach(([axis, pro, warning]) => {
+    const score = Number(axis?.score);
+    if (!Number.isFinite(score)) return;
+    if (score >= 4) pros.push(pro);
+    else if (score <= 2) warnings.push(warning);
+  });
+  if (d.momentum?.details?.bull_div) pros.push('상승 다이버전스가 포착됐습니다');
+  if (d.momentum?.details?.bear_div) warnings.push('하락 다이버전스가 있어 추격을 주의해야 합니다');
+  if (reasonsEl) {
+    const items = [
+      ...pros.map(text => `<li class="is-positive">${esc(text)}</li>`),
+      ...warnings.map(text => `<li class="is-warning">${esc(text)}</li>`),
+    ].slice(0, 4);
+    reasonsEl.innerHTML = items.length ? `<span class="dp-fa-reasons-title">판단 근거</span><ul>${items.join('')}</ul>` : '';
+    reasonsEl.style.display = items.length ? '' : 'none';
+  }
+  if (timingEl) {
+    const judge = d.entry_judge || {};
+    if (judge.label) {
+      const tone = judge.risk === 'LOW' ? 'good' : (judge.risk === 'HIGH' || judge.risk === 'EXTREME' ? 'risk' : 'wait');
+      timingEl.className = `dp-timing-summary ${tone}`;
+      timingEl.innerHTML = `<span>현재 타이밍</span><strong>${esc(judge.label)}</strong><p>${esc(judge.timing || '')}</p>`;
+      timingEl.style.display = '';
+    } else {
+      timingEl.style.display = 'none';
+      timingEl.innerHTML = '';
     }
   }
 }
@@ -4291,6 +4409,7 @@ async function loadDpFourAxis(ticker) {
         _judgeEl.innerHTML = '';
       }
     }
+    _renderFourAxisReasons(d);
     // 주도주 배지: RS Rating 80+ + EPS 가속 동시 충족
     const _leaderBadge = document.getElementById('dp-leader-badge');
     if (_leaderBadge) {

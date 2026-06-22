@@ -242,10 +242,10 @@
 
       <!-- Section Nav -->
       <nav class="dp-section-nav" id="dp-section-nav">
-        <button class="dp-section-btn active" onclick="dpScrollTo('dp-section-conclusion',this)">🎯 결론</button>
-        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-timing',this)">📈 타이밍</button>
-        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-company',this)">🏢 회사</button>
-        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-detail',this)">📊 상세</button>
+        <button class="dp-section-btn active" onclick="dpScrollTo('dp-section-conclusion',this)">🎯 살까?</button>
+        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-timing',this)">📈 언제?</button>
+        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-company',this)">🏢 뭔데?</button>
+        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-detail',this)">📊 얼마나?</button>
         <button class="dp-section-btn" onclick="dpScrollTo('dp-group-ref',this)">📎 참고</button>
       </nav>
 
@@ -254,6 +254,8 @@
 <!-- ② 🎯 결론 (한줄평 + 뉴스) -->
     <section id="dp-section-conclusion" class="dp-section-conclusion">
       <div id="dp-fa-haiku" class="dp-oneliner-poster" style="display:none;"></div>
+      <div id="dp-entry-summary" class="dp-entry-summary" style="display:none;"></div>
+      <div id="dp-fa-reasons" class="dp-fa-reasons" style="display:none;"></div>
       <div id="dp-news-bar" class="dp-news-bar" style="display:none;">
         <span class="dp-news-tag">NEWS</span>
         <a id="dp-news-bar-link" href="#" target="_blank" rel="noopener" class="dp-news-link">—</a>
@@ -262,6 +264,7 @@
 
 <!-- ③ 📈 타이밍 -->
     <section id="dp-section-timing" class="dp-section-timing">
+      <div id="dp-timing-summary" class="dp-timing-summary" style="display:none;"></div>
       <div class="dp-hero-flex">
         <div class="dp-hero-left">
           <div class="dp-verdict-zone">
@@ -471,6 +474,7 @@
         <svg class="dp-cg-chevron open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="dp-card-group-body open">
+      <div id="dp-split-plan" class="dp-split-plan" style="display:none;"></div>
       <div class="dp-disclaimer">
         ⚠️ 등급·신호·목표가는 <b>알고리즘 스크리닝 결과</b>일 뿐, 투자 조언이 아닙니다. <b>드로다운 리스크</b>를 꼭 함께 확인하세요. 판단과 손익은 본인 책임입니다.
       </div>
