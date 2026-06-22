@@ -170,6 +170,19 @@ _TICKER_DETAIL_MAX = 200
 _ticker_detail_cache: dict[str, dict] = {}
 _ticker_detail_cache_lock = threading.Lock()
 
+
+def _has_bf_breakdown(row: dict | None) -> bool:
+    bd = row.get("Breakdown") if isinstance(row, dict) else None
+    if not isinstance(bd, list):
+        return False
+    return any(
+        isinstance(item, (list, tuple))
+        and item
+        and str(item[0]).startswith("[BF]")
+        for item in bd
+    )
+
+
 _scan_refresh_lock = threading.Lock()
 _scan_refresh_inflight: set[tuple[str, str, str]] = set()
 _SUPPORTED_MARKETS = frozenset({"KR"})
@@ -1990,19 +2003,22 @@ def api_ticker(ticker: str):
             _ticker_detail_cache.pop(_td_key, None)
         _td_cached = None if force_refresh else _ticker_detail_cache.get(_td_key)
         if _td_cached and (_td_now - _td_cached.get("_ts", 0)) < _TICKER_DETAIL_TTL_SEC:
-            # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
-            fresh = dict(_td_cached["data"])
-            if market_arg == "KR":
-                _apply_kr_toss_stock_names([fresh])
-                _apply_curated_detail_sector(fresh, market_arg)
-                _apply_kr_broker_target_fallback([fresh], limit=None)
-                _overlay_kr_realtime_quote(fresh, sync_new_high=True)
-            try:
-                from one_liner import annotate as _ol_annotate
-                _ol_annotate([fresh])
-            except Exception:
-                pass
-            return jsonify(fresh)
+            if market_arg == "KR" and not _has_bf_breakdown(_td_cached.get("data")):
+                _ticker_detail_cache.pop(_td_key, None)
+            else:
+                # 한줄평은 최신 로직으로 재생성하되, moat(disk I/O)는 재계산하지 않음
+                fresh = dict(_td_cached["data"])
+                if market_arg == "KR":
+                    _apply_kr_toss_stock_names([fresh])
+                    _apply_curated_detail_sector(fresh, market_arg)
+                    _apply_kr_broker_target_fallback([fresh], limit=None)
+                    _overlay_kr_realtime_quote(fresh, sync_new_high=True)
+                try:
+                    from one_liner import annotate as _ol_annotate
+                    _ol_annotate([fresh])
+                except Exception:
+                    pass
+                return jsonify(fresh)
     try:
         adapter = _make_adapter()
         result  = adapter.analyze_ticker(ticker, prefer_cache=True, force_refresh=force_refresh)

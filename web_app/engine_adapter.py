@@ -63,6 +63,19 @@ def _scan_sort_key(row: dict):
             pass
     return row.get("TotalScore", 0)
 
+
+def _has_bf_breakdown(row: dict | None) -> bool:
+    bd = row.get("Breakdown") if isinstance(row, dict) else None
+    if not isinstance(bd, list):
+        return False
+    return any(
+        isinstance(item, (list, tuple))
+        and item
+        and str(item[0]).startswith("[BF]")
+        for item in bd
+    )
+
+
 try:
     from web_app.valuation_context import attach_valuation_context as _attach_val_ctx
 except Exception:
@@ -648,6 +661,7 @@ class ScanAdapter:
         force_refresh: bool = False,
     ) -> dict | None:
         """단일 종목 분석 — 캐시 우선/캐시 전용 모드를 지원한다."""
+        needs_refresh = False
         if prefer_cache and not force_refresh:
             # _analyze_ticker(quant_nexus_v20.py:4684)와 동일한 dated 키 포맷.
             # 키 포맷 불일치 시 cache_only 분기에서 종목이 대량 누락되어
@@ -659,11 +673,14 @@ class ScanAdapter:
                 strategy_key = f"{ticker}__{self._scan_strategy}__{_date}"
                 cached = self.cache.get(strategy_key, max_age_minutes=60 * 24 * (_days_back + 1))
                 if cached:
+                    if self._scan_market == "KR" and not _has_bf_breakdown(cached):
+                        needs_refresh = True
+                        break
                     return self.apply_curated_sector(apply_to_row(cached), ticker)
             if cache_only:
                 return None
         prev_force = getattr(self, "_force_refresh", False)
-        self._force_refresh = bool(force_refresh)
+        self._force_refresh = bool(force_refresh or needs_refresh)
         try:
             result = _qn.QuantNexusApp._analyze_ticker(self, ticker)
         finally:
