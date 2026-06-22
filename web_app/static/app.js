@@ -2947,7 +2947,8 @@ function _clearPanelDetail() {
   if (_el) _el.style.display = 'none';
   const _nb = document.getElementById('dp-news-bar');
   if (_nb) _nb.style.display = 'none';
-  ['dp-entry-summary', 'dp-fa-reasons', 'dp-timing-summary', 'dp-split-plan'].forEach(id => {
+  ['dp-verdict-poster', 'dp-entry-summary', 'dp-fa-reasons', 'dp-timing-summary',
+   'dp-timing-mini', 'dp-split-plan', 'dp-quant-highlights'].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.style.display = 'none'; el.innerHTML = ''; }
   });
@@ -3112,7 +3113,10 @@ function _populatePanelDetail(d, skipFourAxis) {
   _renderRiskGauge(d);
   _renderDrawdownRisk(d);
 
-  if (Array.isArray(d.Breakdown)) renderBreakdown(d.Breakdown);
+  if (Array.isArray(d.Breakdown)) {
+    renderBreakdown(d.Breakdown);
+    _renderQuantHighlights(d);
+  }
 
   // KR 마켓일 때 공시·뉴스 탭 표시
   const dnBtn = document.getElementById('dp-btn-dartnews');
@@ -3169,12 +3173,73 @@ function _entryTone(entryScore, totalScore, status) {
   return { cls: 'risk', label: '진입 보류' };
 }
 
+function _entryConviction(d) {
+  const plan = d.EntryPlan || {};
+  const bf = d.BFScore != null ? Number(d.BFScore) : null;
+  const es = d.EntryScore != null ? Number(d.EntryScore) : null;
+  const ts = d.TotalScore != null ? Number(d.TotalScore) : null;
+  const gz = d.GreedZone ? Number(d.GreedZoneScore || 0) : 0;
+  let conv = 50;
+  if (bf != null) {
+    if (bf >= 60) conv += 15;
+    else if (bf >= 40) conv += 8;
+    else if (bf >= 25) conv += 3;
+  }
+  if (es != null) {
+    if (es >= 70) conv += 15;
+    else if (es >= 50) conv += 8;
+    else if (es < 30) conv -= 10;
+  }
+  if (ts != null) {
+    if (ts >= 70) conv += 12;
+    else if (ts >= 55) conv += 5;
+    else if (ts < 40) conv -= 8;
+  }
+  if (gz >= 70) conv -= 15;
+  else if (gz >= 40) conv -= 8;
+  if (plan.mdd_current != null && Number(plan.mdd_current) < -25) conv -= 8;
+  return Math.max(5, Math.min(95, Math.round(conv)));
+}
+
+function _entryPosterMeta(conv) {
+  if (conv >= 72) {
+    return {
+      cls: 'dvp-green',
+      word: '살만함',
+      bg: '매수',
+      timing: '🟢 담아가',
+      sub: '담기 좋은 구간',
+      lines: ['지표가 서로 같은 방향을 보고 있음', '추세와 수급이 같이 받쳐주는 중', '무리하지 말고 분할로 접근'],
+    };
+  }
+  if (conv >= 42) {
+    return {
+      cls: 'dvp-yellow',
+      word: '관망각',
+      bg: '눈팅',
+      timing: '🟡 눈팅 중',
+      sub: '아직 눈팅 중',
+      lines: ['나쁜 종목은 아닌데', '지금 들어가기엔 리스크 있음', '조금 더 내려오면 담자'],
+    };
+  }
+  return {
+    cls: 'dvp-red',
+    word: '보류각',
+    bg: '보류',
+    timing: '🔴 보류',
+    sub: '손이 먼저 나가면 안 되는 구간',
+    lines: ['지금은 신호가 약함', '추세나 수급 확인이 더 필요함', '더 좋은 자리 나올 때까지 대기'],
+  };
+}
+
 function _renderEntrySummary(d) {
   const el = document.getElementById('dp-entry-summary');
-  if (!el) return;
+  const poster = document.getElementById('dp-verdict-poster');
+  const timing = document.getElementById('dp-timing-mini');
   const plan = d.EntryPlan || {};
   const score = Number(d.EntryScore);
-  const tone = _entryTone(score, d.TotalScore, d.EntryStatus);
+  const conv = _entryConviction(d);
+  const meta = _entryPosterMeta(conv);
   const price = Number(d.Price);
   const entry = Number(plan.entry);
   const discount = Number(plan.entry_discount);
@@ -3185,20 +3250,36 @@ function _renderEntrySummary(d) {
   const rr = Number(plan.rr_now || plan.rr);
   const currentText = Number.isFinite(price) && price > 0 ? fmtPrice(price) : '—';
 
-  el.className = `dp-entry-summary ${tone.cls}`;
-  el.innerHTML = `
-    <div class="dp-entry-summary-head">
-      <div><span class="dp-entry-summary-kicker">진입 판단</span><strong>${esc(tone.label)}</strong></div>
-      ${Number.isFinite(score) ? `<span class="dp-entry-score">타이밍 ${Math.round(score)}점</span>` : ''}
-    </div>
-    <p class="dp-entry-summary-action">${esc(action || '현재 기술·수급 데이터를 종합 분석 중입니다.')}</p>
-    ${reason ? `<p class="dp-entry-summary-reason">${esc(reason)}</p>` : ''}
-    <div class="dp-entry-summary-stats">
-      <span><small>현재가</small><b>${currentText}</b></span>
-      <span><small>계획 진입가</small><b>${entryText}${discountText ? `<em>${discountText}</em>` : ''}</b></span>
-      ${Number.isFinite(rr) && rr > 0 ? `<span><small>손익비</small><b>${rr.toFixed(1)}R</b></span>` : ''}
-    </div>`;
-  el.style.display = '';
+  if (poster) {
+    const extra = reason || action || '';
+    poster.className = `dp-verdict-poster ${meta.cls}`;
+    poster.innerHTML = `
+      <div class="dvp-eyebrow">살까? 말까?</div>
+      <div class="dvp-word">${esc(meta.word)}</div>
+      <div class="dvp-reason">${meta.lines.map(esc).join('<br>')}</div>
+      ${extra ? `<div class="dvp-extra">${esc(_trKo(extra))}</div>` : ''}
+      <div class="dvp-bg">${esc(meta.bg)}</div>`;
+    poster.style.display = '';
+  }
+  if (timing) {
+    timing.className = `dp-timing-mini ${meta.cls}`;
+    timing.innerHTML = `
+      <div class="dtm-eyebrow">타이밍은?</div>
+      <div class="dtm-word">${esc(meta.timing)}</div>
+      <div class="dtm-sub">${esc(meta.sub)} · 확신도 ${conv}%</div>
+      <div class="dtm-bg">${esc(meta.bg)}</div>`;
+    timing.style.display = '';
+  }
+  if (el) {
+    el.className = 'dp-entry-summary';
+    el.innerHTML = `
+      <div class="dp-entry-summary-stats">
+        <span><small>현재가</small><b>${currentText}</b></span>
+        <span><small>계획 진입가</small><b>${entryText}${discountText ? `<em>${discountText}</em>` : ''}</b></span>
+        ${Number.isFinite(rr) && rr > 0 ? `<span><small>손익비</small><b>${rr.toFixed(1)}R</b></span>` : ''}
+      </div>`;
+    el.style.display = 'none';
+  }
 }
 
 function _renderSplitPlan(d) {
@@ -3252,10 +3333,10 @@ function _renderFourAxisReasons(d) {
   if (d.momentum?.details?.bear_div) warnings.push('하락 다이버전스가 있어 추격을 주의해야 합니다');
   if (reasonsEl) {
     const items = [
-      ...pros.map(text => `<li class="is-positive">${esc(text)}</li>`),
-      ...warnings.map(text => `<li class="is-warning">${esc(text)}</li>`),
+      ...pros.map(text => `<li class="is-positive">✅ ${esc(text)}</li>`),
+      ...warnings.map(text => `<li class="is-warning">⚠️ ${esc(text)}</li>`),
     ].slice(0, 4);
-    reasonsEl.innerHTML = items.length ? `<span class="dp-fa-reasons-title">판단 근거</span><ul>${items.join('')}</ul>` : '';
+    reasonsEl.innerHTML = items.length ? `<ul>${items.join('')}</ul>` : '';
     reasonsEl.style.display = items.length ? '' : 'none';
   }
   if (timingEl) {
@@ -3270,6 +3351,41 @@ function _renderFourAxisReasons(d) {
       timingEl.innerHTML = '';
     }
   }
+}
+
+function _renderQuantHighlights(d) {
+  const el = document.getElementById('dp-quant-highlights');
+  if (!el) return;
+  const items = Array.isArray(d.Breakdown) ? d.Breakdown : [];
+  const wanted = [
+    ['Mean Reversion', '평균회귀'],
+    ['Stat Arb Z-Score', '통계적 Z-Score'],
+    ['Kalman Filter', '칼만 필터'],
+    ['Hurst Exponent', '허스트 지수'],
+  ];
+  const cards = [];
+  for (const [needle, fallback] of wanted) {
+    const item = items.find(x => String(x?.[0] || '').includes(needle));
+    if (!item) continue;
+    const [label, score, desc] = item;
+    const clean = String(label || '').replace(/^\[[^\]]+\]\s*/, '');
+    const mapped = _LABEL_KO[clean];
+    const title = mapped ? mapped[0] : fallback;
+    const hint = mapped ? mapped[1] : '';
+    const lines = String(desc || '').split('\n').filter(Boolean).filter(line => !line.startsWith('📐'));
+    const summary = _trKo(lines.slice(0, 2).join(' · '));
+    const scoreNum = Number(score);
+    const cls = Number.isFinite(scoreNum) ? scoreClass(scoreNum) : '';
+    const val = Number.isFinite(scoreNum) ? fmt(scoreNum, 1) : '—';
+    cards.push(`<button type="button" class="dp-qh-card ${cls}" onclick="openCalcPopup(${items.indexOf(item)})">
+      <span class="dp-qh-title">${esc(title)}</span>
+      <strong>${esc(val)}</strong>
+      ${hint ? `<span class="dp-qh-hint">${esc(hint)}</span>` : ''}
+      ${summary ? `<em>${esc(summary)}</em>` : ''}
+    </button>`);
+  }
+  el.innerHTML = cards.length ? `<div class="dp-qh-head">퀀트·수학 하이라이트</div><div class="dp-qh-grid">${cards.join('')}</div>` : '';
+  el.style.display = cards.length ? '' : 'none';
 }
 
 // ── Finnhub 뉴스 헤드라인 리스트 (US, 최근 7일) ──────────────────────────
