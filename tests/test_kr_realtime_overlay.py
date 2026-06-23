@@ -67,12 +67,40 @@ class TestKrRealtimeOverlay(unittest.TestCase):
             app._overlay_kr_realtime_quote(row)
 
         self.assertEqual(row["Price"], 302000.0)
-        self.assertEqual(row["DayChg"], -0.0851)
-        self.assertEqual(row["_DayChgPct"], -8.51)
+        previous_close = 301000.0 / (1.0 - 0.0851)
+        expected_change = 302000.0 / previous_close - 1.0
+        self.assertAlmostEqual(row["DayChg"], expected_change)
+        self.assertAlmostEqual(row["_DayChgPct"], expected_change * 100.0)
         self.assertEqual(row["_MarketCap"], 17568067.0 * 1e8)
         self.assertEqual(row["_QuoteSource"], "tossinvest")
         self.assertEqual(row["_QuoteTimestamp"], "2026-06-15T02:25:00Z")
         self.assertAlmostEqual(row["TargetUpside"], (426250.0 - 302000.0) / 302000.0)
+
+    def test_overlay_uses_current_naver_previous_close_not_cached_scan_baseline(self) -> None:
+        row = {
+            "Ticker": "402340.KS",
+            "Price": 1780000.0,
+            "DayChg": 0.0,
+        }
+        with patch(
+            "toss_invest.get_quote",
+            return_value={
+                "price": 1988000.0,
+                "source": "tossinvest",
+            },
+        ), patch(
+            "naver_finance.get_quote",
+            return_value={
+                "price": 1994000.0,
+                "change": 24000.0,
+                "change_pct": 1.22,
+            },
+        ):
+            app._overlay_kr_realtime_quote(row)
+
+        self.assertEqual(row["Price"], 1988000.0)
+        self.assertAlmostEqual(row["DayChg"], 1988000.0 / 1970000.0 - 1.0)
+        self.assertLess(row["DayChg"], 0.02)
 
     def test_overlay_ignores_non_kr_ticker(self) -> None:
         row = {"Ticker": "AAPL", "Price": 100.0}
@@ -218,9 +246,11 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         get_prices.assert_called_once_with(["005930.KS", "000660.KS"])
         get_quote.assert_not_called()
         self.assertEqual(rows[0]["Price"], 302000.0)
-        self.assertEqual(rows[0]["DayChg"], -0.0851)
+        samsung_prev_close = 301000.0 / (1.0 - 0.0851)
+        self.assertAlmostEqual(rows[0]["DayChg"], 302000.0 / samsung_prev_close - 1.0)
         self.assertEqual(rows[1]["Price"], 202000.0)
-        self.assertAlmostEqual(rows[1]["DayChg"], 0.0234)
+        hynix_prev_close = 201000.0 / (1.0 + 0.0234)
+        self.assertAlmostEqual(rows[1]["DayChg"], 202000.0 / hynix_prev_close - 1.0)
 
     def test_detail_overlay_syncs_new_high_breakdown_from_toss_candles(self) -> None:
         row = {
@@ -267,7 +297,7 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertTrue(row["_RealtimePivotBreakout"])
         self.assertEqual(row["_RealtimeNRaw"], 35.0)
         self.assertEqual(row["Breakdown"][0][1], 35.0)
-        self.assertIn("Toss 현재가/일봉", row["Breakdown"][0][3])
+        self.assertNotIn("Toss 현재가/일봉", row["Breakdown"][0][3])
         self.assertIn("🔔[BREAKOUT]", row["Signal"])
         self.assertNotIn("[PIVOT]", row["Signal"])
         self.assertEqual(row["EntryPlan"]["current"], 112.0)

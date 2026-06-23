@@ -88,7 +88,9 @@ def annotate_deltas(results: list[dict], market: str) -> list[dict]:
             r["ScoreDelta"] = None
             r["RankDelta"] = None
             r["DeltaDays"] = days
-            r["IsNew"] = baseline is not None  # 기준 있는데 누락된 종목 = 신규
+            # 유니버스에는 있었지만 전일 분석이 실패한 종목은 신규가 아니다.
+            # 기준 스냅샷에 티커 자체가 없을 때만 실제 신규 진입으로 표시한다.
+            r["IsNew"] = baseline is not None and tkr not in baseline
     return results
 
 

@@ -901,15 +901,6 @@ def _overlay_kr_realtime_quote(
     ticker = str(row.get("Ticker") or "")
     if not _kr_quote_symbol(ticker):
         return row
-    cached_price = _as_float(row.get("Price"))
-    cached_day_chg = _as_float(row.get("DayChg"))
-    previous_close = None
-    if (
-        cached_price and cached_price > 0
-        and cached_day_chg is not None
-        and -0.95 < cached_day_chg < 10
-    ):
-        previous_close = cached_price / (1.0 + cached_day_chg)
     toss_q = toss_quote
     if fetch_toss and toss_q is None:
         try:
@@ -931,6 +922,23 @@ def _overlay_kr_realtime_quote(
         logging.debug("silent except (app.py): %s", _e)
     try:
         q = naver_q
+        naver_price = _as_float(q.get("price"))
+        naver_change = _as_float(q.get("change"))
+        naver_change_pct = _as_float(q.get("change_pct"))
+        previous_close = None
+        if naver_price and naver_price > 0:
+            if naver_change is not None:
+                candidate = naver_price - naver_change
+                if candidate > 0:
+                    previous_close = candidate
+            if (
+                previous_close is None
+                and naver_change_pct is not None
+                and -95.0 < naver_change_pct < 1000.0
+            ):
+                candidate = naver_price / (1.0 + naver_change_pct / 100.0)
+                if candidate > 0:
+                    previous_close = candidate
         price_source = ""
         price_ts = None
         price = (toss_q or {}).get("price") if isinstance(toss_q, dict) else None
@@ -943,15 +951,14 @@ def _overlay_kr_realtime_quote(
                 price_source = str(q.get("source") or "finance.naver.com")
         if price is not None and price > 0:
             row["Price"] = float(price)
-            if price_source == "tossinvest" and previous_close and previous_close > 0:
+            if price_source == "tossinvest" and previous_close:
                 live_change = row["Price"] / previous_close - 1.0
                 row["DayChg"] = live_change
                 row["_DayChgPct"] = live_change * 100.0
             else:
-                pct = q.get("change_pct")
-                if pct is not None:
-                    row["DayChg"] = float(pct) / 100.0
-                    row["_DayChgPct"] = float(pct)
+                if naver_change_pct is not None:
+                    row["DayChg"] = naver_change_pct / 100.0
+                    row["_DayChgPct"] = naver_change_pct
             if price_source:
                 row["_QuoteSource"] = price_source
             if price_ts:
