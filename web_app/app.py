@@ -850,12 +850,17 @@ def _override_kr_day_chg(results: list) -> list:
     if not kr_items:
         return results
     toss_quotes = {}
+    toss_previous_closes = {}
     toss_configured = None
     toss_error = ""
     try:
         import toss_invest
         toss_configured = toss_invest.is_available()
         toss_quotes = toss_invest.get_prices([r["Ticker"] for r in kr_items])
+        toss_previous_closes = toss_invest.get_previous_closes(
+            [r["Ticker"] for r in kr_items],
+            max_workers=8,
+        )
         toss_error = toss_invest.get_last_error()
     except Exception as _e:
         try:
@@ -867,9 +872,11 @@ def _override_kr_day_chg(results: list) -> list:
     def _fetch(r):
         symbol = _kr_quote_symbol(r.get("Ticker"))
         toss_quote = toss_quotes.get(symbol) if symbol else None
+        toss_previous_close = toss_previous_closes.get(symbol) if symbol else None
         return _overlay_kr_realtime_quote(
             r,
             toss_quote=toss_quote,
+            toss_previous_close=toss_previous_close,
             fetch_toss=False,
             toss_configured=toss_configured,
             toss_error=toss_error,
@@ -886,6 +893,7 @@ def _override_kr_day_chg(results: list) -> list:
 def _overlay_kr_realtime_quote(
     row: dict,
     toss_quote: dict | None = None,
+    toss_previous_close: float | None = None,
     fetch_toss: bool = True,
     toss_configured: bool | None = None,
     toss_error: str = "",
@@ -907,6 +915,7 @@ def _overlay_kr_realtime_quote(
             import toss_invest
             toss_configured = toss_invest.is_available()
             toss_q = toss_invest.get_quote(ticker)
+            toss_previous_close = toss_invest.get_previous_close(ticker)
             toss_error = toss_invest.get_last_error()
         except Exception as _e:
             try:
@@ -925,9 +934,9 @@ def _overlay_kr_realtime_quote(
         naver_price = _as_float(q.get("price"))
         naver_change = _as_float(q.get("change"))
         naver_change_pct = _as_float(q.get("change_pct"))
-        previous_close = None
+        previous_close = _as_float(toss_previous_close)
         if naver_price and naver_price > 0:
-            if naver_change is not None:
+            if previous_close is None and naver_change is not None:
                 candidate = naver_price - naver_change
                 if candidate > 0:
                     previous_close = candidate

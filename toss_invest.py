@@ -9,6 +9,7 @@ from __future__ import annotations
 import os
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable
 
 import requests
@@ -27,6 +28,9 @@ _TOKEN_EXP: float = 0.0
 _LAST_ERROR: str = ""
 _STOCKS_LOCK = threading.Lock()
 _STOCKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_PREVIOUS_CLOSE_LOCK = threading.Lock()
+_PREVIOUS_CLOSE_CACHE: dict[tuple[str, str], float] = {}
+_KST = timezone(timedelta(hours=9))
 
 
 def _env(*names: str) -> str:
@@ -381,3 +385,74 @@ def get_daily_candles(ticker: str, count: int = 200) -> list[dict[str, Any]]:
             break
     out.sort(key=lambda x: str(x.get("timestamp") or ""))
     return out[-n:]
+
+
+def _candle_date_kst(value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=_KST)
+        return dt.astimezone(_KST).date().isoformat()
+    except (TypeError, ValueError):
+        return raw[:10]
+
+
+def get_previous_close(ticker: str, now: datetime | None = None) -> float | None:
+    """Return the latest completed Toss daily close before the current KST date."""
+    symbol = _normalize_symbol(ticker)
+    if not symbol:
+        return None
+    current = now or datetime.now(_KST)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=_KST)
+    today = current.astimezone(_KST).date().isoformat()
+    key = (today, symbol)
+    with _PREVIOUS_CLOSE_LOCK:
+        cached = _PREVIOUS_CLOSE_CACHE.get(key)
+    if cached is not None:
+        return cached
+
+    completed = [
+        candle for candle in get_daily_candles(symbol, count=5)
+        if _candle_date_kst(candle.get("timestamp")) < today
+    ]
+    if not completed:
+        return None
+    close = _to_float(completed[-1].get("close"))
+    if close is None or close <= 0:
+        return None
+    with _PREVIOUS_CLOSE_LOCK:
+        _PREVIOUS_CLOSE_CACHE[key] = close
+    return close
+
+
+def get_previous_closes(
+    symbols: Iterable[str],
+    *,
+    max_workers: int = 8,
+) -> dict[str, float]:
+    """Return Toss previous closes keyed by normalized symbol."""
+    normalized = list(dict.fromkeys(
+        symbol for item in symbols
+        if (symbol := _normalize_symbol(item))
+    ))
+    if not normalized or not is_available():
+        return {}
+
+    def _fetch(symbol: str) -> tuple[str, float | None]:
+        try:
+            return symbol, get_previous_close(symbol)
+        except Exception:
+            return symbol, None
+
+    from concurrent.futures import ThreadPoolExecutor
+    workers = min(max(1, int(max_workers)), len(normalized))
+    out: dict[str, float] = {}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        for symbol, close in executor.map(_fetch, normalized):
+            if close is not None and close > 0:
+                out[symbol] = close
+    return out

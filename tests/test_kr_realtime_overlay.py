@@ -27,6 +27,9 @@ class TestKrRealtimeOverlay(unittest.TestCase):
             "TargetUpside": 0.295,
         }
         with patch("toss_invest.get_quote", return_value=None), patch(
+            "toss_invest.get_previous_close",
+            return_value=None,
+        ), patch(
             "naver_finance.get_quote",
             return_value={
                 "price": 301000.0,
@@ -57,6 +60,9 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "source": "tossinvest",
             },
         ), patch(
+            "toss_invest.get_previous_close",
+            return_value=329000.0,
+        ), patch(
             "naver_finance.get_quote",
             return_value={
                 "price": 301000.0,
@@ -67,8 +73,7 @@ class TestKrRealtimeOverlay(unittest.TestCase):
             app._overlay_kr_realtime_quote(row)
 
         self.assertEqual(row["Price"], 302000.0)
-        previous_close = 301000.0 / (1.0 - 0.0851)
-        expected_change = 302000.0 / previous_close - 1.0
+        expected_change = 302000.0 / 329000.0 - 1.0
         self.assertAlmostEqual(row["DayChg"], expected_change)
         self.assertAlmostEqual(row["_DayChgPct"], expected_change * 100.0)
         self.assertEqual(row["_MarketCap"], 17568067.0 * 1e8)
@@ -88,6 +93,9 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "price": 1988000.0,
                 "source": "tossinvest",
             },
+        ), patch(
+            "toss_invest.get_previous_close",
+            return_value=None,
         ), patch(
             "naver_finance.get_quote",
             return_value={
@@ -237,7 +245,10 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "005930": {"price": 302000.0, "source": "tossinvest"},
                 "000660": {"price": 202000.0, "source": "tossinvest"},
             },
-        ) as get_prices, patch("toss_invest.get_quote") as get_quote, patch(
+        ) as get_prices, patch(
+            "toss_invest.get_previous_closes",
+            return_value={"005930": 329000.0, "000660": 196000.0},
+        ), patch("toss_invest.get_quote") as get_quote, patch(
             "naver_finance.get_quote",
             side_effect=naver_quote,
         ), patch("app._fetch_kr_consensus_target", return_value={}):
@@ -246,11 +257,9 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         get_prices.assert_called_once_with(["005930.KS", "000660.KS"])
         get_quote.assert_not_called()
         self.assertEqual(rows[0]["Price"], 302000.0)
-        samsung_prev_close = 301000.0 / (1.0 - 0.0851)
-        self.assertAlmostEqual(rows[0]["DayChg"], 302000.0 / samsung_prev_close - 1.0)
+        self.assertAlmostEqual(rows[0]["DayChg"], 302000.0 / 329000.0 - 1.0)
         self.assertEqual(rows[1]["Price"], 202000.0)
-        hynix_prev_close = 201000.0 / (1.0 + 0.0234)
-        self.assertAlmostEqual(rows[1]["DayChg"], 202000.0 / hynix_prev_close - 1.0)
+        self.assertAlmostEqual(rows[1]["DayChg"], 202000.0 / 196000.0 - 1.0)
 
     def test_detail_overlay_syncs_new_high_breakdown_from_toss_candles(self) -> None:
         row = {
