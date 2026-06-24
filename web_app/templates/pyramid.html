@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -8,26 +8,102 @@
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font-family:-apple-system,'Pretendard','Noto Sans KR',system-ui,sans-serif;min-height:100vh}
-.shell{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+.shell{max-width:900px;margin:0 auto;padding:24px 16px 72px}
+
+/* topbar */
 .topbar{display:flex;align-items:center;gap:12px;margin-bottom:24px}
 .back-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;text-decoration:none;background:var(--card);border:1px solid var(--border);color:var(--text-secondary);font-weight:700;font-size:14px;transition:background .15s}
 .back-btn:hover{background:var(--surface-subtle)}
 .page-title{font-size:22px;font-weight:800;letter-spacing:-.4px}
 .page-sub{font-size:13px;color:var(--text-tertiary);margin-top:2px}
+
+/* search card */
+.search-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:20px}
+.search-card h2{font-size:14px;font-weight:700;color:var(--text-tertiary);margin:0 0 14px;letter-spacing:.3px;text-transform:uppercase}
+.search-row{display:flex;gap:10px;align-items:flex-end}
+.search-row .field{flex:1}
+.search-row .mkt-field{width:90px;flex:none}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;font-weight:600;color:var(--text-tertiary)}
+.field input,.field select{height:48px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface-subtle);color:var(--text-primary);font-size:16px;padding:0 14px;outline:none;transition:border-color .15s;font-weight:700;letter-spacing:.5px}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.search-btn{height:48px;padding:0 22px;border-radius:12px;border:none;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.search-btn:hover{opacity:.88}
+.search-btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* loading */
+.loading{display:none;text-align:center;padding:32px;color:var(--text-tertiary);font-size:14px}
+.spinner{width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* recommend section */
+.recommend{display:none;margin-bottom:24px}
+.recommend.show{display:block}
+
+/* strategy header */
+.strat-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.strat-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:700}
+.strat-badge.uptrend{background:rgba(34,197,94,.15);color:#16a34a;border:1px solid rgba(34,197,94,.3)}
+.strat-badge.recovery{background:rgba(234,179,8,.15);color:#ca8a04;border:1px solid rgba(234,179,8,.3)}
+.strat-badge.mixed{background:rgba(99,102,241,.15);color:#6366f1;border:1px solid rgba(99,102,241,.3)}
+.strat-badge.downtrend{background:rgba(239,68,68,.15);color:#dc2626;border:1px solid rgba(239,68,68,.3)}
+.strat-ticker{font-size:20px;font-weight:800;letter-spacing:-.3px}
+.strat-price{font-size:20px;font-weight:800;color:var(--accent)}
+.strat-desc{font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.55;padding:12px 16px;background:var(--surface-subtle);border-radius:12px;border-left:3px solid var(--accent)}
+
+/* indicator chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card)}
+.chip .chip-label{color:var(--text-tertiary)}
+.chip .chip-val{color:var(--text-primary)}
+.chip.above .chip-val{color:#16a34a}
+.chip.below .chip-val{color:#dc2626}
+.chip.neutral .chip-val{color:var(--text-secondary)}
+
+/* entry cards */
+.entry-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.entry-card{background:var(--card);border:2px solid var(--border);border-radius:16px;padding:18px;position:relative;overflow:hidden;transition:border-color .2s}
+.entry-card:hover{border-color:var(--accent)}
+.entry-num{font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text-tertiary);margin-bottom:8px}
+.entry-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:10px;color:#fff}
+.entry-price{font-size:26px;font-weight:900;letter-spacing:-.5px;margin-bottom:6px}
+.entry-reason{font-size:12px;color:var(--text-secondary);line-height:1.45}
+.entry-bar{position:absolute;bottom:0;left:0;right:0;height:3px}
+
+/* stop/target row */
+.risk-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px}
+.risk-card{border-radius:14px;padding:14px 16px;border:1px solid var(--border);background:var(--card)}
+.risk-card .r-label{font-size:11px;font-weight:600;color:var(--text-tertiary);margin-bottom:4px}
+.risk-card .r-val{font-size:20px;font-weight:800}
+.risk-card .r-sub{font-size:12px;color:var(--text-tertiary);margin-top:2px}
+.risk-card.stop .r-val{color:#ef4444}
+.risk-card.target .r-val{color:#22c55e}
+
+/* autofill btn */
+.autofill-btn{width:100%;height:52px;border-radius:14px;border:2px solid var(--accent);background:transparent;color:var(--accent);font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.autofill-btn:hover{background:var(--accent);color:#fff}
+
+/* divider */
+.section-divider{display:flex;align-items:center;gap:12px;margin:28px 0 20px;color:var(--text-tertiary);font-size:13px;font-weight:600}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* manual calculator (original) */
 .input-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px}
 .input-card h2{font-size:15px;font-weight:700;margin:0 0 18px;color:var(--text-secondary)}
 .input-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
-.field{display:flex;flex-direction:column;gap:6px}
-.field label{font-size:12px;font-weight:600;color:var(--text-tertiary);letter-spacing:.3px}
-.field input,.field select{height:44px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface-subtle);color:var(--text-primary);font-size:15px;padding:0 12px;outline:none;transition:border-color .15s}
-.field input:focus,.field select:focus{border-color:var(--accent)}
-.field .hint{font-size:11px;color:var(--text-tertiary)}
+.calc-field{display:flex;flex-direction:column;gap:6px}
+.calc-field label{font-size:12px;font-weight:600;color:var(--text-tertiary);letter-spacing:.3px}
+.calc-field input,.calc-field select{height:44px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface-subtle);color:var(--text-primary);font-size:15px;padding:0 12px;outline:none;transition:border-color .15s}
+.calc-field input:focus,.calc-field select:focus{border-color:var(--accent)}
+.calc-field .hint{font-size:11px;color:var(--text-tertiary)}
 .row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:14px}
 .alloc-btns{display:flex;gap:8px}
 .alloc-btn{flex:1;height:44px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
 .alloc-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
 .calc-btn{width:100%;height:52px;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:16px;font-weight:700;cursor:pointer;margin-top:18px;transition:opacity .15s}
 .calc-btn:hover{opacity:.88}
+
+/* result */
 .result-section{display:none}
 .result-section.show{display:block}
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
@@ -47,12 +123,24 @@ html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font
 .stage-badge.total{background:var(--text-tertiary)}
 .bar-wrap{display:flex;align-items:center;gap:8px;justify-content:flex-end}
 .bar{height:6px;border-radius:3px;background:var(--accent);min-width:4px}
-@media(max-width:600px){
+
+/* error */
+.err-box{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:14px 16px;color:#ef4444;font-size:14px;margin-bottom:16px;display:none}
+.err-box.show{display:block}
+
+@media(max-width:640px){
   .shell{padding:16px 12px 60px}
+  .search-row{flex-wrap:wrap}
+  .search-row .mkt-field{width:80px}
+  .entry-grid{grid-template-columns:1fr}
+  .risk-row{grid-template-columns:1fr 1fr}
   .input-grid,.row2{grid-template-columns:1fr 1fr}
   .summary-grid{grid-template-columns:1fr 1fr}
   .table-wrap{overflow-x:auto}
   .table-wrap table{min-width:560px}
+  .strat-header{gap:8px}
+  .strat-price{font-size:17px}
+  .strat-ticker{font-size:17px}
 }
 </style>
 </head>
@@ -62,23 +150,80 @@ html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font
     <a href="/" class="back-btn">← 스캐너</a>
     <div>
       <div class="page-title">📐 피라미딩 계산기</div>
-      <div class="page-sub">추가 매수 단계별 가격 · 금액 · 평균 단가 자동 계산</div>
+      <div class="page-sub">데이터 기반 진입 타이밍 추천 · 단계별 분할 매수 계산</div>
     </div>
   </div>
+
+  <!-- 종목 검색 -->
+  <div class="search-card">
+    <h2>종목 분석</h2>
+    <div class="search-row">
+      <div class="field" style="flex:1">
+        <label>티커</label>
+        <input id="in-ticker" type="text" placeholder="예: 005930" autocomplete="off" style="text-transform:uppercase">
+      </div>
+      <div class="field mkt-field">
+        <label>시장</label>
+        <select id="in-market">
+          <option value="KR">KR</option>
+        </select>
+      </div>
+      <button class="search-btn" id="search-btn" onclick="analyzeStock()">분석하기</button>
+    </div>
+  </div>
+
+  <!-- 에러 -->
+  <div class="err-box" id="err-box"></div>
+
+  <!-- 로딩 -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    데이터 불러오는 중…
+  </div>
+
+  <!-- 추천 결과 -->
+  <div class="recommend" id="recommend">
+    <div class="strat-header">
+      <span class="strat-badge" id="strat-badge"></span>
+      <span class="strat-ticker" id="strat-ticker"></span>
+      <span class="strat-price" id="strat-price"></span>
+    </div>
+    <div class="strat-desc" id="strat-desc"></div>
+
+    <!-- 기술적 지표 칩 -->
+    <div class="chips" id="chips"></div>
+
+    <!-- 3단계 진입 카드 -->
+    <div class="entry-grid" id="entry-grid"></div>
+
+    <!-- 손절 / 목표 -->
+    <div class="risk-row" id="risk-row"></div>
+
+    <!-- 계산기 자동 채우기 -->
+    <button class="autofill-btn" id="autofill-btn" onclick="autofill()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+      아래 계산기에 자동 입력
+    </button>
+  </div>
+
+  <!-- 구분선 -->
+  <div class="section-divider">수동 계산기</div>
+
+  <!-- 수동 계산기 -->
   <div class="input-card">
     <h2>입력 정보</h2>
     <div class="input-grid">
-      <div class="field">
+      <div class="calc-field">
         <label>1차 진입가</label>
         <input id="in-entry" type="number" min="0" step="any" placeholder="예: 150.00">
         <span class="hint">첫 번째 매수 체결 가격</span>
       </div>
-      <div class="field">
+      <div class="calc-field">
         <label>총 투자 예산</label>
         <input id="in-budget" type="number" min="0" step="any" placeholder="예: 5000000">
         <span class="hint">전체 투자금 (원 또는 달러)</span>
       </div>
-      <div class="field">
+      <div class="calc-field">
         <label>단계 수</label>
         <select id="in-stages">
           <option value="2">2단계</option>
@@ -88,24 +233,24 @@ html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font
         </select>
         <span class="hint">몇 번 나눠 살지</span>
       </div>
-      <div class="field">
+      <div class="calc-field">
         <label>단계당 상승 %</label>
         <input id="in-step" type="number" min="0.1" step="0.1" placeholder="예: 5">
         <span class="hint">각 추가 매수 기준 상승폭</span>
       </div>
     </div>
     <div class="row2">
-      <div class="field">
+      <div class="calc-field">
         <label>목표가 (선택)</label>
         <input id="in-target" type="number" min="0" step="any" placeholder="예: 200.00">
         <span class="hint">목표 달성 시 수익률 계산</span>
       </div>
-      <div class="field">
+      <div class="calc-field">
         <label>손절가 (선택)</label>
         <input id="in-stop" type="number" min="0" step="any" placeholder="예: 130.00">
         <span class="hint">손절 시 손실률 계산</span>
       </div>
-      <div class="field">
+      <div class="calc-field">
         <label>예산 배분 방식</label>
         <div class="alloc-btns">
           <button class="alloc-btn active" id="btn-equal" onclick="setAlloc('equal')">균등</button>
@@ -116,6 +261,7 @@ html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font
     </div>
     <button class="calc-btn" onclick="calculate()">계산하기</button>
   </div>
+
   <div class="result-section" id="result-section">
     <div class="summary-grid" id="summary-grid"></div>
     <div class="table-wrap">
@@ -136,30 +282,171 @@ html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font
     </div>
   </div>
 </div>
+
 <script>
-let allocMode = 'equal';
-function setAlloc(mode) {
-  allocMode = mode;
-  document.getElementById('btn-equal').classList.toggle('active', mode === 'equal');
-  document.getElementById('btn-pyramid').classList.toggle('active', mode === 'pyramid');
-}
+/* ── 상태 ── */
+var allocMode = 'equal';
+var lastData = null;
+
+/* ── 유틸 ── */
 function fmt(n, dec) {
-  dec = dec || 0;
+  dec = dec == null ? 0 : dec;
   if (n == null || isNaN(n)) return '-';
   return n.toLocaleString('ko-KR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
 }
-function fmtPct(n) {
+function fmtPct(n, dec) {
+  dec = dec == null ? 2 : dec;
   if (n == null || isNaN(n)) return '-';
   var sign = n >= 0 ? '+' : '';
-  return sign + n.toFixed(2) + '%';
+  return sign + n.toFixed(dec) + '%';
 }
+function fmtP(v) { // price formatter (auto decimal)
+  if (v == null) return '-';
+  return v >= 1000 ? fmt(v, 0) : (v >= 10 ? fmt(v, 2) : fmt(v, 4));
+}
+function pctFrom(a, b) { // (a-b)/b*100
+  if (!b) return null;
+  return (a - b) / b * 100;
+}
+function el(id) { return document.getElementById(id); }
+
+/* ── 분석 ── */
+function analyzeStock() {
+  var ticker = el('in-ticker').value.trim().toUpperCase();
+  var market = el('in-market').value;
+  if (!ticker) { showErr('티커를 입력해주세요.'); return; }
+
+  hideErr();
+  el('loading').style.display = 'block';
+  el('recommend').classList.remove('show');
+  el('search-btn').disabled = true;
+
+  fetch('/api/pyramid_suggest?ticker=' + encodeURIComponent(ticker) + '&market=' + market)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      el('loading').style.display = 'none';
+      el('search-btn').disabled = false;
+      if (d.error) { showErr(d.error); return; }
+      lastData = d;
+      renderRecommend(d);
+    })
+    .catch(function(e){
+      el('loading').style.display = 'none';
+      el('search-btn').disabled = false;
+      showErr('네트워크 오류: ' + e.message);
+    });
+}
+
+function showErr(msg) {
+  var b = el('err-box');
+  b.textContent = '⚠ ' + msg;
+  b.classList.add('show');
+}
+function hideErr() {
+  el('err-box').classList.remove('show');
+}
+
+function renderRecommend(d) {
+  /* 전략 배지 */
+  var badge = el('strat-badge');
+  badge.textContent = d.strategy;
+  badge.className = 'strat-badge ' + d.regime;
+
+  el('strat-ticker').textContent = d.ticker;
+  el('strat-price').textContent = fmtP(d.current) + (d.market === 'KR' ? '원' : '$');
+  el('strat-desc').textContent = d.strategy_desc;
+
+  /* 지표 칩 */
+  var chips = [
+    {label:'MA20',   val:d.ma20,   ref:d.current},
+    {label:'MA50',   val:d.ma50,   ref:d.current},
+    {label:'MA200',  val:d.ma200,  ref:d.current},
+    {label:'ATR14',  val:d.atr14,  ref:null},
+    {label:'52주 고점', val:d.wk52_high, ref:d.current},
+    {label:'52주 저점', val:d.wk52_low,  ref:d.current},
+    {label:'52주 위치', val:d.wk52_pos + '%', ref:null, raw:true},
+  ];
+  el('chips').innerHTML = chips.map(function(c){
+    if (c.val == null) return '';
+    var cls = 'chip neutral';
+    if (c.ref != null) {
+      cls = c.val < c.ref ? 'chip below' : 'chip above';
+    }
+    var valStr = c.raw ? c.val : fmtP(c.val);
+    var arrow = '';
+    if (c.ref != null) arrow = c.val < c.ref ? ' ↓' : ' ↑';
+    return '<span class="' + cls + '"><span class="chip-label">' + c.label + '</span><span class="chip-val">' + valStr + arrow + '</span></span>';
+  }).join('');
+
+  /* 진입 카드 */
+  el('entry-grid').innerHTML = d.entries.map(function(e, i){
+    var pct = '';
+    if (i > 0 && d.entries[0]) {
+      var p = pctFrom(e.price, d.entries[0].price);
+      if (p != null) pct = '<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">' + fmtPct(p) + ' vs 1차</div>';
+    }
+    return '<div class="entry-card">' +
+      '<div class="entry-num">' + e.stage + '차 진입</div>' +
+      '<div class="entry-tag" style="background:' + e.color + '">' + e.tag + '</div>' +
+      '<div class="entry-price">' + fmtP(e.price) + '</div>' +
+      pct +
+      '<div class="entry-reason">' + e.reason + '</div>' +
+      '<div class="entry-bar" style="background:' + e.color + '"></div>' +
+      '</div>';
+  }).join('');
+
+  /* 손절 / 목표 */
+  var e1 = d.entries[0] ? d.entries[0].price : d.current;
+  var stopPct  = fmtPct(pctFrom(d.stop_suggest,   e1));
+  var tgtPct   = fmtPct(pctFrom(d.target_suggest, e1));
+  el('risk-row').innerHTML =
+    '<div class="risk-card stop"><div class="r-label">손절 제안 (−1.5×ATR)</div><div class="r-val">' + fmtP(d.stop_suggest) + '</div><div class="r-sub">' + stopPct + ' vs 1차 진입가</div></div>' +
+    '<div class="risk-card target"><div class="r-label">목표 제안 (3차 진입가 +7%)</div><div class="r-val">' + fmtP(d.target_suggest) + '</div><div class="r-sub">' + tgtPct + ' vs 1차 진입가</div></div>';
+
+  el('recommend').classList.add('show');
+  el('recommend').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/* ── 자동 채우기 ── */
+function autofill() {
+  if (!lastData || !lastData.entries || !lastData.entries.length) return;
+  var e1 = lastData.entries[0].price;
+  var e2 = lastData.entries.length > 1 ? lastData.entries[1].price : null;
+  el('in-entry').value = e1;
+
+  // 단계당 상승 %: entry2/entry1 - 1
+  if (e2 && e1) {
+    var stepPct = ((e2 / e1) - 1) * 100;
+    el('in-step').value = stepPct.toFixed(2);
+  }
+
+  // 단계 수
+  el('in-stages').value = String(lastData.entries.length);
+
+  // 손절 / 목표
+  if (lastData.stop_suggest)   el('in-stop').value   = lastData.stop_suggest;
+  if (lastData.target_suggest) el('in-target').value = lastData.target_suggest;
+
+  el('in-entry').focus();
+
+  // 계산기로 스크롤
+  document.querySelector('.input-card').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ── 수동 계산기 ── */
+function setAlloc(mode) {
+  allocMode = mode;
+  el('btn-equal').classList.toggle('active', mode === 'equal');
+  el('btn-pyramid').classList.toggle('active', mode === 'pyramid');
+}
+
 function calculate() {
-  var entry  = parseFloat(document.getElementById('in-entry').value);
-  var budget = parseFloat(document.getElementById('in-budget').value);
-  var stages = parseInt(document.getElementById('in-stages').value);
-  var step   = parseFloat(document.getElementById('in-step').value) / 100;
-  var targetVal = parseFloat(document.getElementById('in-target').value);
-  var stopVal   = parseFloat(document.getElementById('in-stop').value);
+  var entry  = parseFloat(el('in-entry').value);
+  var budget = parseFloat(el('in-budget').value);
+  var stages = parseInt(el('in-stages').value);
+  var step   = parseFloat(el('in-step').value) / 100;
+  var targetVal = parseFloat(el('in-target').value);
+  var stopVal   = parseFloat(el('in-stop').value);
   var target = isNaN(targetVal) ? null : targetVal;
   var stopP  = isNaN(stopVal)   ? null : stopVal;
   if (!entry || !budget || !step || stages < 2) {
@@ -190,25 +477,41 @@ function calculate() {
   var avgCost = totalCost / totalShares;
   var targetPct = target ? (target - avgCost) / avgCost * 100 : null;
   var stopPct   = stopP  ? (stopP  - avgCost) / avgCost * 100 : null;
-  var summaryEl = document.getElementById('summary-grid');
-  summaryEl.innerHTML =
+  el('summary-grid').innerHTML =
     '<div class="summary-card"><div class="s-label">평균 단가</div><div class="s-val">' + fmt(avgCost,2) + '</div><div class="s-sub">총 ' + fmt(totalShares,4) + '주</div></div>' +
     '<div class="summary-card"><div class="s-label">총 투자금</div><div class="s-val">' + fmt(totalCost) + '</div><div class="s-sub">' + stages + '단계 합산</div></div>' +
     '<div class="summary-card"><div class="s-label">최종 단계 진입가</div><div class="s-val">' + fmt(prices[stages-1],2) + '</div><div class="s-sub">1차 대비 +' + ((prices[stages-1]-entry)/entry*100).toFixed(1) + '%</div></div>' +
     (target ? '<div class="summary-card"><div class="s-label">목표가 수익률</div><div class="s-val ' + (targetPct>=0?'pos':'neg') + '">' + fmtPct(targetPct) + '</div><div class="s-sub">목표가 ' + fmt(target,2) + '</div></div>' : '') +
     (stopP  ? '<div class="summary-card"><div class="s-label">손절 손실률</div><div class="s-val ' + (stopPct>=0?'pos':'neg') + '">' + fmtPct(stopPct) + '</div><div class="s-sub">손절가 ' + fmt(stopP,2) + '</div></div>' : '');
   var maxAlloc = Math.max.apply(null, rows.map(function(r){return r.alloc;}));
-  var tbody = document.getElementById('result-tbody');
+  var tbody = el('result-tbody');
   tbody.innerHTML = rows.map(function(r) {
     var barW = Math.round(r.alloc / maxAlloc * 80);
     var pct = (r.alloc / budget * 100).toFixed(0);
     return '<tr><td><span class="stage-badge">' + r.stage + '</span></td><td>' + fmt(r.price,2) + '</td><td>' + fmt(r.alloc) + '</td><td>' + fmt(r.shares,4) + '</td><td>' + fmt(r.avgCost,2) + '</td><td>' + fmt(r.cumCost) + '</td><td><div class="bar-wrap"><div class="bar" style="width:' + barW + 'px"></div><span style="font-size:12px;color:var(--text-tertiary)">' + pct + '%</span></div></td></tr>';
   }).join('') +
   '<tr><td><span class="stage-badge total">합</span></td><td>—</td><td>' + fmt(totalCost) + '</td><td>' + fmt(totalShares,4) + '</td><td><strong>' + fmt(avgCost,2) + '</strong></td><td>' + fmt(totalCost) + '</td><td>100%</td></tr>';
-  document.getElementById('result-section').classList.add('show');
-  document.getElementById('result-section').scrollIntoView({behavior:'smooth',block:'nearest'});
+  el('result-section').classList.add('show');
+  el('result-section').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
-document.addEventListener('keydown', function(e){ if(e.key==='Enter') calculate(); });
+
+/* 엔터키 */
+el('in-ticker').addEventListener('keydown', function(e){ if(e.key==='Enter') analyzeStock(); });
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Enter' && document.activeElement !== el('in-ticker')) calculate();
+});
+
+/* URL 파라미터 자동 실행: /pyramid?ticker=005930&market=KR */
+(function(){
+  var params = new URLSearchParams(location.search);
+  var t = params.get('ticker');
+  var m = params.get('market');
+  if (t) {
+    el('in-ticker').value = t.toUpperCase();
+    el('in-market').value = 'KR';
+    analyzeStock();
+  }
+})();
 </script>
 </body>
 </html>

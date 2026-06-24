@@ -1707,6 +1707,206 @@ def pyramid_page():
     return _render_static_template("pyramid.html")
 
 
+@app.route("/api/pyramid_suggest")
+def api_pyramid_suggest():
+    """GET /api/pyramid_suggest?ticker=005930&market=KR
+    KR yfinance 1y 일봉으로 MA20/50/200, ATR14, 52주 고저점 계산 후
+    3단계 피라미딩 진입가 추천을 반환한다.
+    """
+    raw_ticker = _validate_ticker((request.args.get("ticker") or "").strip().upper())
+    market = (request.args.get("market") or "KR").upper()
+
+    if not raw_ticker:
+        return jsonify({"error": "ticker 파라미터 필요"}), 400
+    if market != "KR":
+        return jsonify({"error": "US market is disabled; KR only"}), 410
+
+    # yfinance용 심볼 변환 (KR 6자리 → 정확한 .KS/.KQ 접미사 우선)
+    if raw_ticker.endswith((".KS", ".KQ")):
+        yf_symbol = raw_ticker
+    else:
+        code6 = raw_ticker.zfill(6) if raw_ticker.isdigit() else raw_ticker
+        suffix = _resolve_kr_suffix(code6) or ".KS"
+        yf_symbol = f"{code6}{suffix}"
+
+    try:
+        import yfinance as yf
+        import math
+
+        hist = yf.Ticker(yf_symbol).history(period="1y", interval="1d", auto_adjust=True)
+        if hist is None or len(hist) < 20:
+            return jsonify({"error": f"{raw_ticker} 데이터 부족 (최소 20거래일 필요)"}), 404
+
+        close = hist["Close"]
+        high  = hist["High"]
+        low   = hist["Low"]
+        n     = len(close)
+
+        current = float(close.iloc[-1])
+
+        def ma(period):
+            if n < period:
+                return None
+            return float(close.rolling(period).mean().iloc[-1])
+
+        ma20  = ma(20)
+        ma50  = ma(50)
+        ma200 = ma(200)
+
+        # ATR14: True Range = max(H-L, |H-PC|, |L-PC|)
+        tr_list = []
+        for i in range(1, n):
+            h  = float(high.iloc[i])
+            lo = float(low.iloc[i])
+            pc = float(close.iloc[i - 1])
+            tr_list.append(max(h - lo, abs(h - pc), abs(lo - pc)))
+        atr14 = sum(tr_list[-14:]) / min(14, len(tr_list)) if tr_list else current * 0.02
+
+        wk52_high = float(high.max())
+        wk52_low  = float(low.min())
+
+        # 추세 판정
+        above_ma50  = ma50  is not None and current > ma50
+        above_ma200 = ma200 is not None and current > ma200
+
+        if above_ma50 and above_ma200:
+            regime = "uptrend"
+        elif above_ma200:
+            regime = "recovery"
+        elif above_ma50:
+            regime = "mixed"
+        else:
+            regime = "downtrend"
+
+        def r2(v):
+            if v is None:
+                return None
+            # 소수점 자리수: 현재가 기준으로 결정
+            if current >= 1000:
+                return round(v, 0)
+            elif current >= 10:
+                return round(v, 2)
+            else:
+                return round(v, 4)
+
+        # ── 진입가 추천 로직 ────────────────────────────────────────────
+        entries = []
+
+        if regime == "uptrend":
+            # 강한 상승 추세: 눌림목 → ATR 돌파 → 신고가 돌파
+            e1_raw = ma20 if ma20 and ma20 < current else current
+            e1 = r2(e1_raw)
+            e2 = r2(e1_raw + atr14)
+            # 52주 신고가 직상이 합리적이면 사용, 아니면 +2ATR
+            e3_hi = r2(wk52_high * 1.003)
+            e3 = e3_hi if e3_hi > e2 else r2(e1_raw + 2 * atr14)
+
+            strategy = "모멘텀 피라미딩"
+            strategy_desc = "MA50·MA200 위의 강한 상승세. 눌림목에서 시작해 모멘텀 확인 시 비중 확대."
+            entries = [
+                {"stage": 1, "price": e1,
+                 "reason": f"MA20({r2(ma20)}) 눌림목 — 초기 진입",
+                 "tag": "눌림목", "color": "#3b82f6"},
+                {"stage": 2, "price": e2,
+                 "reason": f"1차 진입가 + ATR14({r2(atr14)}) — 돌파 확인",
+                 "tag": "ATR 돌파", "color": "#8b5cf6"},
+                {"stage": 3, "price": e3,
+                 "reason": f"52주 신고가({r2(wk52_high)}) 돌파 — 추세 가속",
+                 "tag": "신고가", "color": "#f59e0b"},
+            ]
+
+        elif regime == "recovery":
+            # MA200 위, MA50 아래: 회복 중 — MA50 돌파 확인 피라미딩
+            e1 = r2(current)
+            e2 = r2(ma50) if ma50 else r2(current + atr14)
+            e3 = r2((ma50 or current) * 1.03)
+
+            strategy = "회복 피라미딩"
+            strategy_desc = "MA200 위 회복 중이나 MA50 아래. MA50 돌파를 확인하며 비중 단계적 확대."
+            entries = [
+                {"stage": 1, "price": e1,
+                 "reason": f"현재가({r2(current)}) — MA200({r2(ma200)}) 위 회복 확인",
+                 "tag": "현재가", "color": "#3b82f6"},
+                {"stage": 2, "price": e2,
+                 "reason": f"MA50({r2(ma50)}) 돌파 — 중기 추세 전환",
+                 "tag": "MA50 돌파", "color": "#8b5cf6"},
+                {"stage": 3, "price": e3,
+                 "reason": f"MA50 안착 +3% — 추세 재확인",
+                 "tag": "추세 확인", "color": "#f59e0b"},
+            ]
+
+        elif regime == "mixed":
+            # MA50 위, MA200 아래: 중간 — 조심스러운 피라미딩
+            e1 = r2(current)
+            e2 = r2(current + atr14)
+            e3 = r2(ma200) if ma200 and ma200 > e2 else r2(current + 2 * atr14)
+
+            strategy = "중립 피라미딩"
+            strategy_desc = "MA50 위지만 MA200 아래. 소량부터 시작해 MA200 돌파 확인 후 확대."
+            entries = [
+                {"stage": 1, "price": e1,
+                 "reason": f"현재가({r2(current)}) — MA50({r2(ma50)}) 위 소량 진입",
+                 "tag": "소량 진입", "color": "#3b82f6"},
+                {"stage": 2, "price": e2,
+                 "reason": f"1차 + ATR14({r2(atr14)}) — 모멘텀 확인",
+                 "tag": "ATR 돌파", "color": "#8b5cf6"},
+                {"stage": 3, "price": e3,
+                 "reason": f"MA200({r2(ma200)}) 돌파 — 장기 추세 전환",
+                 "tag": "MA200 돌파", "color": "#f59e0b"},
+            ]
+
+        else:
+            # 하락 추세: 매우 보수적
+            e1 = r2(current)
+            e2 = r2(ma20) if ma20 and ma20 > current else r2(current + atr14)
+            e3 = r2(ma50) if ma50 and ma50 > e2 else r2(current + 2 * atr14)
+
+            strategy = "역추세 피라미딩 (주의)"
+            strategy_desc = "하락 추세 중. 이동평균선 돌파를 반드시 확인한 후에만 비중 확대 권장."
+            entries = [
+                {"stage": 1, "price": e1,
+                 "reason": f"현재가({r2(current)}) — 소량 탐색 진입",
+                 "tag": "탐색 진입", "color": "#6b7280"},
+                {"stage": 2, "price": e2,
+                 "reason": f"MA20({r2(ma20)}) 돌파 — 단기 반등 확인",
+                 "tag": "MA20 돌파", "color": "#3b82f6"},
+                {"stage": 3, "price": e3,
+                 "reason": f"MA50({r2(ma50)}) 돌파 — 중기 추세 전환",
+                 "tag": "MA50 돌파", "color": "#8b5cf6"},
+            ]
+
+        # 손절 · 목표가
+        stop_suggest   = r2(entries[0]["price"] - 1.5 * atr14)
+        target_suggest = r2(entries[-1]["price"] * 1.07)
+
+        # 52주 위치 (0~100%)
+        wk52_range = wk52_high - wk52_low
+        wk52_pos = round((current - wk52_low) / wk52_range * 100, 1) if wk52_range > 0 else 50.0
+
+        return jsonify({
+            "ticker":        yf_symbol,
+            "market":        "KR",
+            "current":       r2(current),
+            "ma20":          r2(ma20),
+            "ma50":          r2(ma50),
+            "ma200":         r2(ma200),
+            "atr14":         r2(atr14),
+            "wk52_high":     r2(wk52_high),
+            "wk52_low":      r2(wk52_low),
+            "wk52_pos":      wk52_pos,
+            "regime":        regime,
+            "strategy":      strategy,
+            "strategy_desc": strategy_desc,
+            "entries":       entries,
+            "stop_suggest":  stop_suggest,
+            "target_suggest": target_suggest,
+        })
+
+    except Exception as exc:
+        logging.exception("api_pyramid_suggest %s", raw_ticker)
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/compare")
 def compare_page():
     raw = request.args.get("tickers", "")
