@@ -19,7 +19,9 @@ class TestTossPreviousClose(unittest.TestCase):
             {"timestamp": "2026-06-22T09:00:00+09:00", "close": 353500.0},
             {"timestamp": "2026-06-23T09:00:00+09:00", "close": 337000.0},
         ]
-        with patch("toss_invest.get_daily_candles", return_value=candles):
+        with patch("toss_invest._load_previous_close_cache"), patch(
+            "toss_invest._save_previous_close_cache"
+        ), patch("toss_invest.get_daily_candles", return_value=candles):
             close = toss_invest.get_previous_close(
                 "005930.KS",
                 now=datetime(2026, 6, 23, 16, 0, tzinfo=KST),
@@ -31,7 +33,9 @@ class TestTossPreviousClose(unittest.TestCase):
             {"timestamp": "2026-06-19T09:00:00+09:00", "close": 345000.0},
             {"timestamp": "2026-06-22T09:00:00+09:00", "close": 353500.0},
         ]
-        with patch("toss_invest.get_daily_candles", return_value=candles):
+        with patch("toss_invest._load_previous_close_cache"), patch(
+            "toss_invest._save_previous_close_cache"
+        ), patch("toss_invest.get_daily_candles", return_value=candles):
             close = toss_invest.get_previous_close(
                 "005930.KS",
                 now=datetime(2026, 6, 23, 8, 10, tzinfo=KST),
@@ -43,7 +47,9 @@ class TestTossPreviousClose(unittest.TestCase):
             {"timestamp": "2026-06-18T09:00:00+09:00", "close": 350000.0},
             {"timestamp": "2026-06-19T09:00:00+09:00", "close": 345000.0},
         ]
-        with patch("toss_invest.get_daily_candles", return_value=candles):
+        with patch("toss_invest._load_previous_close_cache"), patch(
+            "toss_invest._save_previous_close_cache"
+        ), patch("toss_invest.get_daily_candles", return_value=candles):
             close = toss_invest.get_previous_close(
                 "005930.KS",
                 now=datetime(2026, 6, 20, 12, 0, tzinfo=KST),

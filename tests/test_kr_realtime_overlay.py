@@ -246,15 +246,18 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "000660": {"price": 202000.0, "source": "tossinvest"},
             },
         ) as get_prices, patch(
-            "toss_invest.get_previous_closes",
+            "toss_invest.get_cached_previous_closes",
             return_value={"005930": 329000.0, "000660": 196000.0},
-        ), patch("toss_invest.get_quote") as get_quote, patch(
+        ), patch("app._schedule_kr_toss_basis_warm") as schedule_warm, patch(
+            "toss_invest.get_quote"
+        ) as get_quote, patch(
             "naver_finance.get_quote",
             side_effect=naver_quote,
         ), patch("app._fetch_kr_consensus_target", return_value={}):
             app._override_kr_day_chg(rows)
 
         get_prices.assert_called_once_with(["005930.KS", "000660.KS"])
+        schedule_warm.assert_not_called()
         get_quote.assert_not_called()
         self.assertEqual(rows[0]["Price"], 302000.0)
         self.assertAlmostEqual(rows[0]["DayChg"], 302000.0 / 329000.0 - 1.0)

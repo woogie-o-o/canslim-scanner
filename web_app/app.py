@@ -833,7 +833,60 @@ def _apply_kr_broker_target_fallback(results: list, *, limit=120) -> bool:
     return changed
 
 
-def _override_kr_day_chg(results: list) -> list:
+_kr_toss_basis_warm_lock = threading.Lock()
+_kr_toss_basis_warm_inflight = False
+
+
+def _schedule_kr_toss_basis_warm(results: list) -> None:
+    global _kr_toss_basis_warm_inflight
+    tickers = [
+        row.get("Ticker") for row in results
+        if isinstance(row, dict) and _kr_quote_symbol(row.get("Ticker"))
+    ]
+    if not tickers:
+        return
+    with _kr_toss_basis_warm_lock:
+        if _kr_toss_basis_warm_inflight:
+            return
+        _kr_toss_basis_warm_inflight = True
+
+    def _worker() -> None:
+        global _kr_toss_basis_warm_inflight
+        try:
+            import toss_invest
+            cached = toss_invest.get_cached_previous_closes(tickers)
+            missing = [
+                ticker for ticker in tickers
+                if _kr_quote_symbol(ticker) not in cached
+            ]
+            if missing:
+                toss_invest.get_previous_closes(missing, max_workers=8)
+            with _scan_results_cache_lock:
+                cached_items = [
+                    (key, value)
+                    for key, value in _scan_results_cache.items()
+                    if key[0] == "KR" and key[2] == "" and value.get("data")
+                ]
+            for key, value in cached_items:
+                rows = value.get("data") or []
+                _override_kr_day_chg(rows, warm_toss_basis=False)
+                ts = int(time.time())
+                _store_scan_cache(key, ts, rows)
+                _populate_sector_caches(key[0], key[1], rows, ts)
+        except Exception as exc:
+            logging.warning("Toss previous-close warm failed: %s", exc)
+        finally:
+            with _kr_toss_basis_warm_lock:
+                _kr_toss_basis_warm_inflight = False
+
+    threading.Thread(
+        target=_worker,
+        daemon=True,
+        name="toss-previous-close-warm",
+    ).start()
+
+
+def _override_kr_day_chg(results: list, *, warm_toss_basis: bool = True) -> list:
     """KR 종목 Price/DayChg를 실시간 시세로 보정한다.
 
     yfinance KR 일봉이 장중에 전일 종가 기준으로 고착되는 문제 회피.
@@ -857,9 +910,8 @@ def _override_kr_day_chg(results: list) -> list:
         import toss_invest
         toss_configured = toss_invest.is_available()
         toss_quotes = toss_invest.get_prices([r["Ticker"] for r in kr_items])
-        toss_previous_closes = toss_invest.get_previous_closes(
-            [r["Ticker"] for r in kr_items],
-            max_workers=8,
+        toss_previous_closes = toss_invest.get_cached_previous_closes(
+            [r["Ticker"] for r in kr_items]
         )
         toss_error = toss_invest.get_last_error()
     except Exception as _e:
@@ -887,6 +939,8 @@ def _override_kr_day_chg(results: list) -> list:
         list(ex.map(_fetch, kr_items))
     _apply_kr_toss_stock_names(results)
     _apply_kr_broker_target_fallback(results, limit=_broker_target_scan_limit())
+    if warm_toss_basis and len(toss_previous_closes) < len(kr_items):
+        _schedule_kr_toss_basis_warm(results)
     return results
 
 

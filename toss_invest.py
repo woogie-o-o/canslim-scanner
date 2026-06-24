@@ -6,6 +6,7 @@ does not currently provide here (change %, market cap, fundamentals).
 """
 from __future__ import annotations
 
+import json
 import os
 import threading
 import time
@@ -31,6 +32,11 @@ _STOCKS_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
 _PREVIOUS_CLOSE_LOCK = threading.Lock()
 _PREVIOUS_CLOSE_CACHE: dict[tuple[str, str], float] = {}
 _KST = timezone(timedelta(hours=9))
+_PREVIOUS_CLOSE_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "cache_v19",
+    "toss_previous_closes.json",
+)
 
 
 def _env(*names: str) -> str:
@@ -400,6 +406,52 @@ def _candle_date_kst(value: Any) -> str:
         return raw[:10]
 
 
+def _load_previous_close_cache(today: str) -> None:
+    try:
+        with open(_PREVIOUS_CLOSE_CACHE_PATH, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        if payload.get("date") != today:
+            return
+        closes = payload.get("closes") or {}
+        with _PREVIOUS_CLOSE_LOCK:
+            for symbol, value in closes.items():
+                close = _to_float(value)
+                if close is not None and close > 0:
+                    _PREVIOUS_CLOSE_CACHE[(today, str(symbol))] = close
+    except (OSError, ValueError, TypeError):
+        return
+
+
+def _save_previous_close_cache(today: str) -> None:
+    try:
+        with _PREVIOUS_CLOSE_LOCK:
+            closes = {
+                symbol: close
+                for (day, symbol), close in _PREVIOUS_CLOSE_CACHE.items()
+                if day == today
+            }
+        os.makedirs(os.path.dirname(_PREVIOUS_CLOSE_CACHE_PATH), exist_ok=True)
+        temp_path = f"{_PREVIOUS_CLOSE_CACHE_PATH}.tmp"
+        with open(temp_path, "w", encoding="utf-8") as handle:
+            json.dump({"date": today, "closes": closes}, handle)
+        os.replace(temp_path, _PREVIOUS_CLOSE_CACHE_PATH)
+    except OSError:
+        return
+
+
+def get_cached_previous_closes(symbols: Iterable[str]) -> dict[str, float]:
+    today = datetime.now(_KST).date().isoformat()
+    _load_previous_close_cache(today)
+    out: dict[str, float] = {}
+    with _PREVIOUS_CLOSE_LOCK:
+        for item in symbols:
+            symbol = _normalize_symbol(item)
+            close = _PREVIOUS_CLOSE_CACHE.get((today, symbol)) if symbol else None
+            if symbol and close is not None and close > 0:
+                out[symbol] = close
+    return out
+
+
 def get_previous_close(ticker: str, now: datetime | None = None) -> float | None:
     """Return the latest completed Toss daily close before the current KST date."""
     symbol = _normalize_symbol(ticker)
@@ -410,6 +462,7 @@ def get_previous_close(ticker: str, now: datetime | None = None) -> float | None
         current = current.replace(tzinfo=_KST)
     today = current.astimezone(_KST).date().isoformat()
     key = (today, symbol)
+    _load_previous_close_cache(today)
     with _PREVIOUS_CLOSE_LOCK:
         cached = _PREVIOUS_CLOSE_CACHE.get(key)
     if cached is not None:
@@ -426,6 +479,7 @@ def get_previous_close(ticker: str, now: datetime | None = None) -> float | None
         return None
     with _PREVIOUS_CLOSE_LOCK:
         _PREVIOUS_CLOSE_CACHE[key] = close
+    _save_previous_close_cache(today)
     return close
 
 
@@ -455,4 +509,5 @@ def get_previous_closes(
         for symbol, close in executor.map(_fetch, normalized):
             if close is not None and close > 0:
                 out[symbol] = close
+    _save_previous_close_cache(datetime.now(_KST).date().isoformat())
     return out
