@@ -164,6 +164,40 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(rows[0]["ScoreDelta"], 2.9)
         self.assertEqual(rows[0]["RankDelta"], 1)
 
+    def test_sync_detail_score_from_scan_cache_uses_list_score(self) -> None:
+        detail = {
+            "Ticker": "005930.KS",
+            "TotalScore": 72.0,
+            "ScoreDelta": -1.0,
+            "Breakdown": [["[N] 신고가", 35.0, "keep", "keep"]],
+        }
+        scan_row = {
+            "Ticker": "005930.KS",
+            "TotalScore": 76.0,
+            "ScoreDelta": 3.0,
+            "ScoreDeltaState": "up",
+            "RankDelta": 2,
+        }
+        key = ("KR", "BALANCED", "")
+        with app._scan_results_cache_lock:
+            old_cache = dict(app._scan_results_cache)
+            app._scan_results_cache.clear()
+            app._scan_results_cache[key] = {"_ts": 1, "data": [scan_row]}
+        try:
+            changed = app._sync_detail_score_from_scan_cache(detail, "KR", "BALANCED")
+        finally:
+            with app._scan_results_cache_lock:
+                app._scan_results_cache.clear()
+                app._scan_results_cache.update(old_cache)
+
+        self.assertTrue(changed)
+        self.assertEqual(detail["TotalScore"], 76.0)
+        self.assertEqual(detail["ScoreDelta"], 3.0)
+        self.assertEqual(detail["ScoreDeltaState"], "up")
+        self.assertEqual(detail["RankDelta"], 2)
+        self.assertEqual(detail["Breakdown"][0][1], 35.0)
+        self.assertTrue(detail["_ScoreSyncedFromScan"])
+
     def test_apply_curated_detail_sector_uses_scan_taxonomy(self) -> None:
         row = {"Ticker": "005930.KS", "Sector": "기술"}
 

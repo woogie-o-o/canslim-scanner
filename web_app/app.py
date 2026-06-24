@@ -321,6 +321,63 @@ def _scan_rows_have_deltas(rows: list) -> bool:
     return any(isinstance(r, dict) and "ScoreDelta" in r for r in (rows or []))
 
 
+_DETAIL_SCAN_SCORE_FIELDS: frozenset = frozenset({
+    "TotalScore",
+    "ScoreDelta",
+    "ScoreDeltaState",
+    "RankDelta",
+    "RankDeltaState",
+    "Rank",
+    "DeltaDays",
+    "IsNew",
+    "SectorResidual",
+    "RegimeEntryScore",
+    "RegimeRank",
+    "RegimeLabel",
+    "BottleneckScore",
+    "BottleneckGrade",
+    "BottleneckDelta",
+    "BottleneckLabel",
+})
+
+
+def _sync_detail_score_from_scan_cache(row: dict, market: str, strategy: str) -> bool:
+    """상세 총점/변동 배지를 현재 리스트 스캔 캐시와 맞춘다."""
+    if not isinstance(row, dict):
+        return False
+    ticker = str(row.get("Ticker") or "")
+    if not ticker:
+        return False
+    market_key = (market or "KR").upper()
+    strategy_key = (strategy or "BALANCED").upper()
+    scan_row = None
+    with _scan_results_cache_lock:
+        for key in ((market_key, strategy_key, ""), (market_key, "BALANCED", "")):
+            cached = _scan_results_cache.get(key)
+            rows = cached.get("data") if cached else None
+            if not rows:
+                continue
+            scan_row = next(
+                (
+                    r for r in rows
+                    if isinstance(r, dict) and str(r.get("Ticker") or "") == ticker
+                ),
+                None,
+            )
+            if scan_row:
+                break
+    if not scan_row:
+        return False
+    changed = False
+    for field in _DETAIL_SCAN_SCORE_FIELDS:
+        if field in scan_row and row.get(field) != scan_row.get(field):
+            row[field] = scan_row.get(field)
+            changed = True
+    if changed:
+        row["_ScoreSyncedFromScan"] = True
+    return changed
+
+
 _scan_snapshot_lock = threading.Lock()
 
 
@@ -2106,6 +2163,7 @@ def api_ticker(ticker: str):
                     _apply_curated_detail_sector(fresh, market_arg)
                     _apply_kr_broker_target_fallback([fresh], limit=None)
                     _overlay_kr_realtime_quote(fresh, sync_new_high=True)
+                    _sync_detail_score_from_scan_cache(fresh, market_arg, strategy_arg)
                 try:
                     from one_liner import annotate as _ol_annotate
                     _ol_annotate([fresh])
@@ -2194,6 +2252,9 @@ def api_ticker(ticker: str):
         except Exception as _mece_e3:
             logging.debug("MECE price levels failed: %s", _mece_e3)
             result.setdefault("PriceLevels", None)
+
+        if market == "KR":
+            _sync_detail_score_from_scan_cache(result, market_arg, strategy_arg)
 
         # ── 응답 캐시 저장 ──
         with _ticker_detail_cache_lock:
