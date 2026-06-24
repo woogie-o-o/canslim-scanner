@@ -3441,6 +3441,8 @@ td.score-col {
 }
 .btn-seg:hover { background: rgba(255,255,255,0.5); color: var(--text-primary); }
 .btn-seg.active { background: #fff; color: var(--text-primary); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.btn-seg.market-label { cursor: default; }
+.btn-seg.market-label:hover { background: #fff; color: var(--text-primary); }
 
 /* ── 설명 컬럼 ─────────────────────────────────────────────────────────── */
 .desc-col { width: 200px; max-width: 200px; }

@@ -513,6 +513,10 @@ function _setSegActive(groupId, val) {
 
 function onMarketChange(val) {
   if (val !== 'KR') val = 'KR';
+  if (currentMarket === val) {
+    _setSegActive('market-btn-group', val);
+    return;
+  }
   currentMarket = val;
   currentSector = '';
   allStocks     = [];
