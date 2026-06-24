@@ -198,6 +198,37 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(detail["Breakdown"][0][1], 35.0)
         self.assertTrue(detail["_ScoreSyncedFromScan"])
 
+    def test_scan_cache_hit_does_not_call_external_kr_overrides(self) -> None:
+        key = ("KR", "BALANCED", "")
+        cached_rows = [
+            {
+                "Ticker": "005930.KS",
+                "Name": "삼성전자",
+                "TotalScore": 76.0,
+                "ScoreDelta": 1.0,
+            }
+        ]
+        with app._scan_results_cache_lock:
+            old_cache = dict(app._scan_results_cache)
+            app._scan_results_cache.clear()
+            app._scan_results_cache[key] = {"_ts": int(__import__("time").time()), "data": cached_rows}
+        try:
+            with app.app.test_client() as client, patch(
+                "app._apply_kr_toss_stock_names",
+            ) as stock_names, patch(
+                "app._apply_kr_broker_target_fallback",
+            ) as targets:
+                resp = client.get("/api/scan?market=KR&strategy=BALANCED")
+        finally:
+            with app._scan_results_cache_lock:
+                app._scan_results_cache.clear()
+                app._scan_results_cache.update(old_cache)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json()[0]["Ticker"], "005930.KS")
+        stock_names.assert_not_called()
+        targets.assert_not_called()
+
     def test_apply_curated_detail_sector_uses_scan_taxonomy(self) -> None:
         row = {"Ticker": "005930.KS", "Sector": "기술"}
 

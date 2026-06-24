@@ -1819,14 +1819,6 @@ def api_scan():
                     save_snapshot=False,
                 )
                 _cached_dirty = True
-            if market == "KR":
-                try:
-                    if _apply_kr_toss_stock_names(_sr_cached["data"]):
-                        _cached_dirty = True
-                    if _apply_kr_broker_target_fallback(_sr_cached["data"], limit=_broker_target_scan_limit()):
-                        _cached_dirty = True
-                except Exception as ne:
-                    logging.warning("cached KR scan overrides failed: %s", ne)
             if _cached_dirty:
                 _store_scan_cache(_sr_key, _sr_cached.get("_ts", _sr_now), _sr_cached["data"])
             # 사전 압축 캐시 히트 — flask_compress 재압축 완전 우회
