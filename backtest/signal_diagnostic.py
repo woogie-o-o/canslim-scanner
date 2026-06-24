@@ -101,7 +101,7 @@ def compute_signals(df: pd.DataFrame) -> pd.DataFrame:
     regime_bull = c > sma200
 
     # day change
-    day_chg = c.pct_change()
+    day_chg = c.pct_change(fill_method=None)
 
     # MACD divergence (간이): MACD hist sign change
     ema12 = c.ewm(span=12, adjust=False).mean()

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * app.js — 종목분석기 웹 프론트엔드
  * scanner.html (데스크탑 테이블) / detail.html 공용 스크립트
  */
@@ -47,8 +47,6 @@ let _currentResults = [];   // search/view basis
 let _oneLinerFilter = null; // OneLinerTag filter
 let _compareSet = new Set();
 let _renderToken = 0;
-let _renderInitialCapOverride = null;
-let _renderedInitialCap = 100;
 
 // ── 클라이언트 API 캐시 (sessionStorage) ──────────────────────────────
 const _clientCache = {
@@ -76,48 +74,24 @@ function _scheduleDeferredRender(callback) {
   window.setTimeout(callback, 16);
 }
 
-function _renderHtmlInBatches(container, items, renderItem, initialBatch, batchSize, renderToken, onComplete) {
+function _renderHtmlInBatches(container, items, renderItem, initialBatch, batchSize, renderToken) {
   if (!container) return;
   const initialHtml = items.slice(0, initialBatch).map((item, i) => renderItem(item, i + 1)).join('');
   container.innerHTML = initialHtml;
-  if (items.length <= initialBatch) {
-    if (typeof onComplete === 'function') onComplete();
-    return;
-  }
+  if (items.length <= initialBatch) return;
 
   let offset = initialBatch;
   const appendBatch = () => {
     if (renderToken !== _renderToken) return;
-    if (offset >= items.length) {
-      if (typeof onComplete === 'function') onComplete();
-      return;
-    }
+    if (offset >= items.length) return;
     const end = Math.min(offset + batchSize, items.length);
     const html = items.slice(offset, end).map((item, i) => renderItem(item, offset + i + 1)).join('');
     container.insertAdjacentHTML('beforeend', html);
     offset = end;
-    if (offset < items.length) {
-      _scheduleDeferredRender(appendBatch);
-    } else if (typeof onComplete === 'function') {
-      onComplete();
-    }
+    if (offset < items.length) _scheduleDeferredRender(appendBatch);
   };
 
   _scheduleDeferredRender(appendBatch);
-}
-
-function _appendHtmlInBatches(container, items, renderItem, startRank, batchSize, renderToken) {
-  if (!container || !items || items.length === 0) return;
-  let offset = 0;
-  const appendBatch = () => {
-    if (renderToken !== _renderToken) return;
-    const end = Math.min(offset + batchSize, items.length);
-    const html = items.slice(offset, end).map((item, i) => renderItem(item, startRank + offset + i)).join('');
-    container.insertAdjacentHTML('beforeend', html);
-    offset = end;
-    if (offset < items.length) _scheduleDeferredRender(appendBatch);
-  };
-  appendBatch();
 }
 
 // html2canvas lazy-loader — 캡쳐/공유 카드 클릭 시에만 430KB 로드
@@ -220,6 +194,14 @@ function scoreClass(score) {
   if (score >= 70) return 'score-high';
   if (score >= 50) return 'score-mid';
   return 'score-low';
+}
+
+function _scoreVerdict(score) {
+  if (score >= 70) return '우수';   // green
+  if (score >= 50) return '양호';   // yellow
+  if (score >= 20) return '미흡';   // red-light
+  if (score >= 0)  return '주의';   // red
+  return '미달';                    // red, below zero
 }
 
 function _signalTier(signal) {
@@ -454,27 +436,6 @@ function fmtPrice(v) {
   return n.toFixed(2);
 }
 
-function _setRangeRow(prefix, low, high, current) {
-  const lowN = Number(low);
-  const highN = Number(high);
-  const curN = Number(current);
-  const lowEl = document.getElementById(`${prefix}-low`);
-  const highEl = document.getElementById(`${prefix}-high`);
-  const marker = document.getElementById(`${prefix}-marker`);
-  const suffix = currentMarket === 'KR' ? '원' : '';
-  if (lowEl) lowEl.textContent = isFinite(lowN) && lowN > 0 ? `${fmtPrice(lowN)}${suffix}` : '—';
-  if (highEl) highEl.textContent = isFinite(highN) && highN > 0 ? `${fmtPrice(highN)}${suffix}` : '—';
-  if (!marker) return;
-  if (!isFinite(lowN) || !isFinite(highN) || !isFinite(curN) || highN <= lowN) {
-    marker.style.left = '50%';
-    marker.title = '';
-    return;
-  }
-  const pos = Math.max(0, Math.min(100, ((curN - lowN) / (highN - lowN)) * 100));
-  marker.style.left = `${pos.toFixed(1)}%`;
-  marker.title = `현재 위치 ${pos.toFixed(0)}%`;
-}
-
 function _fmtAvgVol(v) {
   if (v == null || !isFinite(v) || v <= 0) return '—';
   const n = Number(v);
@@ -512,7 +473,6 @@ function _setSegActive(groupId, val) {
 }
 
 function onMarketChange(val) {
-  if (val !== 'KR') val = 'KR';
   if (currentMarket === val) {
     _setSegActive('market-btn-group', val);
     return;
@@ -631,48 +591,33 @@ let _warmingRetries = 0;
 const _WARMING_MAX_RETRY = 12;            // 12회 × 5초 = 약 60초
 // 섹터 변경 race condition 가드: 늦게 도착한 stale 요청이 최신 요청 덮어쓰지 않게.
 let _scanToken = 0;
-let _lastAutoScanTs = Date.now();
+let _lastAutoScanTs = 0;
 
-function _visibleRenderedStockCount() {
-  const mobileVisible = window.innerWidth <= 768;
-  if (mobileVisible) {
-    return document.querySelectorAll('#mobile-stock-list .stock-card[data-ticker]').length;
-  }
-  return document.querySelectorAll('#stock-list tr[data-ticker]').length;
-}
-
-function _captureRefreshViewState() {
-  return {
-    x: window.scrollX || 0,
-    y: window.scrollY || 0,
-    renderedCount: _visibleRenderedStockCount(),
-  };
-}
-
-function _restoreRefreshViewState(state) {
-  if (!state) return;
-  const restore = () => window.scrollTo(state.x || 0, state.y || 0);
-  requestAnimationFrame(restore);
-  window.setTimeout(restore, 80);
-  window.setTimeout(restore, 220);
-}
-
-async function runScan(options) {
-  const opts = options && typeof options === 'object' ? options : {};
-  const silent = !!opts.silent;
+async function runScan() {
   const btn = document.getElementById('btn-scan');
-  if (btn && !silent) { btn.disabled = true; }
+  if (btn) { btn.disabled = true; }
 
-  const viewState = silent ? _captureRefreshViewState() : null;
-  if (!silent) {
-    setStatHTML('stat-total',  '…<span class="unit">개</span>');
-    setStatHTML('stat-strong', '…<span class="unit">개</span>');
-    showScanLoading();
-  }
+  setStatHTML('stat-total',  '…<span class="unit">개</span>');
+  setStatHTML('stat-strong', '…<span class="unit">개</span>');
+  showScanLoading();
 
   const myToken = ++_scanToken;
   const reqSector = currentSector;
   const reqMarket = currentMarket;
+
+  // localStorage 즉시 표시 — 서버 워밍 대기 없이 이전 결과를 먼저 렌더링
+  const _lsCacheKey = `_scan_${reqMarket}_${currentStrategy}_${reqSector}`;
+  try {
+    const _lsRaw = localStorage.getItem(_lsCacheKey);
+    if (_lsRaw && allStocks.length === 0) {
+      const _lsData = JSON.parse(_lsRaw);
+      if (Array.isArray(_lsData) && _lsData.length > 0) {
+        allStocks = _lsData;
+        _scanStocks = allStocks;
+        _refreshFilteredView();
+      }
+    }
+  } catch {}
 
   try {
     const p = new URLSearchParams({ market: reqMarket, strategy: currentStrategy });
@@ -707,26 +652,22 @@ async function runScan(options) {
     if (allStocks.length === 0 && res.headers.get('X-Warming-In-Progress') === 'true') {
       if (_warmingRetries < _WARMING_MAX_RETRY) {
         _warmingRetries += 1;
-        if (!silent) setStockListMsg(`데이터 준비 중… 자동으로 불러옵니다 (${_warmingRetries}/${_WARMING_MAX_RETRY})`);
-        setTimeout(() => { if (!document.hidden) runScan({ silent }); }, 5000);
+        setStockListMsg(`데이터 준비 중… 자동으로 불러옵니다 (${_warmingRetries}/${_WARMING_MAX_RETRY})`);
+        setTimeout(() => { if (!document.hidden) runScan(); }, 5000);
       } else {
         // 캡 도달 — 명시적 실패 안내, 카운터 리셋(사용자가 직접 다시 시도하면 재개).
-        if (!silent) setStockListMsg('서버 준비 지연 중임. 잠시 후 새로고침 ㄱㄱ');
+        setStockListMsg('서버 준비 지연 중임. 잠시 후 새로고침 ㄱㄱ');
         _warmingRetries = 0;
       }
       return;
     }
     _runScanAttempt = 0;  // 성공 시 카운터 리셋
     _warmingRetries = 0;
-    _lastAutoScanTs = Date.now();
-    if (silent && viewState) {
-      _renderInitialCapOverride = Math.max(100, viewState.renderedCount || 0);
-    }
+    // localStorage에 저장 — 다음 로드 시 서버 워밍 전 즉시 표시용
+    try { localStorage.setItem(_lsCacheKey, JSON.stringify(allStocks)); } catch {}
     _refreshFilteredView();
-    if (silent) _restoreRefreshViewState(viewState);
   } catch (e) {
     console.error('runScan 실패:', e);
-    if (silent) return;
     // 콜드 스타트 / 네트워크 흔들림 — 백오프하며 자동 재시도.
     if (_runScanAttempt < _RUN_SCAN_MAX_RETRY) {
       const delay = _RUN_SCAN_BACKOFF_MS[_runScanAttempt] || 12000;
@@ -742,8 +683,8 @@ async function runScan(options) {
   } finally {
     // stale 요청이 최신 요청의 로딩 UI를 끄지 못하게 가드
     if (myToken === _scanToken) {
-      if (!silent) stopScanLoading();
-      if (btn && !silent) btn.disabled = false;
+      stopScanLoading();
+      if (btn) btn.disabled = false;
     }
   }
 }
@@ -761,6 +702,7 @@ function _matchesFilter(s, f) {
     case 'near_high':   return !!s.NearHighPass;
     case 'pullback':    return s.RSI != null && s.RSI <= 40;
     case 'greedzone':   return !!s.GreedZone;
+    case 'bf_buy':      return (s.BFScore ?? 0) >= 25;            // 저점매수 후보 (25+: 관심, 40+: 적극, 60+: 강력)
     case 'bottleneck':  return (s.BottleneckScore ?? 0) >= 60;   // 공급망 병목 후보(상류 희소층 근접)
     case 'bottleneck_entry': return s.BottleneckEntryPass === true;  // 병목 ∩ 진입타이밍(폭등꼭대기·과매수 제외)
     case 'score_surge': return (s.ScoreDelta ?? -Infinity) >= 3;   // 어제 대비 점수 +3 이상 급등
@@ -1422,8 +1364,6 @@ function renderStockTable(stocks) {
   const tbody = document.getElementById('stock-list');
   if (!tbody) return;
   _currentResults = Array.isArray(stocks) ? stocks : [];
-  const renderCapOverride = _renderInitialCapOverride;
-  _renderInitialCapOverride = null;
 
   // 워치리스트 카운트 (전체 기준)
   const wlEl = document.getElementById('chip-watch-count');
@@ -1485,34 +1425,34 @@ function renderStockTable(stocks) {
   }
   // 보이는 뷰만 렌더링 — 데스크톱/모바일 중복 렌더링 제거 (1400종목 × 2 → × 1)
   // 초기 100개만 렌더링 → "더 보기" 버튼으로 나머지 로드 (DOM 부하 93% 절감)
-  const _INITIAL_CAP = Math.min(
-    view.length,
-    Math.max(100, Number(renderCapOverride) || 100)
-  );
+  const _INITIAL_CAP = 100;
   const capped = view.length > _INITIAL_CAP ? view.slice(0, _INITIAL_CAP) : view;
   const remaining = view.length - capped.length;
-  _renderedInitialCap = capped.length;
 
   if (window.innerWidth <= 768) {
     tbody.innerHTML = '';
-    _updateMobileList(capped, null, renderToken, () => {
-      if (renderToken !== _renderToken || remaining <= 0) return;
+    _updateMobileList(capped, null, renderToken);
+    if (remaining > 0) {
       const mEl = document.getElementById('mobile-stock-list');
-      if (!mEl) return;
-      const btn = document.createElement('div');
-      btn.className = 'load-more-btn';
-      btn.innerHTML = `<button onclick="this.parentElement.remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>`;
-      mEl.appendChild(btn);
-    });
+      if (mEl) {
+        const btn = document.createElement('div');
+        btn.className = 'load-more-btn';
+        btn.innerHTML = `<button onclick="this.parentElement.remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>`;
+        mEl.appendChild(btn);
+      }
+    }
   } else {
-    _renderHtmlInBatches(tbody, view.slice(0, _INITIAL_CAP), renderStockRow, 30, 50, renderToken, () => {
-      if (renderToken !== _renderToken || remaining <= 0) return;
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="${_colCount()}" class="center" style="padding:12px;">
-        <button class="load-more-btn-inner" onclick="this.closest('tr').remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>
-      </td>`;
-      tbody.appendChild(tr);
-    });
+    _renderHtmlInBatches(tbody, view.slice(0, _INITIAL_CAP), renderStockRow, 30, 50, renderToken);
+    if (remaining > 0) {
+      _scheduleDeferredRender(() => {
+        if (renderToken !== _renderToken) return;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td colspan="${_colCount()}" class="center" style="padding:12px;">
+          <button class="load-more-btn-inner" onclick="this.closest('tr').remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>
+        </td>`;
+        tbody.appendChild(tr);
+      });
+    }
   }
   // 전체 뷰 저장 (더 보기 클릭 시 사용)
   window._pendingFullView = remaining > 0 ? view : null;
@@ -1525,14 +1465,20 @@ function _renderAllStocks() {
   const token = window._pendingRenderToken;
   if (!view || token !== _renderToken) return;
   window._pendingFullView = null;
-  const _CAP = Number(_renderedInitialCap) || 100;
+  const _CAP = 100;
   const rest = view.slice(_CAP);
   if (window.innerWidth <= 768) {
     const mEl = document.getElementById('mobile-stock-list');
-    if (mEl) _appendHtmlInBatches(mEl, rest, renderMobileCard, _CAP + 1, 30, token);
+    if (mEl) _renderHtmlInBatches(mEl, rest, renderMobileCard, 15, 30, token);
   } else {
     const tbody = document.getElementById('stock-list');
-    if (tbody) _appendHtmlInBatches(tbody, rest, renderStockRow, _CAP + 1, 50, token);
+    if (tbody) {
+      const html = rest.map((item, i) => renderStockRow(item, _CAP + i + 1)).join('');
+      // 배치로 분할 삽입
+      const frag = document.createElement('tbody');
+      frag.innerHTML = html;
+      while (frag.firstChild) tbody.appendChild(frag.firstChild);
+    }
   }
 }
 
@@ -1728,13 +1674,12 @@ function renderStockRow(stock, rank) {
   const logoHtml = _usLogo
     ? `<img class="row-logo" src="${_usLogo}" loading="lazy" alt="" onerror="this.style.display='none'" style="width:18px;height:18px;border-radius:4px;object-fit:contain;vertical-align:middle;margin-right:6px;background:var(--surface-2);">`
     : '';
-  const nameBadges = `${stock.IsSpeculativeTheme ? `<span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠ 테마</span>` : ''}${stock.MicroOutlier ? `<span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬 마이크로 이상</span>` : ''}${_greedBadge(stock)}${_bottleneckBadge(stock)}`;
   return `
 <tr onclick="openDetail('${t}')" data-ticker="${t}" style="cursor:pointer;">
   <td class="center"><input type="checkbox" ${checked ? 'checked' : ''} onclick="toggleSelectStock('${t}', event)" style="cursor:pointer;width:16px;height:16px;accent-color:#3182F6;"></td>
   <td class="center"><span class="rank-cell ${rankClass}">${rank}</span></td>
   <td class="name-cell" onmouseenter="showStockPopup('${t}', event)" onmouseleave="hideStockPopup()">
-    <span class="stock-name">${logoHtml}<span class="stock-name-text">${esc(stock.Name || stock.Ticker)}</span><span class="stock-name-badges">${nameBadges}</span></span>
+    <span class="stock-name">${logoHtml}${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠ 테마</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬 마이크로 이상</span>` : ''}${_greedBadge(stock)}${_bottleneckBadge(stock)}</span>
     <span class="stock-code">${t}</span>
   </td>
   <td class="desc-cell">${esc(stock.Desc || _industryKo(stock.Industry) || '')}</td>
@@ -1758,7 +1703,7 @@ function renderStockRow(stock, rank) {
 </tr>`;
 }
 
-function _updateMobileList(view, emptyMsg, renderToken, onComplete) {
+function _updateMobileList(view, emptyMsg, renderToken) {
   const el = document.getElementById('mobile-stock-list');
   if (!el) return;
   const token = renderToken == null ? ++_renderToken : renderToken;
@@ -1766,7 +1711,7 @@ function _updateMobileList(view, emptyMsg, renderToken, onComplete) {
     el.innerHTML = `<div class="mobile-stock-list-msg">${emptyMsg || '결과 없음'}</div>`;
     return;
   }
-  _renderHtmlInBatches(el, view, renderMobileCard, 15, 30, token, onComplete);
+  _renderHtmlInBatches(el, view, renderMobileCard, 15, 30, token);
 }
 
 // Mobile override: clearer hierarchy and lighter information density on small screens.
@@ -2051,7 +1996,7 @@ const _STOCK_TRIVIA = [
   '한국 상장사의 배당성향은 미국·유럽에 비해 낮은 편이다. "코리아 디스카운트"의 한 원인으로 꼽힌다.',
   '한국 국민연금은 세계 3위권의 대형 연기금이다. 국내외 주식에 수백조 원을 투자하고 있다.',
   '한국에서 ETF 거래에는 증권거래세가 면제된다.',
-  '한국 코스피 시가총액 1·2위 모두 반도체 기업이다(삼성전자, SK하이닉스).',
+  '한국 코스피 시가총액 1·2위 모두 반도체 기업이다(SK하이닉스, 삼성전자). 2026년 6월 SK하이닉스가 삼성전자를 처음 제쳤다.',
   '한국에서 상장주식 매매 차익은 대주주가 아닌 한 양도소득세가 비과세다(2024년 기준).',
   '한국 증시에서 "테마주"란 특정 이슈에 엮여 급등하는 종목군이다. 선거철에 특히 기승을 부린다.',
   '한국 투자자의 해외주식 투자가 2020년 이후 급증하며 "서학개미"라는 신조어가 생겼다.',
@@ -2237,9 +2182,17 @@ async function _lookupTicker(ticker) {
 
 async function _fetchSuggestions(q, box) {
   try {
-    const p = new URLSearchParams({ q, market: 'KR' });
-    const r = await fetch(`/api/search?${p}`);
-    let hits = await r.json();
+    // 한글이 섞이면 KR 우선, 그 외에는 currentMarket 우선 — 매칭 0건이면 반대 시장도 조회한다.
+    const hasHangul = /[ㄱ-힝]/.test(q);
+    const primary = hasHangul ? 'KR' : currentMarket;
+    const secondary = primary === 'KR' ? 'US' : 'KR';
+    const fetchOne = async (mkt) => {
+      const p = new URLSearchParams({ q, market: mkt });
+      const r = await fetch(`/api/search?${p}`);
+      return await r.json();
+    };
+    let hits = await fetchOne(primary);
+    if (!hits || !hits.length) hits = await fetchOne(secondary);
     if (!hits || !hits.length) { box.style.display = 'none'; return; }
     box.innerHTML = hits.map((h, i) =>
       `<div class="search-suggest-item" data-ticker="${esc(h.ticker)}" data-idx="${i}"
@@ -2368,7 +2321,9 @@ function populateDetail(d) {
   const ol = document.getElementById('detail-oneliner');
   if (ol) {
     if (d.OneLiner) {
-      ol.innerHTML = olHtml(d.OneLiner) + (d.OneLinerData ? `<span class="oneliner-data">${esc(d.OneLinerData)}</span>` : '');
+      ol.innerHTML = olHtml(d.OneLiner)
+        + (d.OneLinerSub ? `<span class="oneliner-sub">→ ${esc(d.OneLinerSub)}</span>` : '')
+        + (d.OneLinerData ? `<span class="oneliner-data">${esc(d.OneLinerData)}</span>` : '');
       ol.setAttribute('data-tag', d.OneLinerTag || '');
       ol.style.display = '';
     } else {
@@ -2427,15 +2382,40 @@ function populateDetail(d) {
   const _detBrkSrc = document.getElementById('detail-broker-src');
   if (_detBrkSrc) {
     if (d.BrokerTarget) {
-      _detBrkSrc.textContent = d.BrokerAnalystCount
-        ? `증권사 컨센서스 ${d.BrokerAnalystCount}곳`
-        : '증권사 컨센서스';
-      _detBrkSrc.removeAttribute('title');
+      // 짧은 출처명 + 애널리스트 수
+      let shortSrc = d.BrokerTargetSource || '증권사 컨센서스';
+      if (shortSrc.includes('네이버')) shortSrc = '네이버증권 컨센서스';
+      else if (shortSrc.includes('Yahoo')) {
+        shortSrc = 'Yahoo Finance';
+        if (d.BrokerAnalystCount) shortSrc += ` (목표가 제시 애널리스트 ${d.BrokerAnalystCount}명)`;
+      }
+      _detBrkSrc.textContent = shortSrc;
+      _detBrkSrc.title = d.BrokerTargetSource;  // 풀 텍스트는 툴팁
     } else {
       _detBrkSrc.textContent = '컨센서스 없음';
       _detBrkSrc.title = '';
     }
   }
+
+  // 미장: '메인 목표가' 박스 + 'DCF 적정가' 줄을 숨기고 증권사 목표가만 노출.
+  // 단독 노출이라 점선 보조박스 대신 메인 박스처럼 강조. (한국장은 기존 그대로)
+  (function _usTargetLayout() {
+    const isUS = currentMarket === 'US';
+    const mainBox  = document.getElementById('detail-main-box');
+    const dcfLine  = document.getElementById('detail-dcf-line');
+    const auxLabel = document.getElementById('detail-aux-label');
+    const auxBox   = document.getElementById('detail-aux-box');
+    if (mainBox)  mainBox.style.display  = isUS ? 'none' : '';
+    if (dcfLine)  dcfLine.style.display  = isUS ? 'none' : '';
+    if (auxLabel) auxLabel.style.display = isUS ? 'none' : '';
+    if (auxBox) {
+      auxBox.style.border     = isUS ? '1px solid var(--border)'
+                                     : '1px dashed var(--border)';
+      auxBox.style.background = isUS
+        ? 'var(--brand-tint)'
+        : 'var(--bg-tertiary)';
+    }
+  })();
 
   const scoreEl = document.getElementById('detail-score');
   if (scoreEl) {
@@ -2519,9 +2499,9 @@ function _renderEarningsSummary(d, cardId = 'detail-earnings-card', wrapId = 'de
   if (d._EPSGrowth != null && d._EPSGrowth !== 0) {
     const v = d._EPSGrowth * 100;
     metrics.push(['EPS 성장률', (v >= 0 ? '+' : '') + fmt(v, 1) + '%',
-      v >= 25 ? 'var(--success)' : v < 0 ? 'var(--destructive)' : null, 'EPS 성장률']);
+      v >= 25 ? 'var(--success)' : v < 0 ? 'var(--destructive)' : null, '분기 순이익 전년비']);
   } else {
-    metrics.push(['EPS 성장률', '—', null, 'EPS 성장률']);
+    metrics.push(['EPS 성장률', '—', null, '분기 순이익 전년비']);
   }
 
   if (d._ROE) {
@@ -2733,7 +2713,7 @@ function _breakdownItemHtml(item) {
     </div>
     <svg class="cs-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
   </div>
-  <div class="cs-score-big ${sc}">${(typeof score === 'number' && isFinite(score)) ? fmt(score, 1) : '<span style="font-size:11px;color:var(--text-tertiary);">데이터 부족</span>'}</div>
+  <div class="cs-score-big ${sc}">${(typeof score === 'number' && isFinite(score)) ? _scoreVerdict(score) : '<span style="font-size:11px;color:var(--text-tertiary);">데이터 부족</span>'}</div>
   <div class="cs-bar-wrap"><div class="cs-bar-fill ${sc}" style="width:${barW}%"></div></div>
   ${briefDesc ? `<div class="cs-desc-brief">${esc(_trKo(briefDesc))}</div>` : ''}
 </div>`;
@@ -2846,7 +2826,7 @@ async function openDetail(ticker) {
 
   // 스캔 데이터가 이미 있으면 즉시 렌더링 (빈 드로어 방지)
   const cached = _stockMap[ticker];
-  if (cached) _populatePanelDetail(cached, /* skipFourAxis */ true);
+  if (cached) _populatePanelDetail(cached, /* skipFourAxis */ true, /* skipVerdict */ true);
 
   // 4축 차트 + 종목 상세 + AQ 시그널 + 증권사 컨센서스 + 센티먼트를 모두 병렬로 요청
   // F6: 4축 차트는 IntersectionObserver로 가시영역 진입 시 1회 호출 (rootMargin 200px 사전로딩)
@@ -2854,6 +2834,7 @@ async function openDetail(ticker) {
   _loadSentiment(ticker, currentMarket, seq);
   _loadInvestorFlow(ticker, currentMarket, seq);
   loadConsensus(ticker, 'dp-consensus-card', 'dpcons');
+  _loadSerenity(ticker, seq);
 
   try {
     const p   = new URLSearchParams({ market: currentMarket, strategy: currentStrategy });
@@ -2870,6 +2851,7 @@ async function openDetail(ticker) {
       data.OneLiner = cached.OneLiner;
       if (cached.OneLinerData != null) data.OneLinerData = cached.OneLinerData;
       if (cached.OneLinerTag != null) data.OneLinerTag = cached.OneLinerTag;
+      if (cached.OneLinerSub  != null) data.OneLinerSub  = cached.OneLinerSub;
     }
     _populatePanelDetail(data, /* skipFourAxis */ true);
   } catch (e) {
@@ -2896,6 +2878,36 @@ async function _loadInvestorFlow(ticker, market, seq) {
   }
 }
 
+async function _loadSerenity(ticker, seq) {
+  const card = document.getElementById('dp-serenity-card');
+  if (card) card.style.display = 'none';
+  try {
+    const res = await fetch(`/api/serenity/${encodeURIComponent(ticker)}`);
+    if (seq !== _detailSeq) return;
+    if (!res.ok) return; // 커버리지 없는 종목 — 조용히 숨김
+    const d = await res.json();
+    if (!d || d.error || seq !== _detailSeq) return;
+    const colorMap = { green: '#22c55e', yellow: '#f59e0b', red: '#ef4444', neutral: '#94a3b8' };
+    const bgMap    = { green: 'rgba(34,197,94,0.08)', yellow: 'rgba(245,158,11,0.08)', red: 'rgba(239,68,68,0.08)', neutral: 'rgba(148,163,184,0.08)' };
+    const c = d.color || 'neutral';
+    const badge = document.getElementById('dp-serenity-signal-badge');
+    const signalEl = document.getElementById('dp-serenity-signal');
+    const quoteEl  = document.getElementById('dp-serenity-quote');
+    const ctxEl    = document.getElementById('dp-serenity-context');
+    const linkEl   = document.getElementById('dp-serenity-link');
+    const dateEl   = document.getElementById('dp-serenity-date');
+    if (badge)   { badge.textContent = d.signal.split('—')[0].trim().split('(')[0].trim(); badge.style.background = bgMap[c]; badge.style.color = colorMap[c]; badge.style.borderColor = colorMap[c] + '44'; }
+    if (signalEl) signalEl.textContent = d.signal;
+    if (quoteEl)  quoteEl.textContent  = d.quote ? `"${d.quote}"` : '';
+    if (ctxEl)    ctxEl.textContent    = d.context || '';
+    if (linkEl)   { linkEl.href = d.tweet_url || '#'; linkEl.style.display = d.tweet_url ? '' : 'none'; }
+    if (dateEl)   dateEl.textContent = d.tweet_date ? d.tweet_date.slice(0, 10) : '';
+    if (card) card.style.display = '';
+  } catch (e) {
+    console.debug('serenity 로드 실패:', e);
+  }
+}
+
 async function _loadSentiment(ticker, market, seq) {
   if (market !== 'US') return;
   try {
@@ -2908,7 +2920,6 @@ async function _loadSentiment(ticker, market, seq) {
     // 키 머지 후 수급/센티먼트 카드만 재렌더
     Object.assign(_lastDetailData, data);
     _renderInvestorCard(_lastDetailData);
-    _renderFhNews(_lastDetailData);
     _renderFhLogo(_lastDetailData);
   } catch (e) {
     console.debug('sentiment 로드 실패:', e);
@@ -2939,17 +2950,16 @@ function _clearPanelDetail() {
   if (_ec2) _ec2.style.display = 'none';
   const _ic = document.getElementById('dp-insider-card');
   if (_ic) _ic.style.display = 'none';
+  const _src = document.getElementById('dp-serenity-card');
+  if (_src) _src.style.display = 'none';
+  const _tm = document.getElementById('dp-thermo-marker');
+  if (_tm) _tm.style.left = '50%';
   const _lb = document.getElementById('dp-leader-badge');
   if (_lb) _lb.style.display = 'none';
   const _el = document.getElementById('dp-link-external');
   if (_el) _el.style.display = 'none';
   const _nb = document.getElementById('dp-news-bar');
   if (_nb) _nb.style.display = 'none';
-  ['dp-verdict-poster', 'dp-entry-summary', 'dp-fa-reasons', 'dp-timing-summary',
-   'dp-timing-mini', 'dp-split-plan'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
-  });
   ['dp-name','dp-ticker','dp-sector','dp-about','dp-score','dp-signal',
    'dp-price','dp-day-chg','dp-target','dp-broker-target',
    'dp-axis-eps-val','dp-axis-roe-val','dp-axis-mom-val','dp-axis-rs-val'].forEach(id => setText(id, '…'));
@@ -2973,7 +2983,7 @@ function _clearPanelDetail() {
   if (rg) rg.style.display = 'none';
 }
 
-function _populatePanelDetail(d, skipFourAxis) {
+function _populatePanelDetail(d, skipFourAxis, skipVerdict) {
   _lastDetailData = d;
   _renderHeroWatermark(d);
   setText('dp-name',    d.Name   || d.Ticker || '—');
@@ -2985,7 +2995,7 @@ function _populatePanelDetail(d, skipFourAxis) {
   if (aboutEl)  aboutEl.textContent = aboutText;
   if (aboutBox) aboutBox.style.display = aboutText ? '' : 'none';
   try { _renderMoatDetail(d); } catch (e) { console.error('moat render failed:', e); }
-  try { _loadPeersCard(d.Ticker, 'KR'); } catch (e) { console.error('peers load failed:', e); }
+  try { _loadPeersCard(d.Ticker, (typeof currentMarket !== 'undefined' && currentMarket) || 'US'); } catch (e) { console.error('peers load failed:', e); }
 
   try { _loadSegmentsCard(d.Ticker); } catch (e) { console.error('segments load failed:', e); }
   try { _loadOwnershipCard(d.Ticker); } catch (e) { console.error('ownership load failed:', e); }
@@ -2995,8 +3005,9 @@ function _populatePanelDetail(d, skipFourAxis) {
   setText('dp-target',  d.TargetPrice ? fmtPrice(d.TargetPrice) : '—');
   setText('dp-broker-target', d.BrokerTarget ? fmtPrice(d.BrokerTarget) : '—');
 
+  // 미장: '메인 목표가' 행을 숨기고 증권사 목표가만 노출 (한국장은 기존 그대로)
   const _dpTgtRow = document.getElementById('dp-target-row');
-  if (_dpTgtRow) _dpTgtRow.style.display = '';
+  if (_dpTgtRow) _dpTgtRow.style.display = currentMarket === 'US' ? 'none' : '';
 
   // 메인 목표가 상승여력 (노무라식 우선, 없으면 DCF)
   const dpDcfUp = document.getElementById('dp-dcf-upside');
@@ -3021,10 +3032,14 @@ function _populatePanelDetail(d, skipFourAxis) {
   const brkSrcEl = document.getElementById('dp-broker-src');
   if (brkSrcEl) {
     if (d.BrokerTarget) {
-      brkSrcEl.textContent = d.BrokerAnalystCount
-        ? `증권사 컨센서스 ${d.BrokerAnalystCount}곳`
-        : '증권사 컨센서스';
-      brkSrcEl.removeAttribute('title');
+      let shortSrc = d.BrokerTargetSource || '증권사 컨센서스';
+      if (shortSrc.includes('네이버')) shortSrc = '네이버증권 컨센서스';
+      else if (shortSrc.includes('Yahoo')) {
+        shortSrc = 'Yahoo Finance';
+        if (d.BrokerAnalystCount) shortSrc += ` (목표가 제시 애널리스트 ${d.BrokerAnalystCount}명)`;
+      }
+      brkSrcEl.textContent = shortSrc;
+      brkSrcEl.title = d.BrokerTargetSource;
     } else {
       brkSrcEl.textContent = '컨센서스 없음';
       brkSrcEl.removeAttribute('title');
@@ -3047,7 +3062,7 @@ function _populatePanelDetail(d, skipFourAxis) {
   if (chgEl) {
     const sign = dayChg > 0 ? '+' : '';
     chgEl.textContent = `${sign}${(dayChg * 100).toFixed(2)}%`;
-    chgEl.className = 'dp-metric-val ' + (dayChg > 0 ? 'chg-up' : dayChg < 0 ? 'chg-down' : 'chg-flat');
+    chgEl.className = 'dp-stat-val ' + (dayChg > 0 ? 'chg-up' : dayChg < 0 ? 'chg-down' : 'chg-flat');
   }
 
   // (상승여력은 DCF/증권사 각 행에 인라인 표시됨)
@@ -3093,9 +3108,8 @@ function _populatePanelDetail(d, skipFourAxis) {
   // 실적 한눈에 카드 (Hero 바로 아래)
   _renderEarningsSummary(d, 'dp-earnings-card', 'dp-earnings-chips');
 
-  // 상세 결론 및 분할 진입 가격대. 4축 근거는 비동기 분석 응답으로 보강한다.
-  _renderEntrySummary(d);
-  _renderSplitPlan(d);
+  // 진입 타이밍 카드
+  if (!skipVerdict) _renderEntryVerdict(d);
 
   // 종합×진입 2축 사분면 배지
   _renderQuadrant(d);
@@ -3107,9 +3121,7 @@ function _populatePanelDetail(d, skipFourAxis) {
   _renderRiskGauge(d);
   _renderDrawdownRisk(d);
 
-  if (Array.isArray(d.Breakdown)) {
-    renderBreakdown(d.Breakdown);
-  }
+  if (Array.isArray(d.Breakdown)) renderBreakdown(d.Breakdown);
 
   // KR 마켓일 때 공시·뉴스 탭 표시
   const dnBtn = document.getElementById('dp-btn-dartnews');
@@ -3118,6 +3130,9 @@ function _populatePanelDetail(d, skipFourAxis) {
   // KR이면 뉴스 바를 위해 즉시 fetch (탭 클릭 전에도 표시)
   if (currentMarket === 'KR' && d.Ticker) loadDpDartNews(d.Ticker);
 
+  // US 마켓일 때 US 인사이트 탭 표시
+  const usBtn = document.getElementById('dp-btn-usinsight');
+  if (usBtn) usBtn.style.display = currentMarket === 'US' ? '' : 'none';
   _dpUSInsightLoaded = false;
 
   // 미드캡 알파 시그널 (SP400 전용)
@@ -3134,19 +3149,6 @@ function _populatePanelDetail(d, skipFourAxis) {
   // CAN SLIM 탭으로 초기화
   switchDpTab('canslim');
 
-  // 1008-풀 한줄평 포스터 (4축 차트 위 상단)
-  const haikuEl = document.getElementById('dp-fa-haiku');
-  if (haikuEl) {
-    if (d.OneLiner) {
-      haikuEl.innerHTML = olHtml(d.OneLiner) + (d.OneLinerData ? `<span class="oneliner-data">${esc(d.OneLinerData)}</span>` : '');
-      haikuEl.setAttribute('data-tag', d.OneLinerTag || '');
-      haikuEl.style.display = '';
-    } else {
-      haikuEl.innerHTML = '';
-      haikuEl.removeAttribute('data-tag');
-      haikuEl.style.display = 'none';
-    }
-  }
 
   // 차트 자동 로드 (openDetail에서 병렬 호출 시 skipFourAxis=true)
   if (!skipFourAxis) {
@@ -3157,229 +3159,7 @@ function _populatePanelDetail(d, skipFourAxis) {
   }
 }
 
-function _entryTone(entryScore, totalScore, status) {
-  const score = Number(entryScore);
-  if (Number.isFinite(score) && score >= 70) return { cls: 'good', label: '진입 조건 충족' };
-  if (String(status || '').toUpperCase() === 'STRONG') return { cls: 'good', label: '진입 조건 양호' };
-  if (Number.isFinite(score) && score >= 40) return { cls: 'wait', label: '눌림 대기' };
-  if (Number(totalScore) >= 65) return { cls: 'wait', label: '관찰 유지' };
-  return { cls: 'risk', label: '진입 보류' };
-}
-
-function _entryConviction(d) {
-  const plan = d.EntryPlan || {};
-  const bf = d.BFScore != null ? Number(d.BFScore) : null;
-  const es = d.EntryScore != null ? Number(d.EntryScore) : null;
-  const ts = d.TotalScore != null ? Number(d.TotalScore) : null;
-  const gz = d.GreedZone ? Number(d.GreedZoneScore || 0) : 0;
-  let conv = 50;
-  if (bf != null) {
-    if (bf >= 60) conv += 15;
-    else if (bf >= 40) conv += 8;
-    else if (bf >= 25) conv += 3;
-  }
-  if (es != null) {
-    if (es >= 70) conv += 15;
-    else if (es >= 50) conv += 8;
-    else if (es < 30) conv -= 10;
-  }
-  if (ts != null) {
-    if (ts >= 70) conv += 12;
-    else if (ts >= 55) conv += 5;
-    else if (ts < 40) conv -= 8;
-  }
-  if (gz >= 70) conv -= 15;
-  else if (gz >= 40) conv -= 8;
-  if (plan.mdd_current != null && Number(plan.mdd_current) < -25) conv -= 8;
-  return Math.max(5, Math.min(95, Math.round(conv)));
-}
-
-function _entryPosterMeta(conv) {
-  if (conv >= 72) {
-    return {
-      cls: 'dvp-green',
-      word: '살만함',
-      bg: '매수',
-      timing: '🟢 담아가',
-      sub: '담기 좋은 구간',
-      lines: ['지표가 서로 같은 방향을 보고 있음', '추세와 수급이 같이 받쳐주는 중', '무리하지 말고 분할로 접근'],
-    };
-  }
-  if (conv >= 42) {
-    return {
-      cls: 'dvp-yellow',
-      word: '관망각',
-      bg: '눈팅',
-      timing: '🟡 눈팅 중',
-      sub: '아직 눈팅 중',
-      lines: ['나쁜 종목은 아닌데', '지금 들어가기엔 리스크 있음', '조금 더 내려오면 담자'],
-    };
-  }
-  return {
-    cls: 'dvp-red',
-    word: '보류각',
-    bg: '보류',
-    timing: '🔴 보류',
-    sub: '손이 먼저 나가면 안 되는 구간',
-    lines: ['지금은 신호가 약함', '추세나 수급 확인이 더 필요함', '더 좋은 자리 나올 때까지 대기'],
-  };
-}
-
-function _renderEntrySummary(d) {
-  const el = document.getElementById('dp-entry-summary');
-  const poster = document.getElementById('dp-verdict-poster');
-  const timing = document.getElementById('dp-timing-mini');
-  const plan = d.EntryPlan || {};
-  const score = Number(d.EntryScore);
-  const conv = _entryConviction(d);
-  const meta = _entryPosterMeta(conv);
-  const price = Number(d.Price);
-  const entry = Number(plan.entry);
-  const discount = Number(plan.entry_discount);
-  const action = plan.headline_action || plan.entry_type || d.EntryPhrase || '';
-  const reason = plan.one_reason || '';
-  const entryText = Number.isFinite(entry) && entry > 0 ? fmtPrice(entry) : '산출 중';
-  const discountText = Number.isFinite(discount) ? `${discount > 0 ? '-' : '+'}${Math.abs(discount).toFixed(1)}%` : '';
-  const rr = Number(plan.rr_now || plan.rr);
-  const currentText = Number.isFinite(price) && price > 0 ? fmtPrice(price) : '—';
-
-  if (poster) {
-    const extra = reason || action || '';
-    poster.className = `dp-verdict-poster ${meta.cls}`;
-    poster.innerHTML = `
-      <div class="dvp-eyebrow">살까? 말까?</div>
-      <div class="dvp-word">${esc(meta.word)}</div>
-      <div class="dvp-reason">${meta.lines.map(esc).join('<br>')}</div>
-      ${extra ? `<div class="dvp-extra">${esc(_trKo(extra))}</div>` : ''}
-      <div class="dvp-bg">${esc(meta.bg)}</div>`;
-    poster.style.display = '';
-  }
-  if (timing) {
-    timing.className = `dp-timing-mini ${meta.cls}`;
-    timing.innerHTML = `
-      <div class="dtm-eyebrow">타이밍은?</div>
-      <div class="dtm-word">${esc(meta.timing)}</div>
-      <div class="dtm-sub">${esc(meta.sub)} · 확신도 ${conv}%</div>
-      <div class="dtm-bg">${esc(meta.bg)}</div>`;
-    timing.style.display = '';
-  }
-  if (el) {
-    el.className = 'dp-entry-summary';
-    el.innerHTML = `
-      <div class="dp-entry-summary-stats">
-        <span><small>현재가</small><b>${currentText}</b></span>
-        <span><small>계획 진입가</small><b>${entryText}${discountText ? `<em>${discountText}</em>` : ''}</b></span>
-        ${Number.isFinite(rr) && rr > 0 ? `<span><small>손익비</small><b>${rr.toFixed(1)}R</b></span>` : ''}
-      </div>`;
-    el.style.display = 'none';
-  }
-}
-
-function _renderSplitPlan(d) {
-  const el = document.getElementById('dp-split-plan');
-  if (!el) return;
-  const plan = d.EntryPlan || {};
-  const current = Number(d.Price || plan.current);
-  const planned = Number(plan.entry);
-  const stop = Number(plan.stop);
-  const target = Number(plan.t1);
-  const atrPct = Number(plan.atr_pct || d.ATRPercent);
-  if (!Number.isFinite(current) || current <= 0) { el.style.display = 'none'; return; }
-
-  const entryScore = Number(d.EntryScore);
-  const weights = entryScore >= 70 ? [40, 35, 25] : entryScore >= 40 ? [25, 35, 40] : [15, 30, 55];
-  const second = Number.isFinite(planned) && planned > 0 ? planned : current * (1 - Math.max(atrPct || 3, 2) / 100);
-  const third = second * (1 - Math.max(atrPct || 3, 2) * 1.5 / 100);
-  const cells = [
-    ['1차', weights[0], current, '현재가 부근'],
-    ['2차', weights[1], second, '계획 진입가'],
-    ['3차', weights[2], third, 'ATR 추가 조정 시'],
-  ].map(([step, weight, value, note]) => `
-    <div class="dp-split-step"><span>${step} · ${weight}%</span><b>${fmtPrice(value)}</b><small>${note}</small></div>`).join('');
-  const limits = [
-    Number.isFinite(stop) && stop > 0 ? `<span>손절 기준 <b>${fmtPrice(stop)}</b></span>` : '',
-    Number.isFinite(target) && target > 0 ? `<span>1차 목표 <b>${fmtPrice(target)}</b></span>` : '',
-  ].filter(Boolean).join('');
-  el.innerHTML = `<div class="dp-split-title">분할 진입 계획 <span>ATR 변동성 기준</span></div><div class="dp-split-steps">${cells}</div>${limits ? `<div class="dp-split-limits">${limits}</div>` : ''}`;
-  el.style.display = '';
-}
-
-function _renderFourAxisReasons(d) {
-  const reasonsEl = document.getElementById('dp-fa-reasons');
-  const timingEl = document.getElementById('dp-timing-summary');
-  if (!reasonsEl && !timingEl) return;
-  const pros = [];
-  const warnings = [];
-  const axes = [
-    [d.trend, '추세가 강합니다', '추세 방향이 불안정합니다'],
-    [d.momentum, '가격 모멘텀이 양호합니다', '가격 모멘텀이 약합니다'],
-    [d.volatility, '변동성이 안정적입니다', '변동성이 큰 구간입니다'],
-    [d.volume, '수급이 추세를 뒷받침합니다', '수급 확인이 필요합니다'],
-  ];
-  axes.forEach(([axis, pro, warning]) => {
-    const score = Number(axis?.score);
-    if (!Number.isFinite(score)) return;
-    if (score >= 4) pros.push(pro);
-    else if (score <= 2) warnings.push(warning);
-  });
-  if (d.momentum?.details?.bull_div) pros.push('상승 다이버전스가 포착됐습니다');
-  if (d.momentum?.details?.bear_div) warnings.push('하락 다이버전스가 있어 추격을 주의해야 합니다');
-  if (reasonsEl) {
-    const items = [
-      ...pros.map(text => `<li class="is-positive">✅ ${esc(text)}</li>`),
-      ...warnings.map(text => `<li class="is-warning">⚠️ ${esc(text)}</li>`),
-    ].slice(0, 4);
-    reasonsEl.innerHTML = items.length ? `<ul>${items.join('')}</ul>` : '';
-    reasonsEl.style.display = items.length ? '' : 'none';
-  }
-  if (timingEl) {
-    const judge = d.entry_judge || {};
-    if (judge.label) {
-      const tone = judge.risk === 'LOW' ? 'good' : (judge.risk === 'HIGH' || judge.risk === 'EXTREME' ? 'risk' : 'wait');
-      timingEl.className = `dp-timing-summary ${tone}`;
-      timingEl.innerHTML = `<span>현재 타이밍</span><strong>${esc(judge.label)}</strong><p>${esc(judge.timing || '')}</p>`;
-      timingEl.style.display = '';
-    } else {
-      timingEl.style.display = 'none';
-      timingEl.innerHTML = '';
-    }
-  }
-}
-
 // ── Finnhub 뉴스 헤드라인 리스트 (US, 최근 7일) ──────────────────────────
-function _renderFhNews(d) {
-  const existing = document.getElementById('dp-fh-news');
-  if (!d || !d._FH_Available || !Array.isArray(d._FH_Headlines) || d._FH_Headlines.length === 0) {
-    if (existing) existing.remove();
-    return;
-  }
-  let wrap = existing;
-  if (!wrap) {
-    const anchor = document.getElementById('dp-investor-card');
-    if (!anchor || !anchor.parentNode) return;
-    wrap = document.createElement('div');
-    wrap.id = 'dp-fh-news';
-    wrap.style.cssText = 'padding:8px 24px 12px;';
-    anchor.parentNode.insertBefore(wrap, anchor.nextSibling);
-  }
-  const rows = d._FH_Headlines.slice(0, 5).map(n => {
-    const title = esc(n.title || '');
-    const src = esc(n.source || '');
-    const url = n.url || '';
-    const safeUrl = /^https?:\/\//i.test(url) ? url : '';
-    const titleHtml = safeUrl
-      ? `<a href="${esc(safeUrl)}" target="_blank" rel="noopener noreferrer" style="color:var(--text-primary); text-decoration:none;">${title}</a>`
-      : title;
-    return `<div style="padding:9px 0; border-bottom:1px solid var(--border);">
-      <div style="font-size:13px; line-height:1.45; color:var(--text-primary);">${titleHtml}</div>
-      ${src ? `<div style="font-size:10.5px; color:var(--text-tertiary); margin-top:3px;">${src}</div>` : ''}
-    </div>`;
-  }).join('');
-  wrap.innerHTML = `
-    <div style="font-size:12px; font-weight:700; color:var(--text-secondary); padding:6px 0 2px; letter-spacing:0.01em;">최근 뉴스 · 7일</div>
-    ${rows}`;
-}
-
 // ── Finnhub 회사 로고 (US, 헤더 dp-ticker 좌측) ──────────────────────────
 function _renderFhLogo(d) {
   const nameEl = document.getElementById('dp-name');
@@ -3440,114 +3220,11 @@ function _renderInvestorCard(d) {
     if (inst !== 0) items.push({ label: '기관', value: fmtQty(inst), color: inst > 0 ? 'var(--success)' : 'var(--destructive)' });
   }
 
-  // US: Finnhub
-  if (d._FH_Available) {
-    const insNet = d._FH_InsiderNet || 0;
-    if (d._FH_InsiderCount > 0) {
-      items.push({
-        label: '내부자 거래',
-        value: insNet > 0 ? '순취득' : insNet < 0 ? '순처분' : '중립',
-        sub: `${d._FH_InsiderCount}건`,
-        color: insNet > 0 ? 'var(--success)' : insNet < 0 ? 'var(--destructive)' : 'var(--text-tertiary)'
-      });
-    }
-    const change = d._FH_RecChange || '';
-    if (change && change !== 'stable') {
-      items.push({
-        label: '추천 변화',
-        value: change === 'upgrade' ? '상향' : '하향',
-        sub: `긍정 ${d._FH_RecBuy || 0} · 부정 ${d._FH_RecSell || 0}`,
-        color: change === 'upgrade' ? 'var(--success)' : 'var(--destructive)'
-      });
-    }
-    const surp = d._FH_EarnSurprise || 0;
-    if (surp !== 0) {
-      items.push({
-        label: '실적 서프라이즈',
-        value: `${surp >= 0 ? '+' : ''}${surp.toFixed(1)}%`,
-        sub: d._FH_EarnStreak >= 2 ? `${d._FH_EarnStreak}Q 연속 비트` : '',
-        color: surp > 0 ? 'var(--success)' : 'var(--destructive)'
-      });
-    }
-    // 신규: 다음 실적 D-day (60일 이내만 노출)
-    const dte = d._FH_DaysToEarnings;
-    if (dte != null && dte >= 0 && dte <= 60) {
-      items.push({
-        label: '다음 실적(추정)',
-        value: dte === 0 ? '오늘' : `D-${dte}`,
-        sub: d._FH_NextEarnings ? `~${d._FH_NextEarnings} 추정` : '추정',
-        color: dte <= 7 ? 'var(--warning)' : 'var(--text-secondary)'
-      });
-    }
-    // 신규: 내부자 심리 MSPR (-100~100, 양수=순매수 우위)
-    const mspr = d._FH_MSPR;
-    if (mspr != null) {
-      const trend = Array.isArray(d._FH_MSPRTrend) ? d._FH_MSPRTrend : [];
-      const msprColor = mspr >= 0 ? 'var(--success)' : 'var(--destructive)';
-      let spark = '';
-      if (trend.length >= 2 && typeof buildSparklineSVG === 'function') {
-        spark = buildSparklineSVG(trend, msprColor);
-      }
-      items.push({
-        label: '내부자 심리',
-        value: `${mspr >= 0 ? '+' : ''}${mspr.toFixed(0)}`,
-        sub: spark || (mspr >= 20 ? '강한 매수세' : mspr <= -20 ? '강한 매도세' : '중립'),
-        color: msprColor,
-        subIsHtml: !!spark,
-      });
-    }
-    // 신규: 뉴스 buzz (7일 50건 이상)
-    const news7 = d._FH_News7d || 0;
-    if (news7 >= 50) {
-      items.push({
-        label: '뉴스 화제성',
-        value: `${news7}건`,
-        sub: '최근 7일',
-        color: news7 >= 200 ? 'var(--warning)' : 'var(--text-secondary)'
-      });
-    }
-  }
-
-  // US: yfinance
-  if (d._YF_Available) {
-    const shortPct = d._YF_ShortPctFloat;
-    const instPct = d._YF_InstPct;
-    const recKey = d._YF_RecKey || '';
-    const tgtGap = d._YF_TargetGapPct;
-    if (shortPct != null && shortPct >= 1) {
-      items.push({
-        label: '공매도 비율',
-        value: `${shortPct.toFixed(1)}%`,
-        color: shortPct >= 5 ? 'var(--destructive)' : 'var(--text-secondary)'
-      });
-    }
-    if (instPct != null) {
-      items.push({ label: '기관 보유', value: instPct > 100 ? '100%+' : `${instPct.toFixed(0)}%`, color: 'var(--text-secondary)' });
-    }
-    if (recKey) {
-      const recKr = {strong_buy:'강한 관심', buy:'관심', hold:'보유', sell:'경계', strong_sell:'강한 경계'};
-      const recCol = recKey.includes('buy') ? 'var(--success)' : recKey.includes('sell') ? 'var(--destructive)' : 'var(--text-secondary)';
-      items.push({
-        label: '컨센서스',
-        value: recKr[recKey] || recKey,
-        sub: d._YF_NumAnalysts ? `${d._YF_NumAnalysts}명` : '',
-        color: recCol
-      });
-    }
-    if (tgtGap != null && Math.abs(tgtGap) >= 3) {
-      items.push({
-        label: '목표가 괴리',
-        value: `${tgtGap >= 0 ? '+' : ''}${tgtGap.toFixed(0)}%`,
-        color: tgtGap > 0 ? 'var(--success)' : 'var(--destructive)'
-      });
-    }
-  }
-
   if (items.length === 0) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
   grid.innerHTML = items.map(it => `
-    <div style="display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:12px; padding:12px 1px; border-bottom:1px solid var(--border);">
-      <span style="font-size:12px; color:var(--text-secondary); letter-spacing:0.01em;">${esc(it.label)}</span>
+    <div style="display:grid; grid-template-columns:1fr auto; align-items:baseline; gap:12px; padding:10px 2px; border-bottom:1px solid var(--border);">
+      <span style="font-size:12px; font-weight:600; color:var(--text-tertiary); letter-spacing:0.01em; white-space:nowrap;">${esc(it.label)}</span>
       <span style="font-size:16px; font-weight:700; letter-spacing:-0.015em; font-variant-numeric:tabular-nums; text-align:right; color:${it.color};">${esc(it.value)}${it.sub ? `<small style="display:block; font-size:10.5px; color:var(--text-tertiary); font-weight:600; margin-top:2px; text-align:right;">${it.subIsHtml ? it.sub : esc(it.sub)}</small>` : ''}</span>
     </div>
   `).join('');
@@ -3680,7 +3357,7 @@ function _renderDetailFeatures(d) {
   const thermoLbl  = document.getElementById('dp-thermo-label');
   const thermoAct  = document.getElementById('dp-thermo-action');
   const rsi = d.RSI != null ? Number(d.RSI) : null;
-  if (marker && thermoLbl && thermoAct && rsi != null) {
+  if (marker && rsi != null) {
     // RSI → 바 위치 정규화: 각 존이 균등 20% 폭을 차지하도록 매핑
     // 라벨(극도공포~극도탐욕)이 space-between 균등 배치이므로 위치를 맞춤
     let pct;
@@ -3698,10 +3375,8 @@ function _renderDetailFeatures(d) {
     else if (rsi >= 30) { lbl = '공포';     act = '공포 구간';         col = '#06B6D4'; }
     else                { lbl = '극도공포'; act = '과매도 구간';       col = '#2563EB'; }
     marker.style.borderColor = col;
-    thermoLbl.textContent  = lbl;
-    thermoLbl.style.color  = col;
-    thermoAct.textContent  = act;
-    thermoAct.style.color  = col;
+    if (thermoLbl) { thermoLbl.textContent = lbl; thermoLbl.style.color = col; }
+    if (thermoAct) { thermoAct.textContent = act; thermoAct.style.color = col; }
   }
 
   // ── RS Rating ─────────────────────────────────────────────────
@@ -3716,17 +3391,8 @@ function _renderDetailFeatures(d) {
       else if (rs >= 40) { rsCol = '#6B7280'; rsTxt = '중립';  }
       else if (rs >= 20) { rsCol = '#F59E0B'; rsTxt = '약세';  }
       else               { rsCol = '#DC2626'; rsTxt = '부진';  }
-      // 0~99 도넛 호 게이지로 시각화 — 큰 숫자 단독보다 스케일 내 위치를 즉시 전달
-      const _r = 23, _cx = 28, _cy = 28, _sw = 5;
-      const _circ = 2 * Math.PI * _r;
-      const _dash = (Math.min(99, Math.max(0, rs)) / 99) * _circ;
-      rsVal.innerHTML =
-        `<svg class="dp-rs-donut" width="56" height="56" viewBox="0 0 56 56" role="img" aria-label="RS Rating ${rs} / 99">`
-        + `<circle cx="${_cx}" cy="${_cy}" r="${_r}" fill="none" stroke="var(--surface-muted,#EDEFF2)" stroke-width="${_sw}"/>`
-        + `<circle cx="${_cx}" cy="${_cy}" r="${_r}" fill="none" stroke="${rsCol}" stroke-width="${_sw}" `
-        +   `stroke-dasharray="${_dash.toFixed(1)} ${_circ.toFixed(1)}" stroke-linecap="round" transform="rotate(-90 ${_cx} ${_cy})"/>`
-        + `<text x="${_cx}" y="${_cy}" text-anchor="middle" dominant-baseline="central" font-size="19" font-weight="800" fill="${rsCol}">${rs}</text>`
-        + `</svg>`;
+      rsVal.textContent = String(rs);
+      rsVal.style.color = rsCol;
       // 권고1: 같은 지수(시총군) 내 상대강도 — size 베타 제거한 진짜 순위
       const _IXLBL = { SP500: 'S&P500', SP400: '미드캡', SP600: '스몰캡', NDX: '나스닥100', OTHER: '기타' };
       const bkt = d.RSBucket, bktNm = d.RSBucketName;
@@ -3753,6 +3419,346 @@ function _renderDetailFeatures(d) {
     mcEl.textContent = (mc != null) ? _fmtMarketCap(mc) : '—';
   }
 
+}
+
+// ── 진입 판단 종합 카드 ──────────────────────────────────────────────────
+function _renderEntryVerdict(d) {
+  const card = document.getElementById('dp-entry-verdict');
+  if (!card) return;
+
+  const bf = d.BFScore != null ? Number(d.BFScore) : null;
+  const es = d.EntryScore != null ? Number(d.EntryScore) : null;
+  const ts = d.TotalScore != null ? Number(d.TotalScore) : null;
+  const price = d.Price != null ? Number(d.Price) : null;
+  const ep = d.EntryPlan || {};
+  const atr = ep.atr_pct != null ? Number(ep.atr_pct) : null;
+  const gz = d.GreedZone ? (d.GreedZoneScore || 0) : 0;
+
+  if (bf == null && es == null && ts == null) { card.style.display = 'none'; return; }
+
+  // ── 확신도 계산 (0-100) ──
+  let conv = 50;
+  const pros = [], cons = [];
+
+  if (bf != null) {
+    if (bf >= 60)      { conv += 15; pros.push('저점매수 강력'); }
+    else if (bf >= 40) { conv += 8;  pros.push('저점매수 적극'); }
+    else if (bf >= 25) { conv += 3;  pros.push('저점매수 관심'); }
+  }
+  if (es != null) {
+    if (es >= 70)      { conv += 15; pros.push('타이밍 우수'); }
+    else if (es >= 50) { conv += 8;  pros.push('타이밍 양호'); }
+    else if (es < 30)  { conv -= 10; cons.push('타이밍 부적합'); }
+  }
+  if (ts != null) {
+    if (ts >= 70)      { conv += 12; pros.push('종합 우량'); }
+    else if (ts >= 55) { conv += 5; }
+    else if (ts < 40)  { conv -= 8;  cons.push('종합 점수 낮음'); }
+  }
+  if (gz >= 70)      { conv -= 15; cons.push('과열 경고'); }
+  else if (gz >= 40) { conv -= 8;  cons.push('과열 주의'); }
+
+  const mdd = ep.mdd_current;
+  if (mdd != null && mdd < -25) { conv -= 8; cons.push('고 낙폭'); }
+
+  conv = Math.max(5, Math.min(95, conv));
+
+  // ── 신호 매핑 ──
+  let label, icon, color;
+  if (conv >= 72)      { label = '진입 유리'; icon = '🟢'; color = '#16A34A'; }
+  else if (conv >= 58) { label = '관심 구간'; icon = '🔵'; color = '#2563EB'; }
+  else if (conv >= 42) { label = '관망';     icon = '🟡'; color = '#D97706'; }
+  else                 { label = '보류';     icon = '🔴'; color = '#DC2626'; }
+
+  // ── 분할매수 플랜 ──
+  let splitHtml = '';
+  if (price != null && price > 0) {
+    const a = (atr != null && atr > 0) ? atr : 3.0;
+    let w1, w2, w3;
+    if (conv >= 72)      { w1 = 40; w2 = 35; w3 = 25; }
+    else if (conv >= 58) { w1 = 33; w2 = 34; w3 = 33; }
+    else                 { w1 = 25; w2 = 35; w3 = 40; }
+
+    const d2 = a * 1.5, d3 = a * 3;
+    const p1 = price, p2 = price * (1 - d2 / 100), p3 = price * (1 - d3 / 100);
+    const avg = (p1 * w1 + p2 * w2 + p3 * w3) / 100;
+    const fp = v => fmtPrice(v);
+
+    const tranche = (n, w, p, lbl, hi) =>
+      `<div class="ev-tr" ${hi ? `style="color:${color};font-weight:700"` : ''}>
+        <span class="ev-tr-n">${n}차</span>
+        <span class="ev-tr-bar"><span class="ev-tr-fill" style="width:${w}%;background:${hi ? color : 'var(--text-tertiary)'}"></span></span>
+        <span class="ev-tr-pct">${w}%</span>
+        <span class="ev-tr-price">${fp(p)}</span>
+        <span class="ev-tr-lbl">${lbl}</span>
+      </div>`;
+
+    splitHtml = `
+      <div class="ev-split">
+        <div class="ev-split-head">📊 분할매수 플랜 <span style="font-weight:400;color:var(--text-tertiary);font-size:10px;">ATR 기반 3회</span></div>
+        ${tranche(1, w1, p1, '시장가', true)}
+        ${tranche(2, w2, p2, '−' + d2.toFixed(1) + '%', false)}
+        ${tranche(3, w3, p3, '−' + d3.toFixed(1) + '%', false)}
+        <div class="ev-split-foot">평균단가 <b>${fp(avg)}</b> · 최대 이격 <b>${d3.toFixed(1)}%</b></div>
+      </div>`;
+  }
+
+  // ── 팩터 pills ──
+  const pills = [
+    ...pros.map(t => `<span class="ev-pill ev-pro">${esc(t)}</span>`),
+    ...cons.map(t => `<span class="ev-pill ev-con">${esc(t)}</span>`)
+  ].join('');
+
+  // ── 판단 포스터 렌더 (conv 단일 소스, 15단계) ──
+  let _pgCls, _pvWord, _pvReason, _pvBg, _tmWord, _tmSub;
+  // ticker + conv 기반 결정론적 선택 — 동일 종목은 재렌더 시에도 같은 문구 유지
+  const _tickerHash = (d.Ticker || '').split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) | 0, 0);
+  const _seed = Math.abs(_tickerHash * 1000 + Math.round(conv));
+  const _pick = arr => arr[_seed % arr.length];
+  if (conv >= 93) {
+    _pgCls = 'dvp-green';
+    _pvWord   = _pick(['역대급', '인생 타이밍', '지금 당장', '올인각', '이게 자리다']);
+    _pvReason = _pick([
+      '지표·수급·모멘텀 삼박자 완벽<br>이런 자리 1년에 몇 번 안 옴<br>망설이면 두고두고 후회함',
+      '차트 보고 눈물 날 뻔함<br>모든 조건 동시에 충족된 자리<br>지금 안 담으면 진짜 바보',
+      '수급 폭발에 추세 완벽 우상향<br>기술적·기본적 지표 전부 켜짐<br>인생 타이밍 맞음 진짜',
+      '이런 신호 놓치면 후회함<br>볼수록 좋은 차트에 수급까지 터짐<br>비중 최대로 ㄱㄱ',
+    ]);
+    _pvBg = _pick(['인생각', '올인', '역대급']);
+    _tmWord = _pick(['🟢 인생 타이밍', '🟢 역대급', '🟢 지금 당장']);
+    _tmSub  = '인생 타이밍';
+  } else if (conv >= 86) {
+    _pgCls = 'dvp-green';
+    _pvWord   = _pick(['올인각', '풀매각', '슈팅각', '지금이야', '강력 매수']);
+    _pvReason = _pick([
+      '지표 다 켜졌고 수급까지 터짐<br>이런 타이밍 자주 안 옴<br>지금 안 담으면 진짜 후회함',
+      '차트 완벽하게 살아있음<br>추세 ㄹㅇ 강하고 모멘텀 최상<br>분할 말고 그냥 풀매각',
+      '수급 뒷받침에 모멘텀도 완벽<br>기술적·기본적 지표 전부 켜짐<br>올인각 나왔다 진짜',
+      '이거 지금 아니면 언제 사냐<br>모든 조건 충족된 자리임<br>소액이라도 반드시 담아봐',
+    ]);
+    _pvBg = _pick(['올인', '풀매', '슈팅']);
+    _tmWord = _pick(['🟢 올인각', '🟢 풀매각', '🟢 슈팅각']);
+    _tmSub  = '극강 타이밍';
+  } else if (conv >= 79) {
+    _pgCls = 'dvp-green';
+    _pvWord   = _pick(['풀매각', '적극 매수', '강하게 담아', '지금 담아', '줍줍각']);
+    _pvReason = _pick([
+      '지금 안 담으면 후회할 수 있음<br>추세 강하고 수급도 뒷받침됨<br>비중 실어서 담아봐',
+      '차트 ㄷㄷ하고 모멘텀 살아있음<br>수급 들어오는 게 확인됨<br>눌리면 추가 담기 각',
+      '지표 대부분 켜진 강한 자리<br>리스크 낮고 기대수익 높음<br>망설이지 말고 담아',
+      '이거 지금 아니면 비싸게 사야 함<br>추세 우상향 확실하고 수급도 좋음<br>분할이라도 지금 시작해',
+    ]);
+    _pvBg = _pick(['풀매', '적극', '줍줍']);
+    _tmWord = _pick(['🟢 풀매각', '🟢 적극 매수', '🟢 줍줍각']);
+    _tmSub  = '강한 매수';
+  } else if (conv >= 72) {
+    _pgCls = 'dvp-green';
+    _pvWord   = _pick(['줍줍각', '담아가', '매수각', '나눠서 담아', '비중 실어']);
+    _pvReason = _pick([
+      '지금 안 담으면 후회함<br>추세 좋고 수급도 받쳐주는 중<br>나눠서 조금씩 담아봐',
+      '차트 ㄷㄷ함<br>수급 들어오고 모멘텀 살아있음<br>눌리면 분할 담기 각',
+      '추세 우상향 중이고 수급도 좋음<br>리스크 관리하면서 분할로 ㄱㄱ<br>성급한 풀매는 피해',
+      '지표 켜져 있고 자리도 좋음<br>욕심 안 부리고 분할로 접근<br>생각보다 좋은 종목임',
+    ]);
+    _pvBg = _pick(['줍줍', '분할', '담기']);
+    _tmWord = _pick(['🟢 줍줍각', '🟢 담아가', '🟢 분할 ㄱㄱ']);
+    _tmSub  = '매수 추천';
+  } else if (conv >= 65) {
+    _pgCls = 'dvp-green';
+    _pvWord   = _pick(['분할 ㄱㄱ', '소량 진입', '슬금슬금', '조심스럽게', '나눠서']);
+    _pvReason = _pick([
+      '나쁘지 않은 자리긴 한데<br>확신이 100%는 아님<br>분할로 리스크 줄여서 접근',
+      '긍정 지표 있지만 일부 애매함<br>풀매보단 소량 분할이 맞는 상황<br>더 좋아지면 추가 담기',
+      '들어갈 수는 있는 자리인데<br>손실 감당 가능한 비중으로만<br>절대 몰빵은 금지',
+      '긍정적인 신호 있지만 리스크도 있음<br>작은 비중으로 먼저 확인해봐<br>차트 좋아지면 추가',
+    ]);
+    _pvBg = _pick(['소량', '분할', '조심']);
+    _tmWord = _pick(['🟢 소량 진입', '🟢 분할 ㄱㄱ', '🟢 슬금슬금']);
+    _tmSub  = '신중 매수';
+  } else if (conv >= 58) {
+    _pgCls = 'dvp-yellow';
+    _pvWord   = _pick(['테스트 담기', '발만 살짝', '소액만', '일단 찔러봐', '살짝만']);
+    _pvReason = _pick([
+      '지표 일부 긍정적이지만 전부는 아님<br>소액으로 먼저 포지션 잡아봐<br>확인되면 비중 늘리는 방식',
+      '긍정 신호 있는데 확신이 안 섬<br>물려도 감당 가능한 소액으로만<br>지켜보면서 추가 판단해',
+      '진입 가능한 자리긴 한데<br>추가 확인이 필요한 상황<br>소량 테스트 후 결정해봐',
+      '애매하긴 한데 아주 나쁘진 않음<br>발만 살짝 담가서 흐름 봐봐<br>좋아지면 그때 비중 추가',
+    ]);
+    _pvBg = _pick(['테스트', '소액', '찔러봐']);
+    _tmWord = _pick(['🟡 테스트 담기', '🟡 소액만', '🟡 발만 살짝']);
+    _tmSub  = '테스트 진입';
+  } else if (conv >= 51) {
+    _pgCls = 'dvp-yellow';
+    _pvWord   = _pick(['긍정 눈팅', '좀 더 봐봐', '시그널 대기', '거의 다 왔어', '조금만 기다려']);
+    _pvReason = _pick([
+      '긍정적인 신호 보이긴 하는데<br>아직 확실히 켜진 건 아님<br>좀 더 지켜보다가 들어가봐',
+      '방향성은 긍정적인데 타이밍이 아직<br>조금만 더 기다리면 좋은 자리 나옴<br>서두르지 말고 시그널 확인해',
+      '나쁜 종목은 아닌데 자리가 좀 이름<br>추세 확인되면 그때 담는 게 맞음<br>조금만 더 기다려봐',
+      '긍정 지표 늘어나는 중인데<br>아직 매수 확신까지는 아님<br>좀 더 보다가 진입 타이밍 잡아봐',
+    ]);
+    _pvBg = _pick(['대기', '시그널', '곧이야']);
+    _tmWord = _pick(['🟡 긍정 눈팅', '🟡 좀 더 봐봐', '🟡 시그널 대기']);
+    _tmSub  = '긍정 관망';
+  } else if (conv >= 44) {
+    _pgCls = 'dvp-yellow';
+    _pvWord   = _pick(['눈팅각', '반반임', '모르겠음', '저울질 중', '중립']);
+    _pvReason = _pick([
+      '좋은 것도 있고 안 좋은 것도 있음<br>확신이 안 서는 자리<br>더 좋은 시그널 나오면 그때 대응',
+      '종목 자체는 나쁘지 않은데<br>타이밍이 살짝 애매함<br>좀 더 내려오면 그때 담자',
+      '반반임 솔직히<br>지금 들어가기도 애매하고 빠지기도 애매함<br>관망하면서 눈팅해봐',
+      '확신이 안 서는 구간<br>섣불리 들어갔다가 멘탈 털릴 수 있음<br>좀 더 지켜보면서 판단해',
+    ]);
+    _pvBg = _pick(['중립', '눈팅', '저울질']);
+    _tmWord = _pick(['🟡 눈팅각', '🟡 반반임', '🟡 중립']);
+    _tmSub  = '중립 관망';
+  } else if (conv >= 37) {
+    _pgCls = 'dvp-yellow';
+    _pvWord   = _pick(['관망각', '기다려봐', '아직은 아냐', '타이밍 아님', '좀 더 기다려']);
+    _pvReason = _pick([
+      '좋긴 한데 지금 들어가면 물릴 수 있음<br>조금만 더 눌리면 그때 담아봐<br>지금은 관망각',
+      '부정 신호 하나둘씩 켜지는 중<br>지금 들어가기엔 타이밍이 안 좋음<br>좀 더 기다려봐',
+      '살짝 고점 느낌 나기 시작함<br>성급하게 들어갔다가 물릴 수 있음<br>관망하면서 기다려봐',
+      '나쁜 종목은 아닌데<br>지금 들어가기엔 리스크가 있음<br>조금 더 내려오면 담자',
+    ]);
+    _pvBg = _pick(['관망', '대기', '기다려']);
+    _tmWord = _pick(['🟡 관망각', '🟡 기다려봐', '🟡 타이밍 아님']);
+    _tmSub  = '소극적 관망';
+  } else if (conv >= 30) {
+    _pgCls = 'dvp-red';
+    _pvWord   = _pick(['고점 주의', '아직 일러', '더 눌려야', '서두르지 마', '대기각']);
+    _pvReason = _pick([
+      '살짝 고점 느낌 남<br>지금 들어가면 물릴 수 있음<br>더 내려오면 그때 검토해봐',
+      '지금 들어가기엔 부담스러운 자리<br>좀 더 눌려야 매력 있는 가격 됨<br>서두르지 마셈',
+      '지표들 부정 신호 보내는 중<br>리스크 크고 기대수익은 작음<br>더 좋은 자리 기다려봐',
+      '차트가 부담스러운 구간<br>수급 빠지기 시작하는 느낌<br>여기서 손댔다가 물리면 고생함',
+    ]);
+    _pvBg = _pick(['고점', '대기', '주의']);
+    _tmWord = _pick(['🟠 고점 주의', '🟠 아직 일러', '🟠 더 눌려야']);
+    _tmSub  = '고점 주의';
+  } else if (conv >= 23) {
+    _pgCls = 'dvp-red';
+    _pvWord   = _pick(['진입 부담', '손 빼봐', '위험한 자리', '뇌동 주의', '패스 고려']);
+    _pvReason = _pick([
+      '지금 들어가면 물릴 각도임<br>지표들 대부분 안 좋은 신호 보내는 중<br>관심종목만 넣고 손 빼셈',
+      '차트 안 좋고 수급도 빠지는 중<br>지금 들어가는 건 뇌동매매임<br>더 내려오면 그때 다시 검토',
+      '여러 지표가 경고 보내는 중<br>리스크 대비 기대수익 너무 안 나옴<br>더 좋은 종목 찾아봐',
+      '지금 자리는 진입하면 안 됨<br>손절라인도 애매하고 지지도 약함<br>완전히 빠질 때까지 기다려',
+    ]);
+    _pvBg = _pick(['부담', '주의', '패스']);
+    _tmWord = _pick(['🟠 진입 부담', '🟠 손 빼봐', '🟠 뇌동 주의']);
+    _tmSub  = '진입 부담';
+  } else if (conv >= 16) {
+    _pgCls = 'dvp-red';
+    _pvWord   = _pick(['강한 경고', '진입 금물', '손 빼셈', '위험 구간', '절대 비추']);
+    _pvReason = _pick([
+      '지금 들어가면 높은 확률로 물림<br>지표들이 전부 경고 보내는 중<br>관심만 해두고 절대 손 대지 마',
+      '차트 안 좋고 수급도 완전 빠지는 중<br>지금 들어가면 뇌동매매 확정<br>더 내려가는 거 구경만 해',
+      '모멘텀 죽고 수급도 없음<br>여기서 들어가면 물리는 거 거의 확정<br>좋아질 때까지 무시해',
+      '지표 전반적으로 매우 안 좋음<br>손절라인 없는 진입은 자살행위<br>절대 추격매수 금지',
+    ]);
+    _pvBg = _pick(['경고', '금물', '위험']);
+    _tmWord = _pick(['🟠 강한 경고', '🟠 진입 금물', '🟠 손 빼셈']);
+    _tmSub  = '강한 경고';
+  } else if (conv >= 10) {
+    _pgCls = 'dvp-red';
+    _pvWord   = _pick(['패스각', '손절각', '도망쳐', '버려', '손 빼셈']);
+    _pvReason = _pick([
+      '지금 들어가면 거의 물릴 각도임<br>지표들이 다 안 좋은 신호<br>관심만 해두고 절대 손대지 마',
+      '차트 개못생김 솔직히<br>수급 빠지고 모멘텀도 죽었음<br>그냥 지켜만 봐',
+      '이거 손대면 안 됨 진짜<br>모든 지표가 경고 보내는 중<br>관심종목만 넣고 기다려봐',
+      '지금 들어가면 뇌동매매임<br>더 좋은 자리 나올 때까지 패스<br>절대 추격매수 금지',
+    ]);
+    _pvBg = _pick(['패스', '손절', '회피']);
+    _tmWord = _pick(['🔴 패스각', '🔴 손절각', '🔴 도망쳐']);
+    _tmSub  = '강력 회피';
+  } else if (conv >= 5) {
+    _pgCls = 'dvp-red';
+    _pvWord   = _pick(['탈출각', '청산각', '손절 검토', '빠져나와', '들고 있으면 위험']);
+    _pvReason = _pick([
+      '이미 갖고 있으면 탈출 검토해야 함<br>지표 전부 최악 신호<br>손절이 장기 버티기보다 나음',
+      '차트 완전히 망가진 상황<br>수급 없고 모멘텀 바닥<br>빠르게 나오는 게 맞음',
+      '지금 갖고 있다면 매도 고려해봐<br>회복까지 엄청 오래 걸릴 수 있음<br>기회비용 생각해야 함',
+      '모든 지표 바닥 신호<br>물타기는 절대 안 됨<br>손실 확정하고 나오는 게 현명함',
+    ]);
+    _pvBg = _pick(['탈출', '청산', '손절']);
+    _tmWord = _pick(['🔴 탈출각', '🔴 청산각', '🔴 손절 검토']);
+    _tmSub  = '탈출 권고';
+  } else {
+    _pgCls = 'dvp-red';
+    _pvWord   = _pick(['깡통 주의', '건드리지 마', '최고 위험', '절대 금지', '폭탄이야']);
+    _pvReason = _pick([
+      '이거 손대면 진짜 깡통 각도임<br>지표 전부 최악 중에 최악<br>존재 자체를 잊어버려',
+      '차트 역대급으로 못생겼음<br>수급 제로에 모멘텀 나락<br>절대 건드리지 마',
+      '이런 자리에서 들어가면 미련한 거임<br>회복 가능성도 낮고 기다릴 가치도 없음<br>관심종목에서도 삭제해',
+      '지금 들어가면 깡통 확정에 가까움<br>어떤 이유로도 진입 금지<br>이거 갖고 있으면 지금 당장 팔아',
+    ]);
+    _pvBg = _pick(['깡통', '절대금지', '최위험']);
+    _tmWord = _pick(['🔴 깡통 주의', '🔴 절대 금지', '🔴 건드리지 마']);
+    _tmSub  = '최고 위험';
+  }
+
+  const _vpEl = document.getElementById('dp-verdict-poster');
+  if (_vpEl) {
+    _vpEl.style.display = '';
+    _vpEl.className = `dp-verdict-poster ${_pgCls}`;
+    _vpEl.innerHTML = `<div class="dvp-main"><div class="dvp-eyebrow">살까? 말까?</div><div class="dvp-word">${_pvWord}</div><div class="dvp-reason">${_pvReason}</div></div><div class="dvp-conf"><div class="dvp-conf-num">${conv}<span class="dvp-conf-pct">%</span></div><div class="dvp-conf-lbl">확신도</div></div><div class="dvp-bg">${_pvBg}</div>`;
+  }
+  // ── 렌더 (entry-verdict 카드는 내부 데이터 보존용, UI 미노출) ──
+  card.style.display = 'none';
+  card.style.borderLeft = `3px solid ${color}`;
+  card.innerHTML = `
+    <div class="ev-head">
+      <span class="ev-icon">${icon}</span>
+      <span class="ev-label" style="color:${color}">${label}</span>
+      <span class="ev-conf" style="background:${color}18;color:${color}">확신도 ${conv}%</span>
+    </div>
+    ${pills ? `<div class="ev-pills">${pills}</div>` : ''}
+  `;
+
+  // 분할매수 플랜은 얼마나? 섹션으로 분리
+  const _spEl = document.getElementById('dp-split-plan');
+  if (_spEl) _spEl.innerHTML = splitHtml;
+}
+
+// Bottom-Fishing Score card
+function _renderBFScore(d) {
+  const card = document.getElementById('dp-bf-card');
+  if (!card) return;
+  const bf = d.BFScore != null ? Number(d.BFScore) : null;
+  if (bf == null || bf === 0) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const col = bf >= 75 ? '#16A34A' : bf >= 60 ? '#2563EB' : bf >= 45 ? '#F59E0B' : bf >= 30 ? '#6B7280' : '#DC2626';
+  const sigMap = { STRONG_BUY: '적극 매수', BUY: '매수', WATCH: '관심', NEUTRAL: '중립', AVOID: '회피' };
+  const sigEl = document.getElementById('dp-bf-signal');
+  if (sigEl) {
+    sigEl.textContent = sigMap[d.BFSignal] || d.BFSignal || '';
+    sigEl.style.color = col;
+    sigEl.style.background = col + '18';
+  }
+  const scoreEl = document.getElementById('dp-bf-score');
+  if (scoreEl) { scoreEl.textContent = Math.round(bf); scoreEl.style.color = col; }
+  const fill = document.getElementById('dp-bf-fill');
+  if (fill) { fill.style.width = bf + '%'; fill.style.background = col; }
+  const a1 = document.getElementById('dp-bf-a1');
+  const a2 = document.getElementById('dp-bf-a2');
+  const a3 = document.getElementById('dp-bf-a3');
+  if (a1) a1.textContent = d.BFAxis1 != null ? Math.round(d.BFAxis1) : 0;
+  if (a2) a2.textContent = d.BFAxis2 != null ? Math.round(d.BFAxis2) : 0;
+  if (a3) a3.textContent = d.BFAxis3 != null ? Math.round(d.BFAxis3) : 0;
+  const tagsEl = document.getElementById('dp-bf-tags');
+  if (tagsEl) {
+    const tags = d.BFTags || [];
+    tagsEl.innerHTML = tags.map(t =>
+      `<span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${col}18;color:${col};font-weight:600;">${esc(t)}</span>`
+    ).join('');
+  }
+  const detEl = document.getElementById('dp-bf-detail');
+  if (detEl) {
+    const parts = [];
+    if (d.PiotroskiF != null && d.PiotroskiF > 0) parts.push(`F-Score ${d.PiotroskiF}/9`);
+    if (d.AltmanZ != null) parts.push(`Altman Z ${Number(d.AltmanZ).toFixed(1)} (${d.AltmanZone || ''})`);
+    detEl.textContent = parts.join(' · ');
+  }
 }
 
 // P4-P12: 드로다운 리스크 메트릭 카드 (상세 패널)
@@ -3824,12 +3830,13 @@ function _renderRiskGauge(d) {
   const ep = (d && d.EntryPlan) || {};
   const cr = ep.composite_risk;
   if (cr == null) { el.style.display = 'none'; return; }
-  const col = cr >= 60 ? '#DC2626' : cr >= 35 ? '#F59E0B' : '#16A34A';
-  const lbl = cr >= 60 ? '고위험' : cr >= 35 ? '주의' : '양호';
+  if (cr < 35) { el.style.display = 'none'; return; }  // 양호는 표시 안 함 — 경고만 노출
+  const col = cr >= 60 ? '#DC2626' : '#F59E0B';
+  const lbl = cr >= 60 ? '손실 위험 높음' : '변동성 주의';
   el.style.display = 'inline-flex';
   el.style.background = col + '18';
   el.style.color = col;
-  el.innerHTML = `🛡 Risk <span style="font-size:14px;">${Math.round(cr)}</span>/99 <span style="font-weight:500;">${lbl}</span>`;
+  el.innerHTML = `⚠️ <span style="font-weight:600;">${lbl}</span>`;
 }
 
 // (정리됨) _renderRiskSummary·_renderFactorWaterfall·_renderACCard·_renderLiquidityCard 4개 함수 제거.
@@ -3946,8 +3953,9 @@ function _renderPriceLevels(d) {
 
   const levels = pl.price_levels;
   const action = pl.action_plan || {};
-  const atr = d.ATR || levels.atr || 0;
-  const atrPct = d.ATR_pct || levels.atr_pct || 0;
+  const vb = pl.vol_band || levels.vol_band || null;
+  const ents = (vb && vb.entries) || [];
+  const kLabel = i => (ents[i] != null ? ents[i].k.toFixed(1) + 'σ' : '');
 
   let html = '<div class="mece-inner">';
   html += '<div class="mece-header"><span class="mece-title">가격대별 대응 전략</span><span class="mece-badge">참고용 시뮬레이션</span></div>';
@@ -3957,10 +3965,10 @@ function _renderPriceLevels(d) {
   if (levels.target_52w_high) pricePoints.push({ price: levels.target_52w_high, label: '52주 고가', cls: 'pm-target' });
   if (levels.target_analyst) pricePoints.push({ price: levels.target_analyst, label: '애널리스트 목표가', cls: 'pm-target' });
   pricePoints.push({ price: levels.price, label: '현재가', cls: 'pm-current' });
-  pricePoints.push({ price: levels.entry_1, label: '1차 (ATR 1x)', cls: 'pm-entry' });
-  pricePoints.push({ price: levels.entry_2, label: '2차 (ATR 2x)', cls: 'pm-entry' });
-  pricePoints.push({ price: levels.entry_3, label: '3차 (ATR 3x)', cls: 'pm-entry' });
-  pricePoints.push({ price: levels.stop_loss, label: '손절 (ATR 4x)', cls: 'pm-stop' });
+  pricePoints.push({ price: levels.entry_1, label: `1차 (${kLabel(0)})`, cls: 'pm-entry' });
+  pricePoints.push({ price: levels.entry_2, label: `2차 (${kLabel(1)})`, cls: 'pm-entry' });
+  pricePoints.push({ price: levels.entry_3, label: `3차 (${kLabel(2)})`, cls: 'pm-entry' });
+  pricePoints.push({ price: levels.stop_loss, label: `손절 (${vb ? vb.stop_k.toFixed(1) + 'σ' : ''})`, cls: 'pm-stop' });
 
   // 피보나치 추가
   if (levels.fib_382) pricePoints.push({ price: levels.fib_382, label: 'Fib 38.2%', cls: 'pm-fib' });
@@ -3980,9 +3988,12 @@ function _renderPriceLevels(d) {
   }
   html += `</div>`;
 
-  // ATR 정보
-  const volLabel = atrPct >= 4 ? '고변동' : atrPct >= 2 ? '보통' : '저변동';
-  html += `<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">ATR: ${fmtPrice(atr)} (${fmt(atrPct, 1)}%) &middot; 변동성: ${volLabel}</div>`;
+  // 변동성 소스 정보
+  if (vb) {
+    const srcLabel = { VKOSPI: 'VKOSPI', VIX: 'VIX', ATR: '종목 ATR' }[vb.source] || vb.source;
+    const profLabel = vb.profile === 'deep' ? '깊은 급락 밴드 (1~2σ)' : '얕은 눌림 밴드 (0~1σ)';
+    html += `<div style="font-size:12px;color:var(--text-secondary);margin-top:8px;">${esc(srcLabel)} 기준 · 일일 σ <b>${fmt(vb.sigma_daily, 2)}%</b> &middot; ${profLabel}</div>`;
+  }
 
   // 신규 진입자 / 기존 보유자 분기 카드
   const newInv = action.new_investor || {};
@@ -4010,12 +4021,150 @@ function _renderPriceLevels(d) {
   html += `</div>`;
   html += `</div>`; // .action-cards
 
+  // 변동성 분할매수 인터랙티브 섹션 (vol_band 있을 때만)
+  if (vb && ents.length) {
+    html += `<div class="volband" id="volband-sec"></div>`;
+  }
+
   html += '</div>';
   card.innerHTML = html;
+
+  // 인터랙티브 와이어링
+  if (vb && ents.length) _wireVolBand(pl, d);
 
   // 디스클레이머 표시
   const disc = document.getElementById('mece-disclaimer');
   if (disc) disc.style.display = '';
+}
+
+// ── 변동성 분할매수 인터랙티브 상태/렌더 ──────────────────────────────────
+var _vbState = { total: 10000000, mode: 'equal', geoRatio: 1.30, stepMult: 2.5, custom: null };
+
+function _vbWeights(n) {
+  const s = _vbState;
+  let raw;
+  if (s.mode === 'geo') {
+    raw = Array.from({ length: n }, (_, i) => Math.pow(s.geoRatio, i));
+  } else if (s.mode === 'step') {
+    const back = Math.max(1, Math.floor(n / 3));
+    raw = Array.from({ length: n }, (_, i) => (i >= n - back ? s.stepMult : 1.0));
+  } else if (s.mode === 'custom' && s.custom && s.custom.length === n) {
+    raw = s.custom.map(x => Math.max(0, x));
+  } else {
+    raw = Array(n).fill(1);
+  }
+  const sum = raw.reduce((a, b) => a + b, 0) || 1;
+  return raw.map(v => v / sum);
+}
+
+function _wireVolBand(pl, d) {
+  const sec = document.getElementById('volband-sec');
+  if (!sec) return;
+  const vb = pl.vol_band;
+  const ents = vb.entries;
+  const base = pl.price_levels.price;
+  const sigD = vb.sigma_daily;
+  const n = ents.length;
+  const nfmt = v => Math.round(v).toLocaleString('ko-KR');
+
+  function paint() {
+    const w = _vbWeights(n);
+    const total = _vbState.total || 0;
+    const maxW = Math.max(...w);
+    let cum = 0, shares = 0;
+    const rows = w.map((wi, i) => {
+      cum += wi;
+      const amt = total * wi;
+      if (ents[i].price > 0) shares += amt / ents[i].price;
+      return `<tr>
+        <td>${i + 1}회</td>
+        <td>${ents[i].k.toFixed(1)}σ</td>
+        <td>${fmtPrice(ents[i].price)}</td>
+        <td class="vb-acc">${(wi * 100).toFixed(1)}%</td>
+        <td>${nfmt(amt)}</td>
+        <td><span class="vb-bar"><span style="width:${maxW > 0 ? (wi / maxW * 100).toFixed(0) : 0}%"></span></span></td>
+        <td class="vb-dim">${ents[i].prob.toFixed(1)}%</td>
+        <td class="vb-dim">${(cum * 100).toFixed(0)}%</td>
+      </tr>`;
+    }).join('');
+    const avg = shares > 0 ? total / shares : 0;
+    const disc = base > 0 ? (base - avg) / base * 100 : 0;
+
+    // 리스크 시나리오 (배분 반영 재계산)
+    function fill(j) {
+      let a = 0, sh = 0, ws = 0;
+      for (let i = 0; i <= j; i++) { const amt = total * w[i]; a += amt; ws += w[i]; if (ents[i].price > 0) sh += amt / ents[i].price; }
+      return { ac: sh > 0 ? a / sh : 0, ws };
+    }
+    const mid = Math.max(0, Math.round((n - 1) / 2));
+    const s0 = fill(0), sMid = fill(mid), sAll = fill(n - 1);
+    const recMid = sMid.ac > 0 ? (base - sMid.ac) / sMid.ac * 100 : 0;
+    const recAll = sAll.ac > 0 ? (base - sAll.ac) / sAll.ac * 100 : 0;
+    const stressSig = ents[n - 1].k + 1.0;
+    const pStress = base * (1 - stressSig * sigD / 100);
+    const lossStress = sAll.ac > 0 ? (sAll.ac - pStress) / sAll.ac * 100 : 0;
+
+    const scn = [
+      { cls: 'vb-idle', lab: '1회만 체결 후 반등', big: (s0.ws * 100).toFixed(0) + '% 투입', det: `미투입 ${((1 - s0.ws) * 100).toFixed(0)}% — 반등 시 기회손실` },
+      { cls: 'vb-up', lab: `중간(${ents[mid].k.toFixed(1)}σ) 회복`, big: '+' + recMid.toFixed(2) + '%', det: `${(sMid.ws * 100).toFixed(0)}% 투입 · 평단 ${fmtPrice(sMid.ac)}` },
+      { cls: 'vb-up', lab: '전량 체결 후 회복', big: '+' + recAll.toFixed(2) + '%', det: `100% 투입 · 평단 ${fmtPrice(sAll.ac)}` },
+      { cls: 'vb-down', lab: `하방 스트레스 (${stressSig.toFixed(1)}σ)`, big: '−' + lossStress.toFixed(2) + '%', det: `평가손 ${nfmt(total * lossStress / 100)}` },
+    ];
+    const scnHtml = scn.map(s => `<div class="vb-scn ${s.cls}"><div class="vb-scn-lab">${s.lab}</div><div class="vb-scn-big">${s.big}</div><div class="vb-scn-det">${s.det}</div></div>`).join('');
+
+    sec.querySelector('.vb-tbody').innerHTML = rows;
+    sec.querySelector('.vb-summary').innerHTML =
+      `<div class="vb-sum-card"><div class="vb-sum-k">평균 매입단가</div><div class="vb-sum-v">${fmtPrice(avg)}</div><div class="vb-sum-s">기준가 대비 −${disc.toFixed(2)}%</div></div>` +
+      `<div class="vb-sum-card"><div class="vb-sum-k">총 투입금</div><div class="vb-sum-v">${nfmt(total)}</div><div class="vb-sum-s">${n}회 분할</div></div>`;
+    sec.querySelector('.vb-scn-grid').innerHTML = scnHtml;
+  }
+
+  // 모드별 가용 옵션 (deep=6구간이면 step 노출)
+  const modes = [['equal', '균등'], ['geo', '가중']];
+  if (n >= 6) modes.splice(1, 0, ['step', '단계형']);
+  modes.push(['custom', '직접']);
+  const segBtns = modes.map(([m, lbl]) =>
+    `<button class="vb-seg-btn${_vbState.mode === m ? ' on' : ''}" data-m="${m}">${lbl}</button>`).join('');
+
+  sec.innerHTML = `
+    <div class="vb-head">📊 변동성 분할매수</div>
+    <div class="vb-controls">
+      <label class="vb-total-field">총 투입금
+        <input type="number" class="vb-total" value="${_vbState.total}" min="0" step="100000">
+      </label>
+      <div class="vb-seg">${segBtns}</div>
+    </div>
+    <div class="vb-param vb-param-geo" style="display:${_vbState.mode === 'geo' ? 'flex' : 'none'}">
+      <span>공비 r</span><input type="range" class="vb-geo" min="0.5" max="2" step="0.05" value="${_vbState.geoRatio}">
+      <span class="vb-geo-v">${_vbState.geoRatio.toFixed(2)}</span>
+    </div>
+    <div class="vb-param vb-param-step" style="display:${_vbState.mode === 'step' ? 'flex' : 'none'}">
+      <span>후반 가중 배수</span><input type="range" class="vb-step" min="1" max="4" step="0.1" value="${_vbState.stepMult}">
+      <span class="vb-step-v">${_vbState.stepMult.toFixed(1)}×</span>
+    </div>
+    <div class="vb-table-wrap"><table class="vb-table">
+      <thead><tr><th>회차</th><th>σ</th><th>진입가</th><th>비중</th><th>금액</th><th>분포</th><th>도달</th><th>누적</th></tr></thead>
+      <tbody class="vb-tbody"></tbody>
+    </table></div>
+    <div class="vb-summary"></div>
+    <div class="vb-scn-grid"></div>
+    <div class="vb-note">도달확률은 1일 정규분포 기준 · 평균단가 = 총투입금 ÷ 총수량 · 실제 체결·갭·세금 미반영</div>`;
+
+  // 이벤트 바인딩
+  sec.querySelector('.vb-total').addEventListener('input', e => { _vbState.total = parseFloat(e.target.value) || 0; paint(); });
+  sec.querySelectorAll('.vb-seg-btn').forEach(b => b.addEventListener('click', () => {
+    _vbState.mode = b.dataset.m;
+    sec.querySelectorAll('.vb-seg-btn').forEach(x => x.classList.toggle('on', x === b));
+    sec.querySelector('.vb-param-geo').style.display = _vbState.mode === 'geo' ? 'flex' : 'none';
+    sec.querySelector('.vb-param-step').style.display = _vbState.mode === 'step' ? 'flex' : 'none';
+    paint();
+  }));
+  const geoEl = sec.querySelector('.vb-geo');
+  if (geoEl) geoEl.addEventListener('input', e => { _vbState.geoRatio = parseFloat(e.target.value); sec.querySelector('.vb-geo-v').textContent = _vbState.geoRatio.toFixed(2); paint(); });
+  const stepEl = sec.querySelector('.vb-step');
+  if (stepEl) stepEl.addEventListener('input', e => { _vbState.stepMult = parseFloat(e.target.value); sec.querySelector('.vb-step-v').textContent = _vbState.stepMult.toFixed(1) + '×'; paint(); });
+
+  paint();
 }
 
 function _renderFinanceTab(d) {
@@ -4047,7 +4196,7 @@ function _renderFinanceTab(d) {
     ['PER',       d._PER   ? fmt(d._PER, 1) + perLbl  : '—', '주가÷순이익 · 15↓ 저평가 · 40↑ 고평가',    d._PER && d._PER < 15 ? 'var(--success)' : d._PER > 40 ? 'var(--destructive)' : null],
     ['PBR',       d._PBR   ? fmt(d._PBR, 2) + pbrLbl  : '—', '주가÷순자산 · 1↓ 자산 대비 저렴',           null],
     ['ROE',       roeRaw,                                      '자기자본이익률 · 17%↑ 오닐 기준 합격',     d._ROE > 0.15 ? 'var(--success)' : null],
-    ['EPS 성장률', epsRaw,                                     'EPS 성장률 · 25%↑ 성장주 기준',     d._EPSGrowth > 0 ? 'var(--success)' : 'var(--destructive)'],
+    ['EPS 성장률',epsRaw,                                      '분기 순이익 전년비 · 25%↑ 성장주 기준',    d._EPSGrowth > 0 ? 'var(--success)' : 'var(--destructive)'],
     ['EPS 가속',  epsAccelRaw,                                 '전분기 대비 성장 가속 중인가 (CAN SLIM C원칙)', epsAccelCol],
     ['영업이익률',d._OperatingMargin ? fmt(d._OperatingMargin*100,1)+'%' + omLbl : '—', '매출 대비 영업이익 · 20%↑ 우수',  null],
   ];
@@ -4138,7 +4287,6 @@ let _dpFourAxisLoadedFor = null;
 let _dpFourAxisLoadingFor = null;
 let _dpFourAxisReqSeq = 0;
 let _detailFourAxisReqSeq = 0;
-let _dpMarketChart = null;
 const FOUR_AXIS_FETCH_TIMEOUT_MS = 90000;
 
 /* ── F6: IntersectionObserver lazy load — 차트 섹션이 뷰포트 진입 시 1회 호출 ── */
@@ -4209,6 +4357,11 @@ function switchDpTab(tabId) {
     const tk = (document.getElementById('dp-ticker')?.textContent || '').trim();
     if (tk && tk !== '—' && tk !== '…') loadDpDartNews(tk);
   }
+  // US 인사이트 탭 lazy loading (드로어)
+  if (tabId === 'usinsight') {
+    const tk = (document.getElementById('dp-ticker')?.textContent || '').trim();
+    if (tk && tk !== '—' && tk !== '…') loadDpUSInsight(tk);
+  }
 }
 
 let _dpDartNewsLoaded = false;
@@ -4257,7 +4410,6 @@ function _fillNewsBar(data) {
 }
 
 async function loadDpUSInsight(ticker) {
-  return;
   if (_dpUSInsightLoaded) return;
   _dpUSInsightLoaded = true;
 
@@ -4277,119 +4429,6 @@ async function loadDpUSInsight(ticker) {
   }
 }
 
-function _renderDpMarketChart(rows) {
-  const host = document.getElementById('dp-market-chart');
-  if (!host || !Array.isArray(rows) || rows.length < 20) return false;
-  const L = window.LightweightCharts;
-  if (!L || typeof L.createChart !== 'function') return false;
-
-  if (_dpMarketChart) {
-    try { _dpMarketChart.remove(); } catch (_) {}
-    _dpMarketChart = null;
-  }
-  host.innerHTML = '';
-
-  const formatChartDate = rawTime => {
-    if (typeof rawTime === 'string') return rawTime.slice(0, 10);
-    if (rawTime && rawTime.year) {
-      return `${rawTime.year}-${String(rawTime.month).padStart(2, '0')}-${String(rawTime.day).padStart(2, '0')}`;
-    }
-    return '';
-  };
-  const formatKrPrice = value => Math.round(Number(value)).toLocaleString('ko-KR');
-
-  const chart = L.createChart(host, {
-    autoSize: true,
-    layout: {
-      background: { type: L.ColorType.Solid, color: '#ffffff' },
-      textColor: '#8b95a1',
-      fontFamily: 'Paperlogy, -apple-system, BlinkMacSystemFont, sans-serif',
-      fontSize: 10,
-      attributionLogo: false,
-      panes: { separatorColor: '#e8ebed', separatorHoverColor: '#d1d6db', enableResize: false },
-    },
-    localization: { dateFormat: 'yyyy-MM-dd' },
-    grid: { vertLines: { color: '#f2f4f6' }, horzLines: { color: '#f2f4f6' } },
-    crosshair: {
-      mode: L.CrosshairMode.Normal,
-      vertLine: { color: '#9aa4af', width: 1, style: L.LineStyle.Dashed, labelBackgroundColor: '#3182f6' },
-      horzLine: { color: '#9aa4af', width: 1, style: L.LineStyle.Dashed, labelBackgroundColor: '#3182f6' },
-    },
-    rightPriceScale: { borderColor: '#e8ebed', scaleMargins: { top: 0.08, bottom: 0.08 } },
-    timeScale: {
-      borderColor: '#e8ebed', timeVisible: false, rightOffset: 4,
-      barSpacing: 10, minBarSpacing: 5,
-      tickMarkFormatter: formatChartDate,
-    },
-    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
-    handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
-  });
-  _dpMarketChart = chart;
-
-  const candles = rows.filter(r => r.time && r.open != null && r.high != null && r.low != null && r.close != null);
-  const candleSeries = chart.addSeries(L.CandlestickSeries, {
-    upColor: '#f04452', downColor: '#3182f6',
-    borderUpColor: '#f04452', borderDownColor: '#3182f6',
-    wickUpColor: '#f04452', wickDownColor: '#3182f6',
-    priceLineColor: '#f04452', priceLineWidth: 1,
-    priceFormat: { type: 'custom', minMove: 1, formatter: formatKrPrice },
-  }, 0);
-  candleSeries.setData(candles.map(r => ({ time: r.time, open: r.open, high: r.high, low: r.low, close: r.close })));
-
-  const addLine = (key, color) => {
-    const series = chart.addSeries(L.LineSeries, {
-      color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-      priceFormat: { type: 'custom', minMove: 1, formatter: formatKrPrice },
-    }, 0);
-    series.setData(rows.filter(r => r[key] != null).map(r => ({ time: r.time, value: r[key] })));
-  };
-  addLine('ma5', '#f5a623');
-  addLine('ma20', '#f04452');
-  addLine('ma60', '#ff8a00');
-  addLine('ma120', '#8b5cf6');
-
-  const volumeSeries = chart.addSeries(L.HistogramSeries, {
-    priceScaleId: '',
-    priceFormat: { type: 'volume' },
-    priceLineVisible: false,
-    lastValueVisible: false,
-  }, 0);
-  volumeSeries.setData(rows.map(r => ({
-    time: r.time, value: r.volume || 0,
-    color: r.close >= r.open ? 'rgba(240,68,82,.55)' : 'rgba(49,130,246,.55)',
-  })));
-  volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
-
-  const tooltip = document.getElementById('dp-chart-tooltip');
-  const dateLabel = document.getElementById('dp-chart-date');
-  const byTime = new Map(rows.map(r => [String(r.time), r]));
-  chart.subscribeCrosshairMove(param => {
-    const rawTime = param?.time;
-    const time = formatChartDate(rawTime);
-    const row = byTime.get(time);
-    if (!row) {
-      if (tooltip) tooltip.hidden = true;
-      if (dateLabel) dateLabel.textContent = '최근 4개월';
-      return;
-    }
-    if (dateLabel) dateLabel.textContent = time;
-    if (tooltip) {
-      tooltip.innerHTML = `<b>${esc(time)}</b><span>시 ${fmtPrice(row.open)}</span><span>고 ${fmtPrice(row.high)}</span><span>저 ${fmtPrice(row.low)}</span><span>종 ${fmtPrice(row.close)}</span>`;
-      tooltip.hidden = false;
-    }
-  });
-  const lastLogical = candles.length - 1;
-  chart.timeScale().setVisibleLogicalRange({
-    from: Math.max(0, lastLogical - 47),
-    to: lastLogical + 4,
-  });
-  requestAnimationFrame(() => {
-    const panes = chart.panes();
-    if (panes[0]) panes[0].setHeight(500);
-  });
-  return true;
-}
-
 async function loadDpFourAxis(ticker) {
   const loading = document.getElementById('dp-fouraxis-loading');
   const errDiv  = document.getElementById('dp-fouraxis-error');
@@ -4401,17 +4440,17 @@ async function loadDpFourAxis(ticker) {
   header.style.display = 'none';
   obsDiv.style.display = 'none';
   errDiv.style.display = 'none';
-  const judgeEl = document.getElementById('dp-entry-judge');
-  if (judgeEl) {
-    judgeEl.hidden = true;
-    judgeEl.innerHTML = '';
-  }
   loading.style.display = 'block';
+  // 차트 영역 초기화 — 이전 종목 차트 잔상 방지
+  const _prevImg = document.getElementById('dp-hd-chart');
+  const _prevSkel = document.getElementById('dp-hd-skeleton');
+  if (_prevImg) { _prevImg.src = ''; _prevImg.classList.remove('is-loaded'); }
+  if (_prevSkel) _prevSkel.style.display = '';
   _dpFourAxisLoadingFor = ticker;
   const reqSeq = ++_dpFourAxisReqSeq;
 
   try {
-    const p = new URLSearchParams({ market: currentMarket, chart: '0' });
+    const p = new URLSearchParams({ market: currentMarket });
     const res = await _fetchWithTimeout(`/api/four_axis/${encodeURIComponent(ticker)}?${p}`);
     if (!res.ok) throw new Error(await _readApiError(res));
     const d = await res.json();
@@ -4421,23 +4460,23 @@ async function loadDpFourAxis(ticker) {
     _dpFourAxisLoadedFor = ticker;
     _dpFourAxisLoadingFor = null;
 
-    // ── Hero 추세 차트 + 좌측 1일/52주 범위 ───────────────────────
+    // ── 핸드드로잉 차트 이미지 렌더 ─────────────────────────────
     try {
-      const panel = document.getElementById('dp-spark-panel');
-      const chartRows = Array.isArray(d.market_chart) ? d.market_chart : [];
-      const closes = Array.isArray(d.closes) ? d.closes : [];
-      if (panel && chartRows.length >= 20 && _renderDpMarketChart(chartRows)) {
-        const current = d.range_current || (closes.length ? closes[closes.length - 1] : null);
-        _setRangeRow('dp-day', d.day_low, d.day_high, current);
-        _setRangeRow('dp-wk52', d.wk52_low, d.wk52_high, current);
-        const volEl = document.getElementById('dp-range-volume');
-        if (volEl) {
-          const vol = d.day_volume != null ? d.day_volume : d.volume?.details?.volume;
-          volEl.textContent = vol != null ? _fmtAvgVol(Number(vol)) : '—';
-        }
-        panel.style.display = '';
+      const skeleton = document.getElementById('dp-hd-skeleton');
+      const chartImg = document.getElementById('dp-hd-chart');
+      if (chartImg && d.chart) {
+        chartImg.onload = () => {
+          if (skeleton) skeleton.style.display = 'none';
+          chartImg.classList.add('is-loaded');
+        };
+        chartImg.onerror = () => {
+          if (skeleton) skeleton.style.display = 'none';
+        };
+        chartImg.src = 'data:image/png;base64,' + d.chart;
+      } else if (skeleton) {
+        skeleton.style.display = 'none';
       }
-    } catch (e) { console.warn('market chart render failed:', e); }
+    } catch (e) { console.warn('handdrawn chart render failed:', e); }
 
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
     set('dp-fa-phase', d.phase || '');
@@ -4457,6 +4496,7 @@ async function loadDpFourAxis(ticker) {
     else if (_es >= 30) _stars = 2;
     else _stars = 1;
     set('dp-fa-stars', '★'.repeat(_stars) + '☆'.repeat(5 - _stars));
+
     const _starMeaningTbl = {
       5: '진입조건 모두 충족',
       4: '진입조건 대부분 충족',
@@ -4465,24 +4505,9 @@ async function loadDpFourAxis(ticker) {
       1: '진입조건 미충족',
       0: '데이터 부족',
     };
-    // 백엔드 headline_action(구체적 맥락 포함)을 우선 사용, 없으면 별점 테이블 폴백
-    const _haText = _rec?.EntryPlan?.headline_action;
-    const _meaningText = _haText || _starMeaningTbl[_stars] || '';
+    // 별점 테이블 기준 — EntryScore와 항상 일관되게 유지
+    const _meaningText = _starMeaningTbl[_stars] || '';
     set('dp-fa-stars-meaning', _meaningText ? `· ${_meaningText}` : '');
-    const _judgeEl = document.getElementById('dp-entry-judge');
-    if (_judgeEl) {
-      const judge = d.entry_judge;
-      if (judge && judge.label) {
-        const reason = Array.isArray(judge.reasons) ? judge.reasons.slice(0, 2).join(' · ') : '';
-        _judgeEl.dataset.risk = judge.risk || 'MED';
-        _judgeEl.innerHTML = `<strong>${esc(judge.label)}</strong> · ${esc(judge.timing || '')}${reason ? `<br>${esc(reason)}` : ''}`;
-        _judgeEl.hidden = false;
-      } else {
-        _judgeEl.hidden = true;
-        _judgeEl.innerHTML = '';
-      }
-    }
-    _renderFourAxisReasons(d);
     // 주도주 배지: RS Rating 80+ + EPS 가속 동시 충족
     const _leaderBadge = document.getElementById('dp-leader-badge');
     if (_leaderBadge) {
@@ -4502,6 +4527,40 @@ async function loadDpFourAxis(ticker) {
     set('dp-fa-vol-verdict',   d.volatility?.verdict ?? '');
     set('dp-fa-volm-score',    d.volume?.score   ?? '-');
     set('dp-fa-volm-verdict',  d.volume?.verdict ?? '');
+
+    // ── 친절한 이유 목록 ──────────────────────────────────────────
+    const _reasonsEl = document.getElementById('dp-fa-reasons');
+    if (_reasonsEl) {
+      const _axDef = [
+        { ax: d.trend,
+          pros: { 4: '추세가 강해요 — 이평선이 나란히 올라가고 있어요' },
+          cons: { 2: '추세가 꺾이고 있어요 — 방향이 불안정해요', 1: '추세가 꺾이고 있어요 — 방향이 불안정해요' } },
+        { ax: d.momentum,
+          pros: { 4: '가격 탄력이 좋아요 — 오르는 힘이 있어요' },
+          cons: { 2: '모멘텀이 약해요 — 오르는 힘이 부족해요', 1: '모멘텀이 약해요 — 오르는 힘이 부족해요' } },
+        { ax: d.volatility,
+          pros: { 4: '변동성이 낮아요 — 안정적으로 움직이고 있어요' },
+          cons: { 2: '요즘 등락이 좀 심해요 — 갑자기 흔들릴 수 있어요', 1: '요즘 등락이 좀 심해요 — 갑자기 흔들릴 수 있어요' } },
+        { ax: d.volume,
+          pros: { 4: '거래량이 받쳐줘요 — 사람들이 많이 사고 있어요' },
+          cons: { 2: '거래량이 많이 빠졌어요 — 관심이 줄어들고 있어요', 1: '거래량이 많이 빠졌어요 — 관심이 줄어들고 있어요' } },
+      ];
+      const _pros = [], _warns = [];
+      for (const { ax, pros, cons } of _axDef) {
+        const sc = ax?.score;
+        if (sc == null) continue;
+        if (sc >= 4) _pros.push(pros[4]);
+        else if (sc <= 2) _warns.push(cons[sc] || cons[2]);
+      }
+      if (d.momentum?.details?.bull_div) _pros.push('상승 다이버전스 포착 — 바닥 반등 신호예요');
+      if (d.momentum?.details?.bear_div) _warns.push('단기 과열 신호가 있어요 — 눌림목 올 수 있어요');
+      const _allItems = [
+        ..._pros.map(p => `<div class="dp-timing-pro">✅ ${p}</div>`),
+        ..._warns.map(w => `<div class="dp-timing-warn">⚠️ ${w}</div>`)
+      ];
+      _reasonsEl.innerHTML = _allItems.slice(0, 3).join('');
+    }
+
     header.style.display = 'block';
 
     const obs = d.key_observation || d.structured_analysis || '';
@@ -4546,48 +4605,6 @@ function buildSparklineSVG(closes, color) {
   );
 }
 
-// Toss-style trend chart: axis-free area line with an emphasized current point.
-function buildTossTrendSVG(closes, color, current) {
-  if (!Array.isArray(closes) || closes.length < 2) return '';
-  const values = closes.map(Number).filter(Number.isFinite);
-  if (values.length < 2) return '';
-  const W = 420, H = 150;
-  const padX = 8, padTop = 16, padBottom = 12, labelSpace = 70;
-  const chartRight = W - labelSpace;
-  const lo = Math.min(...values);
-  const hi = Math.max(...values);
-  const span = (hi - lo) || 1;
-  const x = i => padX + (i / (values.length - 1)) * (chartRight - padX);
-  const y = v => padTop + (1 - (v - lo) / span) * (H - padTop - padBottom);
-  const pts = values.map((v, i) => [x(i), y(v)]);
-  let line = `M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
-  for (let i = 1; i < pts.length; i++) {
-    const prev = pts[i - 1];
-    const point = pts[i];
-    const midX = ((prev[0] + point[0]) / 2).toFixed(1);
-    line += ` C ${midX} ${prev[1].toFixed(1)}, ${midX} ${point[1].toFixed(1)}, ${point[0].toFixed(1)} ${point[1].toFixed(1)}`;
-  }
-  const last = pts[pts.length - 1];
-  const area = `${line} L ${last[0].toFixed(1)} ${H} L ${pts[0][0].toFixed(1)} ${H} Z`;
-  const gid = `tossTrend_${values.length}_${Math.abs(Math.round(hi))}`;
-  const label = current != null && Number.isFinite(Number(current)) ? fmtPrice(Number(current)) : '';
-  return (
-    `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="최근 가격 추세" style="width:100%;height:100%;display:block;overflow:visible;">`
-    + `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`
-    + `<stop offset="0" stop-color="${color}" stop-opacity=".20"/>`
-    + `<stop offset=".82" stop-color="${color}" stop-opacity=".04"/>`
-    + `<stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>`
-    + `<path d="${area}" fill="url(#${gid})"/>`
-    + `<path d="${line}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`
-    + `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="8" fill="${color}" opacity=".12"/>`
-    + `<circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="4" fill="${color}"/>`
-    + (label
-      ? `<text x="${(last[0] + 10).toFixed(1)}" y="${Math.max(14, Math.min(H - 5, last[1] + 4)).toFixed(1)}" fill="${color}" font-size="13" font-weight="800">${label}</text>`
-      : '')
-    + `</svg>`
-  );
-}
-
 // ── 탭 전환 (detail.html onclick) ────────────────────────────────────────
 
 function switchTab(tabId) {
@@ -4602,6 +4619,10 @@ function switchTab(tabId) {
   // 공시·뉴스 탭 lazy loading
   if (tabId === 'dartnews' && typeof TICKER !== 'undefined' && TICKER) {
     loadDartNews(TICKER);
+  }
+  // US 인사이트 탭 lazy loading
+  if (tabId === 'usinsight' && typeof TICKER !== 'undefined' && TICKER) {
+    loadUSInsight(TICKER);
   }
 }
 
@@ -4803,7 +4824,6 @@ function _renderDartNews(container, data) {
 let _usInsightLoaded = false;
 
 async function loadUSInsight(ticker) {
-  return;
   if (_usInsightLoaded) return;
   _usInsightLoaded = true;
 
@@ -5110,7 +5130,6 @@ function _renderReasonTags(topReason) {
 function initFilterChips() {
   document.querySelectorAll('#filter-chips .chip[data-filter]').forEach(chip => {
     chip.addEventListener('click', () => {
-      closeEtfView();
       const f = chip.dataset.filter || 'all';
       if (f === 'all') {
         _activeFilters.clear();
@@ -5369,29 +5388,28 @@ function exportCSV() {
   URL.revokeObjectURL(url);
 }
 
-// ── 시장 레짐 배지 ─────────────────────────────────────────────────────
+// ── 레짐 배지 ─────────────────────────────────────────────────────────────
 
 async function fetchRegimeBadge() {
   const el = document.getElementById('regime-badge');
   if (!el) return;
   try {
-    const res = await fetch('/api/regime');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.error) return;
-    const cls = data.state === 'BULL' ? 'bull' : data.state === 'BEAR' ? 'bear' : 'chop';
-    const confidence = Math.round((data.confidence || 0) * 100);
-    let tip = `${data.desc} · 확신도 ${confidence}%`;
-    tip += `\n다음 Bull ${Math.round((data.p_next?.bull || 0) * 100)}%`;
-    tip += ` / Bear ${Math.round((data.p_next?.bear || 0) * 100)}%`;
-    tip += ` / Chop ${Math.round((data.p_next?.chop || 0) * 100)}%`;
-    if (data.early_exit) tip += '\nBear 압력 증가 - 비중 관리 필요';
-    if (data.early_long) tip += '\nBull 전환 가능성 증가';
-    el.className = `regime-badge ${cls}${data.early_exit ? ' early-exit' : data.early_long ? ' early-long' : ''}`;
-    el.textContent = `${data.emoji} KOSPI ${data.label} ${confidence}%`;
-    el.title = tip;
-    el.hidden = false;
-  } catch (_) {}
+    const r = await fetch('/api/regime');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.error) return;
+
+    const cls = d.state === 'BULL' ? 'bull' : d.state === 'BEAR' ? 'bear' : 'chop';
+    const conf = Math.round(d.confidence * 100);
+    let tip = `${d.desc} · 확신도 ${conf}%\n내일 Bull ${Math.round(d.p_next.bull*100)}% / Bear ${Math.round(d.p_next.bear*100)}% / Chop ${Math.round(d.p_next.chop*100)}%\n권고: ${d.position}`;
+    if (d.early_exit) tip += '\n⚡ Bear 압력 감지 — 포지션 축소 검토';
+    if (d.early_long) tip += '\n⚡ Bull 전환 가능 — 진입 준비';
+
+    el.className = `regime-badge ${cls}${d.early_exit ? ' early-exit' : d.early_long ? ' early-long' : ''}`;
+    el.title     = tip;
+    el.textContent = `${d.emoji} KOSPI ${d.label} ${conf}%`;
+    el.removeAttribute('hidden');
+  } catch(e) {}
 }
 
 // ── 초기화 ───────────────────────────────────────────────────────────────
@@ -5401,7 +5419,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const sp = new URLSearchParams(window.location.search);
   if (sp.has('market'))   currentMarket   = sp.get('market');
   if (sp.has('strategy')) currentStrategy = sp.get('strategy');
-  if (currentMarket !== 'KR') currentMarket = 'KR';
 
   // 오늘 날짜 표시
   const dateEl = document.getElementById('topbar-date');
@@ -5410,6 +5427,9 @@ document.addEventListener('DOMContentLoaded', () => {
       year: 'numeric', month: '2-digit', day: '2-digit'
     });
   }
+
+  // 레짐 배지
+  fetchRegimeBadge();
 
   // 시장 셀렉터 동기화
   const mSel = document.getElementById('market-select');
@@ -5420,13 +5440,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // ESC로 드로어 닫기
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
-    const etfView = document.getElementById('etf-view');
-    if (etfView && !etfView.hidden) { closeEtfView(); return; }
     closeDetailBtn();
   });
 
   if (typeof COMPARE_MARKET !== 'undefined' && COMPARE_MARKET) {
-    currentMarket = 'KR';
+    currentMarket = COMPARE_MARKET;
   }
 
   if (typeof COMPARE_TICKERS !== 'undefined' && Array.isArray(COMPARE_TICKERS)) {
@@ -5439,10 +5457,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const dnBtn = document.getElementById('btn-dartnews');
       if (dnBtn) dnBtn.style.display = '';
     }
+    // US 마켓일 때만 US 인사이트 탭 표시
+    if (currentMarket === 'US') {
+      const usBtn = document.getElementById('btn-usinsight');
+      if (usBtn) usBtn.style.display = '';
+    }
   } else {
     // ── 스캐너 페이지
-    fetchRegimeBadge();
-    setInterval(fetchRegimeBadge, 15 * 60 * 1000);
     initFilterChips();
     initIndexBar();
     loadIndexMeta();
@@ -5469,454 +5490,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const interval = (isKrOpen || isUsOpen) ? 3 : 30;
       if ((Date.now() - (_lastAutoScanTs || 0)) >= interval * 60 * 1000) {
         _lastAutoScanTs = Date.now();
-        runScan({ silent: true });
+        runScan();
       }
     }, 60 * 1000);  // 1분마다 체크, 실제 갱신은 조건부
   }
 });
 
-// ── ETF 현황 탭 (미국 + 한국) ───────────────────────────────────────────────
-
-let _etfLoaded = false;
-
-function openEtfView() {
-  const view = document.getElementById('etf-view');
-  if (!view) return;
-  if (!view.hidden) { closeEtfView(); return; }   // 탭 토글 — 다시 누르면 목록으로
-  // 인라인 탭 — 종목 표 자리에 ETF를 끼워 넣는다(상단·필터는 그대로).
-  const tbl = document.querySelector('.stock-table-wrap');
-  const mob = document.getElementById('mobile-stock-list');
-  if (tbl) tbl.style.display = 'none';
-  if (mob) mob.style.display = 'none';
-  view.hidden = false;
-  const rot = document.getElementById('etf-rotation');
-  if (rot) rot.hidden = false;   // F. 로테이션 토글 노출(본문은 클릭 시 지연 로딩)
-  _setViewTab('etf');
-  // 매번 새로 호출하되 서버 TTL 캐시가 비용을 흡수 (최초 1회만 로딩 표시)
-  loadEtfData(!_etfLoaded);
-}
-
-function closeEtfView() {
-  const view = document.getElementById('etf-view');
-  if (!view || view.hidden) return;
-  view.hidden = true;
-  // 인라인 스타일 제거 → CSS/미디어쿼리 기본 표시로 복귀
-  const tbl = document.querySelector('.stock-table-wrap');
-  const mob = document.getElementById('mobile-stock-list');
-  if (tbl) tbl.style.display = '';
-  if (mob) mob.style.display = '';
-  _setViewTab('stock');
-}
-
-// 종목 스캐너 뷰로 복귀 (ETF 탭 → 종목 탭)
-function showStockView() {
-  closeEtfView();
-  _setViewTab('stock');
-}
-
-// 뷰 전환 탭 active 동기화
-function _setViewTab(view) {
-  document.querySelectorAll('.view-tab').forEach(function (b) {
-    b.classList.toggle('active', b.dataset.view === view);
-  });
-}
-
-// KR-only mode keeps US market context disabled.
-async function loadMarketContext() {
-  return;
-}
-
-async function loadEtfData(showLoading) {
-  const krEl = document.getElementById('etf-list-kr');
-  const metaEl = document.getElementById('etf-meta');
-  if (!krEl) return;
-  if (showLoading) {
-    const ph = '<div class="etf-empty">불러오는 중…</div>';
-    krEl.innerHTML = ph;
-  }
-  try {
-    const res = await fetch('/api/etf');
-    const d = await res.json();
-    renderEtfData(d);
-    _etfLoaded = true;
-  } catch (e) {
-    console.warn('loadEtfData failed', e);
-    if (metaEl) metaEl.textContent = '· 불러오기 실패';
-    if (!_etfLoaded) {
-      krEl.innerHTML = '<div class="etf-empty">데이터를 불러오지 못했어요.</div>';
-    }
-  }
-}
-
-// ── F. 섹터 로테이션 히트맵 ──────────────────────────────────────────
-let _etfRotationLoaded = false;
-
-function toggleEtfRotation() {
-  const wrap = document.getElementById('etf-rotation');
-  const body = document.getElementById('etf-rotation-body');
-  if (!wrap || !body) return;
-  const toggle = wrap.querySelector('.etf-rotation-toggle');
-  const open = body.hidden;   // 현재 닫혀 있으면 연다
-  body.hidden = !open;
-  wrap.classList.toggle('expanded', open);
-  if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-  if (open && !_etfRotationLoaded) loadEtfRotation();
-}
-
-async function loadEtfRotation() {
-  const body = document.getElementById('etf-rotation-body');
-  if (!body) return;
-  body.innerHTML = '<div class="etf-sectors-loading">로테이션 불러오는 중…</div>';
-  try {
-    const res = await fetch('/api/etf-rotation');
-    const d = await res.json();
-    _etfRotationLoaded = true;
-    body.innerHTML = _renderEtfRotation(d);
-  } catch (e) {
-    console.warn('loadEtfRotation failed', e);
-    body.innerHTML = '<div class="etf-sectors-empty">로테이션을 불러오지 못했어요.</div>';
-  }
-}
-
-// 수익률 → 색(초록=상승/빨강=하락 강도). 한국식 색이 아니라 글로벌 히트맵 관례.
-function _rotationCellStyle(v) {
-  if (v == null || isNaN(Number(v))) return 'background:var(--surface-subtle);color:var(--text-tertiary);';
-  const n = Number(v);
-  // ±15% 를 최대 강도로 클램프
-  const a = Math.min(1, Math.abs(n) / 15);
-  if (n >= 0) return `background:rgba(16,185,129,${(0.12 + a * 0.6).toFixed(2)});color:#065f46;`;
-  return `background:rgba(239,68,68,${(0.12 + a * 0.6).toFixed(2)});color:#7f1d1d;`;
-}
-
-function _rotationCell(v) {
-  if (v == null || isNaN(Number(v))) return `<td class="etf-rot-cell" style="${_rotationCellStyle(null)}">—</td>`;
-  const n = Number(v);
-  const txt = (n > 0 ? '+' : '') + n.toFixed(1) + '%';
-  return `<td class="etf-rot-cell" style="${_rotationCellStyle(n)}">${esc(txt)}</td>`;
-}
-
-function _rotationTable(title, rows) {
-  if (!rows.length) return '';
-  // M3 기준 내림차순 정렬 → 주도 섹터가 위로
-  const sorted = rows.slice().sort((a, b) => (Number(b.m3) || -999) - (Number(a.m3) || -999));
-  const body = sorted.map(r =>
-    `<tr><td class="etf-rot-label" title="${esc(r.ticker || '')}">${esc(r.label || '')}</td>` +
-    _rotationCell(r.m1) + _rotationCell(r.m3) + '</tr>').join('');
-  return `<div class="etf-rot-block">
-    <div class="etf-rot-title">${esc(title)}</div>
-    <table class="etf-rot-table"><thead><tr>
-      <th></th><th>1개월</th><th>3개월</th>
-    </tr></thead><tbody>${body}</tbody></table></div>`;
-}
-
-function _renderEtfRotation(d) {
-  const kr = (d && Array.isArray(d.kr)) ? d.kr : [];
-  if (!kr.length) {
-    return '<div class="etf-sectors-empty">로테이션 데이터가 없어요.</div>';
-  }
-  return `<div class="etf-rot-grid">${_rotationTable('🇰🇷 한국 테마', kr)}</div>`;
-}
-
-// 거래량 한글 축약 (만/억)
-function _fmtEtfVol(n) {
-  if (n == null) return '—';
-  if (n >= 1e8) return (n / 1e8).toFixed(1).replace(/\.0$/, '') + '억';
-  if (n >= 1e4) return Math.round(n / 1e4).toLocaleString('ko-KR') + '만';
-  return Number(n).toLocaleString('ko-KR');
-}
-
-function _fmtEtfPrice(row) {
-  const t = (row.ticker || '').toUpperCase();
-  const isKr = t.endsWith('.KS') || t.endsWith('.KQ');
-  if (isKr) return '₩' + Math.round(row.price).toLocaleString('ko-KR');
-  return '$' + Number(row.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function _etfCardHtml(row) {
-  const c = Number(row.change_pct);
-  const dir = c > 0.005 ? 'up' : (c < -0.005 ? 'down' : 'flat');
-  const arrow = dir === 'up' ? '▲' : (dir === 'down' ? '▼' : '—');
-  const chgTxt = (c > 0 ? '+' : '') + c.toFixed(2) + '%';
-
-  // 거래량 급증 배지
-  let ratioBadge = '';
-  const vr = row.vol_ratio;
-  if (vr != null && vr >= 2) {
-    ratioBadge = `<span class="etf-volbadge hot">🔥${vr}배</span>`;
-  } else if (vr != null && vr >= 1.3) {
-    ratioBadge = `<span class="etf-volbadge warm">${vr}배</span>`;
-  }
-
-  const pos = Math.max(0, Math.min(100, Number(row.pos52) || 0));
-  // 위치별 색: 신고가 근접(빨강 계열)·바닥(파랑 계열)
-  const markCls = pos >= 85 ? 'high' : (pos <= 15 ? 'low' : 'mid');
-
-  const tk = esc(row.ticker || '');
-  const isKr = /\.(KS|KQ)$/i.test(tk);
-  const bareCode = isKr ? tk.replace(/\.(KS|KQ)$/i, '') : tk;
-  // 미국은 티커(SOXL 등)가 핵심 식별자 → 이름 줄에 굵게 앞세움. 한국 6자리 코드는 우측 작게.
-  const tickerTag = isKr ? '' : `<span class="etf-tk">${tk}</span> `;
-  const rightId = isKr ? (esc(bareCode) + ' ') : '';
-  const levBadge = row.is_leveraged
-    ? '<span class="etf-lev-badge" title="레버리지·인버스 — 장기보유 부적합">⚠</span>'
-    : '';
-  return `
-    <div class="etf-card${row.is_leveraged ? ' leveraged' : ''}" data-etf-ticker="${tk}">
-      <div class="etf-card-clickable" data-action="toggleEtfSectors" data-arg="${tk}" title="섹터 비중 보기">
-        <div class="etf-card-top">
-          <span class="etf-name">${levBadge}${tickerTag}${esc(row.label || '')}</span>
-          <span class="etf-ticker">${rightId}<span class="etf-expand-chevron">▾</span></span>
-        </div>
-        <div class="etf-card-mid">
-          <span class="etf-price">${esc(_fmtEtfPrice(row))}</span>
-          <span class="etf-chg ${dir}">${arrow} ${esc(chgTxt)}</span>
-        </div>
-        <div class="etf-card-meta">
-          <span class="etf-vol">거래량 ${esc(_fmtEtfVol(row.volume))}</span>
-          ${ratioBadge}
-        </div>
-        <div class="etf-52w">
-          <div class="etf-52w-bar">
-            <span class="etf-52w-marker ${markCls}" style="left:${pos}%"></span>
-          </div>
-          <div class="etf-52w-labels">
-            <span class="etf-52w-lo">${esc(_compactNum(row.low52))}</span>
-            <span class="etf-52w-pos">52주 ${pos.toFixed(0)}%</span>
-            <span class="etf-52w-hi">${esc(_compactNum(row.high52))}</span>
-          </div>
-        </div>
-      </div>
-      <div class="etf-sectors" hidden></div>
-    </div>`;
-}
-
-// ── ETF 섹터 비중 아코디언 (카드 클릭 시 지연 로딩) ──────────────────────
-const _etfSectorCache = {};   // ticker -> sectors 배열(한 번 로드 후 재요청 안 함)
-
-async function toggleEtfSectors(ticker) {
-  if (!ticker) return;
-  const card = document.querySelector('.etf-card[data-etf-ticker="' + (window.CSS && CSS.escape ? CSS.escape(ticker) : ticker) + '"]');
-  if (!card) return;
-  const box = card.querySelector('.etf-sectors');
-  if (!box) return;
-
-  // 이미 열려 있으면 접기
-  if (!box.hidden) {
-    box.hidden = true;
-    card.classList.remove('expanded');
-    return;
-  }
-
-  card.classList.add('expanded');
-  box.hidden = false;
-
-  const isLev = card.classList.contains('leveraged');
-
-  // 캐시 적중 시 재요청 안 함
-  if (_etfSectorCache[ticker]) {
-    box.innerHTML = _renderEtfDetail(_etfSectorCache[ticker], ticker, isLev);
-    return;
-  }
-
-  box.innerHTML = '<div class="etf-sectors-loading">구성 정보 불러오는 중…</div>';
-  try {
-    const res = await fetch('/api/etf-sectors/' + encodeURIComponent(ticker));
-    const d = await res.json();
-    const detail = {
-      sectors: Array.isArray(d.sectors) ? d.sectors : [],
-      holdings: Array.isArray(d.holdings) ? d.holdings : [],
-      meta: (d && typeof d.meta === 'object' && d.meta) ? d.meta : null,
-    };
-    _etfSectorCache[ticker] = detail;
-    box.innerHTML = _renderEtfDetail(detail, ticker, isLev);
-  } catch (e) {
-    console.warn('toggleEtfSectors failed', e);
-    box.innerHTML = '<div class="etf-sectors-empty">구성 정보를 불러오지 못했어요.</div>';
-  }
-}
-
-// 가중치 막대 행 1개 (구성종목/섹터 공용)
-function _etfWeightRow(label, pct, maxPct, cls, fixed, subTitle) {
-  const p = Number(pct) || 0;
-  const w = Math.max(2, Math.min(100, (p / (maxPct || 100)) * 100));
-  const titleAttr = subTitle ? ` title="${esc(subTitle)}"` : '';
-  return `
-      <div class="etf-sector-row">
-        <span class="etf-sector-label"${titleAttr}>${esc(label || '')}</span>
-        <span class="etf-sector-track"><span class="etf-sector-fill ${cls}" style="width:${w}%"></span></span>
-        <span class="etf-sector-pct">${p.toFixed(fixed)}%</span>
-      </div>`;
-}
-
-// 수익률 1개(한국식: +빨강/−파랑) — null이면 빈 문자열
-function _etfRetChip(label, v) {
-  if (v == null || isNaN(Number(v))) return '';
-  const n = Number(v);
-  const dir = n > 0.005 ? 'up' : (n < -0.005 ? 'down' : 'flat');
-  const txt = (n > 0 ? '+' : '') + n.toFixed(2) + '%';
-  return `<span class="etf-ret-chip"><span class="etf-ret-label">${esc(label)}</span>` +
-         `<span class="etf-ret-val ${dir}">${esc(txt)}</span></span>`;
-}
-
-// 보유종목 ticker → 스캐너 상세용 심볼. KR 6자리코드는 .KS 부착(추정), US는 그대로.
-function _etfHoldingSymbol(rawTicker, etfTicker) {
-  const t = String(rawTicker || '').trim();
-  if (!t) return '';
-  const etfKr = /\.(KS|KQ)$/.test(String(etfTicker || ''));
-  if (etfKr && /^\d{6}$/.test(t)) return t + '.KS';
-  return t;
-}
-
-// 보유종목 클릭 → 스캐너 상세 이동(존재하면 openDetail, 없으면 무반응)
-function openEtfHolding(symbol) {
-  if (!symbol) return;
-  try {
-    if (typeof openDetail === 'function') { openDetail(symbol); }
-  } catch (e) { console.warn('openEtfHolding failed', e); }
-}
-
-function _renderEtfDetail(d, etfTicker, isLev) {
-  const sectors = (d && Array.isArray(d.sectors)) ? d.sectors : [];
-  const holdings = (d && Array.isArray(d.holdings)) ? d.holdings : [];
-  const meta = (d && typeof d.meta === 'object' && d.meta) ? d.meta : null;
-
-  let html = '';
-
-  // G. 레버리지/인버스 경고 (상세 상단)
-  if (isLev) {
-    html += '<div class="etf-lev-warn">⚠ 레버리지·인버스 — 일일 리밸런싱, 장기보유 부적합(변동성 감쇠)</div>';
-  }
-
-  // A/B/C/D. 메타 요약(있는 항목만)
-  if (meta) {
-    let metaHtml = '';
-    // A. 총보수
-    if (meta.fee_pct != null && !isNaN(Number(meta.fee_pct))) {
-      metaHtml += `<div class="etf-meta-row"><span class="etf-meta-k">총보수</span>` +
-                  `<span class="etf-meta-v">${esc(Number(meta.fee_pct).toFixed(2))}%</span></div>`;
-    }
-    // B. 기간 수익률
-    const r = (meta.returns && typeof meta.returns === 'object') ? meta.returns : {};
-    const chips = _etfRetChip('1개월', r.m1) + _etfRetChip('3개월', r.m3) + _etfRetChip('1년', r.y1);
-    if (chips) {
-      metaHtml += `<div class="etf-meta-row etf-meta-rets"><span class="etf-meta-k">수익률</span>` +
-                  `<span class="etf-meta-v etf-ret-chips">${chips}</span></div>`;
-    }
-    // C. 괴리율 / 추적오차 (KR만)
-    const dev = (meta.deviation_pct != null && !isNaN(Number(meta.deviation_pct)))
-      ? `괴리율 ${Number(meta.deviation_pct).toFixed(2)}%` : '';
-    const trk = (meta.tracking_err_pct != null && !isNaN(Number(meta.tracking_err_pct)))
-      ? `추적오차 ${Number(meta.tracking_err_pct).toFixed(2)}%` : '';
-    const ct = [dev, trk].filter(Boolean).join(' · ');
-    if (ct) {
-      metaHtml += `<div class="etf-meta-row"><span class="etf-meta-k">추종</span>` +
-                  `<span class="etf-meta-v">${esc(ct)}</span></div>`;
-    }
-    // D. 자금 순유입 (KR best-effort)
-    if (meta.net_inflow && meta.net_inflow.text) {
-      const pos = meta.net_inflow.positive !== false;
-      const sign = pos ? '▲ 순유입' : '▼ 순유출';
-      const cls = pos ? 'up' : 'down';
-      const period = meta.net_inflow.period ? esc(meta.net_inflow.period) + ' ' : '';
-      metaHtml += `<div class="etf-meta-row"><span class="etf-meta-k">자금</span>` +
-                  `<span class="etf-meta-v"><span class="etf-flow ${cls}">${period}${sign} ${esc(meta.net_inflow.text)}</span></span></div>`;
-    }
-    if (metaHtml) html += `<div class="etf-meta-box">${metaHtml}</div>`;
-  }
-
-  if (!sectors.length && !holdings.length) {
-    if (!html) {
-      return '<div class="etf-sectors-empty">구성 정보가 없어요 (레버리지·파생형은 보통 미제공).</div>';
-    }
-    return html;  // 메타/경고만 있는 경우
-  }
-
-  if (holdings.length) {
-    const maxH = holdings.reduce((m, h) => Math.max(m, Number(h.weight_pct) || 0), 0) || 100;
-    html += `<div class="etf-sectors-title">구성 종목 TOP ${holdings.length}</div>`;
-    html += holdings.map(h => {
-      const sym = _etfHoldingSymbol(h.ticker, etfTicker);
-      const row = _etfWeightRow(h.name, h.weight_pct, maxH, 'hold', 2, h.ticker);
-      if (!sym) return row;
-      // 클릭 가능한 종목 행으로 감싼다(이벤트 위임 data-action)
-      return `<div class="etf-hold-link" data-action="openEtfHolding" data-arg="${esc(sym)}" title="${esc(sym)} 상세 보기">${row}</div>`;
-    }).join('');
-  }
-  if (sectors.length) {
-    const maxS = sectors.reduce((m, s) => Math.max(m, Number(s.weight_pct) || 0), 0) || 100;
-    html += `<div class="etf-sectors-title"${holdings.length ? ' style="margin-top:12px;"' : ''}>섹터 비중</div>`;
-    html += sectors.map(s => _etfWeightRow(s.label, s.weight_pct, maxS, '', 1, '')).join('');
-  }
-  return html;
-}
-
-// 52주 고저 라벨용 간단 숫자 축약
-function _compactNum(v) {
-  if (v == null) return '—';
-  const n = Number(v);
-  if (n >= 1000) return Math.round(n).toLocaleString('ko-KR');
-  return n.toFixed(2);
-}
-
-function renderEtfData(d) {
-  const krEl = document.getElementById('etf-list-kr');
-  const metaEl = document.getElementById('etf-meta');
-  if (!krEl) return;
-
-  const kr = Array.isArray(d.kr) ? d.kr : [];
-  krEl.innerHTML = _renderEtfGroups(kr);
-
-  if (metaEl) {
-    let meta = '';
-    if (d.ts) {
-      try {
-        const t = new Date(d.ts);
-        meta = '· ' + t.toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' 기준';
-      } catch (e) { /* ignore */ }
-    }
-    if (d.stale) meta += ' (지연)';
-    metaEl.textContent = meta;
-  }
-}
-
-// 기본 접힘 카테고리 — 첫 화면을 핵심(지수·반도체·레버리지) 위주로 깔끔하게
-const _ETF_COLLAPSED_DEFAULT = ['해외', '채권'];
-
-// 카테고리별 그룹화(등장 순서 유지) + 접이식 헤더
-function _renderEtfGroups(rows) {
-  if (!Array.isArray(rows) || !rows.length) return '<div class="etf-empty">데이터 없음</div>';
-  const order = [];
-  const groups = {};
-  rows.forEach(function (r) {
-    const c = (r && r.category) ? r.category : '기타';
-    if (!groups[c]) { groups[c] = []; order.push(c); }
-    groups[c].push(r);
-  });
-  return order.map(function (c) {
-    const cards = groups[c].map(_etfCardHtml).join('');
-    const collapsed = _ETF_COLLAPSED_DEFAULT.indexOf(c) !== -1;
-    return '<div class="etf-group' + (collapsed ? ' collapsed' : '') + '">' +
-      '<button class="etf-group-head" type="button" aria-expanded="' + (collapsed ? 'false' : 'true') + '">' +
-        '<span class="etf-group-chevron">▾</span>' +
-        '<span class="etf-group-name">' + esc(c) + '</span>' +
-        '<span class="etf-group-count">' + groups[c].length + '</span>' +
-      '</button>' +
-      '<div class="etf-group-body">' + cards + '</div>' +
-    '</div>';
-  }).join('');
-}
-
-// ETF 그룹 헤더 클릭 → 접기/펴기 (카드 data-action 과 분리된 클래스 기반 위임)
-document.addEventListener('click', function (e) {
-  const head = e.target.closest('.etf-group-head');
-  if (!head) return;
-  const grp = head.closest('.etf-group');
-  if (!grp) return;
-  const collapsed = grp.classList.toggle('collapsed');
-  head.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-});
-
-// ── 매크로 신호등 띠 ────────────────────────────────────────────────────────
 
 const _MACRO_DEFS = [
   { key: 'vix',     label: 'VIX',         fixed: 2, invert: true  },
@@ -6128,7 +5707,7 @@ async function loadComparePage(tickers) {
             ${_compareMetricRow('ROE', roe)}
             ${_compareMetricRow('EntryStatus', entry)}
           </div>
-          <div class="compare-oneliner">${olHtml(detail.OneLiner || '요약 코멘트 없음')}${detail.OneLinerData ? `<span class="oneliner-data">${esc(detail.OneLinerData)}</span>` : ''}</div>
+          <div class="compare-oneliner">${olHtml(detail.OneLiner || '요약 코멘트 없음')}${detail.OneLinerSub ? `<span class="oneliner-sub">→ ${esc(detail.OneLinerSub)}</span>` : ''}${detail.OneLinerData ? `<span class="oneliner-data">${esc(detail.OneLinerData)}</span>` : ''}</div>
         </div>
       `;
     } catch (err) {
@@ -6349,6 +5928,16 @@ function downloadShareCard() {
   a.click();
 }
 
+// ── 캡쳐모드 토글 (핵심 컬럼만 표시) ──────────────────────────────────
+function toggleCaptureMode() {
+  const wrap = document.querySelector('.stock-table-wrap');
+  if (!wrap) return;
+  const on = wrap.classList.toggle('capture-mode');
+  // 토글 버튼 시각 피드백
+  const btn = document.querySelector('[data-action="toggleCaptureMode"]');
+  if (btn) btn.classList.toggle('active-item', on);
+}
+
 // ── 종목 목록 캡쳐 ─────────────────────────────────────────────
 async function captureStockList() {
   try { await _ensureHtml2Canvas(); } catch { alert('html2canvas 라이브러리 로드 실패'); return; }
@@ -6383,8 +5972,12 @@ async function captureStockList() {
     const clone = target.cloneNode(true);
     clone.style.maxHeight = 'none';
     clone.style.overflow = 'visible';
-    // 원본 사이즈 보장 — 좁은 화면에서도 데스크탑급 1600px 보장 (붙여넣기 시 흐릿하지 않게)
-    clone.style.width = isMobile ? '480px' : Math.max(target.scrollWidth, 1600) + 'px';
+    // 캡쳐모드 활성 시 클론에도 적용 — 좁은 폭으로 글자 크게
+    const isCaptureMode = target.classList.contains('capture-mode');
+    if (isCaptureMode) clone.classList.add('capture-mode');
+    const defaultWidth = isCaptureMode ? 800 : 1600;
+    // 원본 사이즈 보장 — 좁은 화면에서도 데스크탑급 보장 (붙여넣기 시 흐릿하지 않게)
+    clone.style.width = isMobile ? '480px' : Math.max(target.scrollWidth, defaultWidth) + 'px';
 
     // 헤더 박스(브랜드 + 메타데이터) 추가
     const now = new Date();
@@ -6542,6 +6135,8 @@ async function captureDetail() {
     { suffix: 'finance',  label: '재무 지표' },
     { suffix: 'dartnews', label: '공시·뉴스',
       visibleOnly: () => currentMarket === 'KR' },
+    { suffix: 'usinsight', label: 'US 인사이트',
+      visibleOnly: () => currentMarket !== 'KR' },
   ];
   for (const t of tabMeta) {
     const pane = clone.querySelector('#__cap_dp-tab-' + t.suffix);

@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "version": 1,
-    "note": "주요 매크로 이벤트 (FOMC/CPI/NFP/한은). 분기마다 갱신 필요."
+    "version": 2,
+    "note": "FOMC/한은만 수동 관리. NFP(첫째금요일)·CPI(10-14일 화~목)는 macro_calendar.py가 자동 생성. CPI 교정이 필요하면 kind=cpi 항목 추가."
   },
   "events": [
     {"date": "2026-01-28", "name": "FOMC 회의", "kind": "fomc", "region": "US"},
@@ -12,22 +12,6 @@
     {"date": "2026-09-16", "name": "FOMC 회의·SEP", "kind": "fomc", "region": "US"},
     {"date": "2026-11-04", "name": "FOMC 회의", "kind": "fomc", "region": "US"},
     {"date": "2026-12-16", "name": "FOMC 회의·SEP", "kind": "fomc", "region": "US"},
-    {"date": "2026-01-13", "name": "CPI (12월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-02-11", "name": "CPI (1월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-03-12", "name": "CPI (2월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-04-10", "name": "CPI (3월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-05-13", "name": "CPI (4월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-06-11", "name": "CPI (5월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-07-15", "name": "CPI (6월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-08-12", "name": "CPI (7월)", "kind": "cpi", "region": "US"},
-    {"date": "2026-01-09", "name": "고용보고서 (12월)", "kind": "nfp", "region": "US"},
-    {"date": "2026-02-06", "name": "고용보고서 (1월)", "kind": "nfp", "region": "US"},
-    {"date": "2026-03-06", "name": "고용보고서 (2월)", "kind": "nfp", "region": "US"},
-    {"date": "2026-04-03", "name": "고용보고서 (3월)", "kind": "nfp", "region": "US"},
-    {"date": "2026-05-08", "name": "고용보고서 (4월)", "kind": "nfp", "region": "US"},
-    {"date": "2026-06-05", "name": "고용보고서 (5월)", "kind": "nfp", "region": "US"},
-    {"date": "2026-07-02", "name": "고용보고서 (6월)", "kind": "nfp", "region": "US"},
-    {"date": "2026-08-07", "name": "고용보고서 (7월)", "kind": "nfp", "region": "US"},
     {"date": "2026-01-15", "name": "한은 금통위", "kind": "bok", "region": "KR"},
     {"date": "2026-02-26", "name": "한은 금통위", "kind": "bok", "region": "KR"},
     {"date": "2026-04-09", "name": "한은 금통위", "kind": "bok", "region": "KR"},

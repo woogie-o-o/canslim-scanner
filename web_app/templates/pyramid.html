@@ -505,7 +505,6 @@ document.addEventListener('keydown', function(e){
 (function(){
   var params = new URLSearchParams(location.search);
   var t = params.get('ticker');
-  var m = params.get('market');
   if (t) {
     el('in-ticker').value = t.toUpperCase();
     el('in-market').value = 'KR';

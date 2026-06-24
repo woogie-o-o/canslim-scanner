@@ -303,7 +303,7 @@ def backtest_ticker(ticker: str, df: pd.DataFrame) -> pd.DataFrame:
     near52, dist52 = _high_52w(close)
     pivot = _pivot_breakout(close, vol)
     s_conf = _s_confirmed(vol)
-    day_chg = close.pct_change()
+    day_chg = close.pct_change(fill_method=None)
 
     # 전방 수익률
     fwd5 = close.pct_change(5).shift(-5)

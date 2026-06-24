@@ -48,6 +48,12 @@
             </svg>
             CSV 내보내기
           </button>
+          <button class="topbar-more-item" data-action="toggleCaptureMode" title="캡쳐모드 — 핵심 컬럼만 남겨 크게 보기 (토글)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
+            </svg>
+            캡쳐모드
+          </button>
           <button id="btn-capture-list" class="topbar-more-item" data-action="captureStockList" title="현재 종목 목록을 이미지로 캡쳐">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
@@ -93,11 +99,6 @@
     <span class="macro-meta" id="macro-meta"></span>
   </div>
 
-  <!-- View Tabs (종목 스캐너 ↔ ETF 현황) -->
-  <div class="view-tabs" role="tablist" aria-label="화면 전환">
-    <button class="view-tab active" data-view="stock" data-action="showStockView">📈 종목 스캐너</button>
-    <button class="view-tab" data-view="etf" data-action="openEtfView" title="한국 인기 ETF를 한눈에 — 구성종목·섹터·수수료·수익률">📊 ETF 현황</button>
-  </div>
 
   <!-- Stats Bar -->
   <div class="stats-bar">
@@ -126,6 +127,7 @@
         <button class="chip chip-delta" data-filter="score_surge" title="어제 대비 종합점수 +3 이상 급등">📈 점수급등</button>
         <button class="chip chip-delta" data-filter="new_entry" title="기준일 이후 목록에 새로 진입한 종목">🆕 신규진입</button>
         <button class="chip" data-filter="breakout" title="추세 돌파 감지 종목">🚀 돌파</button>
+        <button class="chip" data-filter="bf_buy" title="저점매수 점수 25점 이상 — 과매도+재무건전 후보 (40+: 적극, 60+: 강력)">🎣 저점매수</button>
         <button class="chip" data-filter="laggard" title="RS Rating 40 미만 또는 위험 등급 — 주의 대상">⛔ 위험</button>
       </div>
     </div>
@@ -189,26 +191,6 @@
         <div class="mobile-stock-list-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</div>
       </div>
 
-      <!-- ── ETF 현황 (인라인 탭 — 종목 표 자리에 표시) ─────────────── -->
-      <div id="etf-view" class="etf-view" hidden>
-        <div class="etf-view-header">
-          <div class="etf-view-title">📊 인기 ETF 현황 <span id="etf-meta" class="etf-view-meta"></span></div>
-          <button class="etf-view-close" data-action="closeEtfView" aria-label="종목 목록으로">← 종목 목록</button>
-        </div>
-        <!-- F. 섹터 로테이션 히트맵 (접이식) -->
-        <div id="etf-rotation" class="etf-rotation" hidden>
-          <button class="etf-rotation-toggle" data-action="toggleEtfRotation" aria-expanded="false">
-            🔥 섹터 로테이션 (M1·M3 수익률) <span class="etf-rotation-chevron">▾</span>
-          </button>
-          <div id="etf-rotation-body" class="etf-rotation-body" hidden></div>
-        </div>
-        <div class="etf-view-body">
-          <section class="etf-col">
-            <h3 class="etf-col-title">🇰🇷 한국</h3>
-            <div id="etf-list-kr" class="etf-list"></div>
-          </section>
-        </div>
-      </div>
     </main>
   </div>
 
@@ -251,28 +233,45 @@
         <button class="dp-section-btn active" onclick="dpScrollTo('dp-section-conclusion',this)">🎯 살까?</button>
         <button class="dp-section-btn" onclick="dpScrollTo('dp-section-timing',this)">📈 언제?</button>
         <button class="dp-section-btn" onclick="dpScrollTo('dp-section-company',this)">🏢 뭔데?</button>
-        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-detail',this)">📊 얼마나?</button>
+        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-detail',this)">📊 실적·지표</button>
+        <button class="dp-section-btn" onclick="dpScrollTo('dp-section-news',this)">📰 뉴스·일정</button>
         <button class="dp-section-btn" onclick="dpScrollTo('dp-group-ref',this)">📎 참고</button>
       </nav>
 
-<!-- ②③ 결론+타이밍 통합 카드 -->
+<!-- 결론+타이밍 통합 카드 -->
     <div class="dp-hero-card">
-<!-- ② 🎯 결론 (한줄평 + 뉴스) -->
+<!-- 🎯 살까? -->
     <section id="dp-section-conclusion" class="dp-section-conclusion">
       <div id="dp-verdict-poster" class="dp-verdict-poster" style="display:none;"></div>
-      <div id="dp-entry-summary" class="dp-entry-summary" style="display:none;"></div>
-      <div id="dp-fa-reasons" class="dp-fa-reasons" style="display:none;"></div>
-      <div id="dp-fa-haiku" class="dp-haiku-secondary" style="display:none;"></div>
-      <div id="dp-news-bar" class="dp-news-bar" style="display:none;">
-        <span class="dp-news-tag">NEWS</span>
-        <a id="dp-news-bar-link" href="#" target="_blank" rel="noopener" class="dp-news-link">—</a>
+      <div class="dp-stat-strip">
+        <div class="dp-stat-cell">
+          <span class="dp-stat-lbl">현재가</span>
+          <span id="dp-price" class="dp-stat-val">—</span>
+        </div>
+        <div class="dp-stat-cell">
+          <span class="dp-stat-lbl">등락률</span>
+          <span id="dp-day-chg" class="dp-stat-val">—</span>
+        </div>
+        <div class="dp-stat-cell">
+          <span class="dp-stat-lbl">RS 등급</span>
+          <span id="dp-rs-value" class="dp-stat-val">—</span>
+          <span id="dp-rs-label" class="dp-stat-sub">/ 99</span>
+        </div>
+      </div>
+      <!-- 진입 판단 종합 카드 (내부 전용 — UI에 미노출) -->
+      <div id="dp-entry-verdict" class="card" style="display:none;margin:12px 20px;overflow:hidden;"></div>
+      <!-- 친절한 이유 목록 -->
+      <div id="dp-fa-reasons"></div>
+      <div id="dp-investor-card" style="display:none;">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div style="padding:12px 16px 8px;font-size:12px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.03em;">투자자 동향</div>
+          <div id="dp-investor-grid" style="display:grid;column-gap:16px;padding:2px 16px 12px;"></div>
+        </div>
       </div>
     </section>
 
-<!-- ③ 📈 타이밍 -->
+<!-- 📈 언제? -->
     <section id="dp-section-timing" class="dp-section-timing">
-      <div id="dp-timing-summary" class="dp-timing-summary" style="display:none;"></div>
-      <div id="dp-timing-mini" class="dp-timing-mini" style="display:none;"></div>
       <div class="dp-hero-flex">
         <div class="dp-hero-left">
           <div class="dp-verdict-zone">
@@ -289,111 +288,49 @@
               </div>
             </div>
           </div>
-          <div class="dp-hero-stats dp-hero-stats--flat">
-            <div class="dp-hero-stat-cell">
-              <span class="dp-hero-stat-label">현재가</span>
-              <span id="dp-price" class="dp-hero-stat-value">—</span>
-            </div>
-            <div class="dp-hero-stat-cell">
-              <span class="dp-hero-stat-label">등락률</span>
-              <span id="dp-day-chg" class="dp-hero-stat-value">—</span>
-            </div>
-            <div class="dp-hero-stat-cell">
-              <span class="dp-hero-stat-label">RSI</span>
-              <span id="dp-thermo-label" class="dp-hero-stat-value">—</span>
-              <span id="dp-thermo-action" class="dp-hero-stat-hint">—</span>
-            </div>
-            <div class="dp-hero-stat-cell">
-              <span class="dp-hero-stat-label">RS 등급</span>
-              <div id="dp-rs-value" class="dp-hero-stat-value dp-rs-wrap">—</div>
-              <span id="dp-rs-label" class="dp-hero-stat-hint">/ 99</span>
-            </div>
-          </div>
-          <div class="dp-market-summary">
-            <div class="dp-range-row">
-              <span class="dp-range-label">1일 범위</span>
-              <span id="dp-day-low" class="dp-range-edge">—</span>
-              <div class="dp-range-track"><span id="dp-day-marker" class="dp-range-marker"></span></div>
-              <span id="dp-day-high" class="dp-range-edge">—</span>
-            </div>
-            <div class="dp-range-row">
-              <span class="dp-range-label">52주 범위</span>
-              <span id="dp-wk52-low" class="dp-range-edge">—</span>
-              <div class="dp-range-track"><span id="dp-wk52-marker" class="dp-range-marker"></span></div>
-              <span id="dp-wk52-high" class="dp-range-edge">—</span>
-            </div>
-            <div class="dp-market-facts">
-              <div class="dp-market-fact">
-                <span class="dp-spark-fact-label">거래량</span>
-                <span id="dp-range-volume" class="dp-spark-fact-val">—</span>
-              </div>
-              <div class="dp-market-fact">
-                <span class="dp-spark-fact-label">시총</span>
-                <span id="dp-mktcap" class="dp-spark-fact-val">—</span>
-              </div>
-            </div>
-          </div>
         </div>
-        <div class="dp-hero-right">
-      <div id="dp-spark-panel" style="display:none;">
-        <div class="dp-chart-toolbar">
-          <div class="dp-chart-title-group">
-            <strong>일봉</strong>
-            <span id="dp-chart-date">최근 4개월</span>
-          </div>
-          <div class="dp-chart-ma-legend" aria-label="이동평균선">
-            <span class="ma5">5</span><span class="ma20">20</span><span class="ma60">60</span><span class="ma120">120</span>
-          </div>
-        </div>
-        <div class="dp-spark-chart">
-          <div id="dp-market-chart"></div>
-          <div id="dp-chart-tooltip" class="dp-chart-tooltip" hidden></div>
-        </div>
-      </div>
-        </div><!-- /dp-hero-right -->
       </div><!-- /dp-hero-flex -->
-
+      <div id="dp-hd-chart-wrap" class="dp-hd-chart-wrap">
+        <div id="dp-hd-skeleton" class="dp-hd-skeleton"></div>
+        <img id="dp-hd-chart" src="" alt="차트 분석" />
+      </div>
       <div class="dp-thermo-compact">
         <div class="dp-thermo-track">
           <div id="dp-thermo-marker"></div>
         </div>
         <div class="dp-thermo-scale"><span>극도공포</span><span>공포</span><span>중립</span><span>탐욕</span><span>극도탐욕</span></div>
       </div>
-
       <div id="dp-fouraxis-loading">분석 불러오는 중...</div>
       <div id="dp-fouraxis-error"></div>
       <div id="dp-fouraxis-header">
-        <div class="dp-fouraxis-title">📈 현재 타이밍 분석 <span class="dp-fouraxis-title-hint">— 별점 = 아래 ‘타이밍 점수’를 별로 표시한 것 (같은 값)</span></div>
+        <div class="dp-fouraxis-title">📈 현재 타이밍 분석</div>
         <div class="dp-fouraxis-row">
           <span id="dp-fa-phase"></span>
           <span id="dp-fa-stars"></span>
           <span id="dp-fa-stars-meaning"></span>
         </div>
-        <div id="dp-entry-judge" class="dp-entry-judge" hidden></div>
-        <div class="dp-fouraxis-grid">
-          <div class="dp-axis-item"><div class="dp-axis-label">추세<div class="dp-axis-sub">(이평선 방향·정렬)</div></div><div class="dp-axis-val"><span id="dp-fa-trend-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-trend-verdict"></div></div>
-          <div class="dp-axis-item"><div class="dp-axis-label">모멘텀<div class="dp-axis-sub">(가격 탄력)</div></div><div class="dp-axis-val"><span id="dp-fa-mom-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-mom-verdict"></div></div>
-          <div class="dp-axis-item"><div class="dp-axis-label">변동성<div class="dp-axis-sub">(BB폭·ATR)</div></div><div class="dp-axis-val"><span id="dp-fa-vol-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-vol-verdict"></div></div>
-          <div class="dp-axis-item"><div class="dp-axis-label">수급<div class="dp-axis-sub">(거래량·이격도)</div></div><div class="dp-axis-val"><span id="dp-fa-volm-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-volm-verdict"></div></div>
-        </div>
+        <details class="dp-timing-detail">
+          <summary>상세 지표 보기</summary>
+          <div class="dp-fouraxis-grid">
+            <div class="dp-axis-item"><div class="dp-axis-label">추세<div class="dp-axis-sub">(이평선 방향·정렬)</div></div><div class="dp-axis-val"><span id="dp-fa-trend-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-trend-verdict"></div></div>
+            <div class="dp-axis-item"><div class="dp-axis-label">모멘텀<div class="dp-axis-sub">(가격 탄력)</div></div><div class="dp-axis-val"><span id="dp-fa-mom-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-mom-verdict"></div></div>
+            <div class="dp-axis-item"><div class="dp-axis-label">변동성<div class="dp-axis-sub">(BB폭·ATR)</div></div><div class="dp-axis-val"><span id="dp-fa-vol-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-vol-verdict"></div></div>
+            <div class="dp-axis-item"><div class="dp-axis-label">수급<div class="dp-axis-sub">(거래량·이격도)</div></div><div class="dp-axis-val"><span id="dp-fa-volm-score">-</span><span class="dp-axis-denom">/5</span></div><div class="dp-axis-meta" id="dp-fa-volm-verdict"></div></div>
+          </div>
+        </details>
       </div>
       <div id="dp-fouraxis-obs">
         <div class="dp-fouraxis-obs-title">핵심 관찰</div>
         <div id="dp-fa-observation"></div>
       </div>
-
-      <div id="dp-investor-card" style="display:none;">
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div style="padding:12px 16px 8px;font-size:12px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.03em;">투자자 동향</div>
-          <div id="dp-investor-grid" style="display:grid;column-gap:40px;padding:2px 16px 12px;"></div>
-        </div>
-      </div>
+      <!-- 분할매수 플랜 — 타이밍 섹션 마지막 (언제·어떻게 진입할지) -->
+      <div id="dp-split-plan" style="padding:4px 20px 8px;"></div>
     </section>
     </div><!-- /dp-hero-card -->
 
-<!-- ① 🏢 회사 정체성 -->
+<!-- 🏢 뭔데? -->
     <section id="dp-section-company" class="dp-section-company">
-      <!-- 핵심 경제적 해자 (Economic Moat) -->
+      <!-- 핵심 경제적 해자 -->
       <div id="dp-moat-card" class="dp-moat-card" style="display:none;">
         <div class="dp-moat-head">
           <span id="dp-moat-icon" class="dp-moat-icon">🛡</span>
@@ -418,7 +355,29 @@
           </div>
         </div>
       </div>
-
+      <!-- 매출 세그먼트 -->
+      <div id="dp-segments-card" class="dp-segments-card" style="display:none;">
+        <div class="dp-segments-head">
+          <span class="dp-segments-icon">📊</span>
+          <div class="dp-segments-titles">
+            <div class="dp-segments-title"><span id="dp-segments-conf" class="dp-conf-dot estimated" title="추정치"></span>매출 세그먼트</div>
+            <div id="dp-segments-meta" class="dp-segments-meta">—</div>
+          </div>
+          <span id="dp-segments-count" class="dp-segments-count">—</span>
+        </div>
+        <div class="dp-segments-body">
+          <div class="dp-segments-grid">
+            <div class="dp-segments-pie">
+              <svg id="dp-segments-svg" viewBox="0 0 100 100" width="160" height="160" aria-hidden="true"></svg>
+            </div>
+            <div id="dp-segments-legend" class="dp-segments-legend"></div>
+          </div>
+          <div class="dp-segments-footnote">
+            최신 사업보고서/10-K 기준 근사치 · 회계연도·환율·재분류로 차이 가능
+          </div>
+        </div>
+      </div>
+      <!-- 경쟁사 비교 -->
       <div id="dp-peers-card" class="dp-peers-card" style="display:none;">
         <div class="dp-peers-head">
           <span class="dp-peers-icon">⚔️</span>
@@ -451,64 +410,19 @@
           </div>
         </div>
       </div>
-
-      <div id="dp-segments-card" class="dp-segments-card" style="display:none;">
-        <div class="dp-segments-head">
-          <span class="dp-segments-icon">📊</span>
-          <div class="dp-segments-titles">
-            <div class="dp-segments-title"><span id="dp-segments-conf" class="dp-conf-dot estimated" title="추정치"></span>매출 세그먼트</div>
-            <div id="dp-segments-meta" class="dp-segments-meta">—</div>
-          </div>
-          <span id="dp-segments-count" class="dp-segments-count">—</span>
-        </div>
-        <div class="dp-segments-body">
-          <div class="dp-segments-grid">
-            <div class="dp-segments-pie">
-              <svg id="dp-segments-svg" viewBox="0 0 100 100" width="160" height="160" aria-hidden="true"></svg>
-            </div>
-            <div id="dp-segments-legend" class="dp-segments-legend"></div>
-          </div>
-          <div class="dp-segments-footnote">
-            최신 사업보고서/10-K 기준 근사치 · 회계연도·환율·재분류로 차이 가능
-          </div>
-        </div>
-      </div>
     </section>
 
-<!-- ④ 📊 상세 (접힘) -->
+<!-- 📊 실적·지표 -->
     <div class="dp-card-group" id="dp-section-detail">
       <button class="dp-card-group-toggle" onclick="toggleCardGroup(this)">
-        <span>📊 상세 분석</span>
+        <span>📊 실적·지표</span>
         <svg class="dp-cg-chevron open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="dp-card-group-body open">
-      <div id="dp-split-plan" class="dp-split-plan" style="display:none;"></div>
       <div class="dp-disclaimer">
         ⚠️ 등급·신호·목표가는 <b>알고리즘 스크리닝 결과</b>일 뿐, 투자 조언이 아닙니다. <b>드로다운 리스크</b>를 꼭 함께 확인하세요. 판단과 손익은 본인 책임입니다.
       </div>
-      <div class="dp-tabs-card">
-      <nav class="dp-tab-nav">
-        <button class="dp-tab-btn active" data-tab="canslim" data-action="switchDpTab" data-arg="canslim">🏆 CAN SLIM</button>
-        <button class="dp-tab-btn" data-tab="tech" data-action="switchDpTab" data-arg="tech">📐 기술 지표</button>
-        <button class="dp-tab-btn" data-tab="finance" data-action="switchDpTab" data-arg="finance">📊 재무 지표</button>
-        <button class="dp-tab-btn" data-tab="dartnews" id="dp-btn-dartnews" data-action="switchDpTab" data-arg="dartnews" style="display:none;">📰 공시·뉴스</button>
-      </nav>
-      <div class="dp-tab-panel active" id="dp-tab-canslim">
-        <div id="dp-breakdown-list"></div>
-      </div>
-      <div class="dp-tab-panel" id="dp-tab-tech">
-        <div id="dp-tech-content" class="dp-tab-content"></div>
-      </div>
-      <div class="dp-tab-panel" id="dp-tab-finance">
-        <div id="dp-finance-content" class="dp-tab-content"></div>
-      </div>
-      <div class="dp-tab-panel" id="dp-tab-dartnews">
-        <div id="dp-dartnews-content" class="dp-tab-content"></div>
-      </div>
-      </div><!-- /dp-tabs-card -->
-
-      <div id="dp-drawdown-risk" class="dp-drawdown-wrap"></div>
-
+      <!-- 실적 한눈에 — 상단 배치 -->
       <div id="dp-earnings-card" class="dp-earnings-card" style="display:none;">
         <div class="dp-earnings-head">
           <span class="dp-section-label">실적 한눈에</span>
@@ -516,7 +430,7 @@
         </div>
         <div id="dp-earnings-chips" class="dp-earnings-chips"></div>
       </div>
-
+      <!-- 증권사 컨센서스 — 실적 바로 아래 -->
       <div id="dp-consensus-card" class="dp-consensus-card" style="display:none;">
         <div class="dp-consensus-head">
           <span class="dp-section-label">증권사 컨센서스</span>
@@ -530,7 +444,28 @@
         </div>
         <div id="dpcons-reports" class="dp-consensus-reports"></div>
       </div>
-
+      <!-- 지표 탭 -->
+      <div class="dp-tabs-card">
+      <nav class="dp-tab-nav">
+        <button class="dp-tab-btn active" data-tab="canslim" data-action="switchDpTab" data-arg="canslim">🏆 CAN SLIM</button>
+        <button class="dp-tab-btn" data-tab="tech" data-action="switchDpTab" data-arg="tech">📐 기술 지표</button>
+        <button class="dp-tab-btn" data-tab="finance" data-action="switchDpTab" data-arg="finance">📊 재무 지표</button>
+        <button class="dp-tab-btn" data-tab="usinsight" id="dp-btn-usinsight" data-action="switchDpTab" data-arg="usinsight" style="display:none;">🇺🇸 US 인사이트</button>
+      </nav>
+      <div class="dp-tab-panel active" id="dp-tab-canslim">
+        <div id="dp-breakdown-list"></div>
+      </div>
+      <div class="dp-tab-panel" id="dp-tab-tech">
+        <div id="dp-tech-content" class="dp-tab-content"></div>
+      </div>
+      <div class="dp-tab-panel" id="dp-tab-finance">
+        <div id="dp-finance-content" class="dp-tab-content"></div>
+      </div>
+      <div class="dp-tab-panel" id="dp-tab-usinsight">
+        <div id="dp-usinsight-content" class="dp-tab-content"></div>
+      </div>
+      </div><!-- /dp-tabs-card -->
+      <div id="dp-drawdown-risk" class="dp-drawdown-wrap"></div>
       <div id="dp-midcap-card" style="display:none;">
         <div class="card midcap-detail-card">
           <div class="midcap-detail-header">
@@ -540,17 +475,50 @@
           <div id="dp-midcap-bars" class="midcap-detail-bars"></div>
         </div>
       </div>
-      </div><!-- /상세 분석 body -->
-    </div><!-- /상세 분석 group -->
+      </div><!-- /실적·지표 body -->
+    </div><!-- /실적·지표 group -->
 
-<!-- ── 참고 정보 그룹 (기본 접힘) ─────────────────────── -->
+<!-- 📰 뉴스·일정 — 뉴스/공시/이벤트 통합 -->
+    <div class="dp-card-group" id="dp-section-news">
+      <button class="dp-card-group-toggle" onclick="toggleCardGroup(this)">
+        <span>📰 뉴스·일정</span>
+        <svg class="dp-cg-chevron open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dp-card-group-body open">
+      <!-- 최신 뉴스 헤드라인 -->
+      <div id="dp-news-bar" class="dp-news-bar" style="display:none;">
+        <span class="dp-news-tag">NEWS</span>
+        <a id="dp-news-bar-link" href="#" target="_blank" rel="noopener" class="dp-news-link">—</a>
+      </div>
+      <!-- 공시·뉴스 (DART/SEC) — 탭 없이 직접 노출 -->
+      <div id="dp-dartnews-content" class="dp-tab-content"></div>
+      <!-- dartnews 탭 버튼 (JS 호환용, 미노출) -->
+      <button id="dp-btn-dartnews" data-tab="dartnews" data-action="switchDpTab" data-arg="dartnews" style="display:none;"></button>
+      <!-- 종목 일정 (실적·배당락) -->
+      <div id="dp-events-card" class="dp-events-card" style="display:none;">
+        <div class="dp-events-head">
+          <span class="dp-events-icon">📅</span>
+          <div class="dp-events-titles">
+            <div class="dp-events-title">종목 일정</div>
+            <div class="dp-events-sub">실적·배당락 (120일 이내)</div>
+          </div>
+          <span id="dp-events-count" class="dp-events-count">—</span>
+        </div>
+        <div id="dp-events-body" class="dp-events-body"></div>
+        <div class="dp-events-footnote">
+          yfinance 캘린더 · 매크로(FOMC/CPI 등)는 상단 스트립에서 확인
+        </div>
+      </div>
+      </div><!-- /뉴스·일정 body -->
+    </div><!-- /뉴스·일정 group -->
+
+<!-- 📎 참고 정보 -->
       <div class="dp-card-group" id="dp-group-ref">
         <button class="dp-card-group-toggle" onclick="toggleCardGroup(this)">
-          <span>📋 참고 정보</span>
+          <span>📎 참고 정보</span>
           <svg class="dp-cg-chevron open" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="dp-card-group-body open">
-
       <div id="dp-insider-card" class="dp-insider-card" style="display:none;">
         <div class="dp-insider-head">
           <span class="dp-insider-icon">🕵️</span>
@@ -579,22 +547,6 @@
           SEC Form 4 (yfinance) · 옵션행사·증여는 별도 분류 · 한국 종목은 미지원
         </div>
       </div>
-
-      <div id="dp-events-card" class="dp-events-card" style="display:none;">
-        <div class="dp-events-head">
-          <span class="dp-events-icon">📅</span>
-          <div class="dp-events-titles">
-            <div class="dp-events-title">종목 일정</div>
-            <div class="dp-events-sub">실적·배당락 (120일 이내)</div>
-          </div>
-          <span id="dp-events-count" class="dp-events-count">—</span>
-        </div>
-        <div id="dp-events-body" class="dp-events-body"></div>
-        <div class="dp-events-footnote">
-          yfinance 캘린더 · 매크로(FOMC/CPI 등)는 상단 스트립에서 확인
-        </div>
-      </div>
-
       <div id="dp-ownership-card" class="dp-ownership-card" style="display:none;">
         <div class="dp-ownership-head">
           <span class="dp-ownership-icon">👥</span>
@@ -616,7 +568,26 @@
           </div>
         </div>
       </div>
-
+      <!-- Serenity (@aleabitoreddit) 인사이트 카드 -->
+      <div id="dp-serenity-card" class="dp-serenity-card" style="display:none;">
+        <div class="dp-serenity-head">
+          <span class="dp-serenity-icon">🔬</span>
+          <div class="dp-serenity-titles">
+            <div class="dp-serenity-title">Serenity 인사이트</div>
+            <div class="dp-serenity-sub">@aleabitoreddit · 반도체/광학 공급망 애널리스트</div>
+          </div>
+          <span id="dp-serenity-signal-badge" class="dp-serenity-badge"></span>
+        </div>
+        <div class="dp-serenity-body">
+          <div id="dp-serenity-signal" class="dp-serenity-signal-text"></div>
+          <blockquote id="dp-serenity-quote" class="dp-serenity-quote"></blockquote>
+          <div id="dp-serenity-context" class="dp-serenity-context"></div>
+          <div class="dp-serenity-footer">
+            <a id="dp-serenity-link" href="#" target="_blank" rel="noopener" class="dp-serenity-link">원문 트윗 →</a>
+            <span id="dp-serenity-date" class="dp-serenity-date"></span>
+          </div>
+        </div>
+      </div>
         </div><!-- /참고 정보 body -->
       </div><!-- /참고 정보 group -->
 
@@ -648,113 +619,6 @@
 <div id="share-card-render" style="position:fixed;left:-9999px;top:0;z-index:-1;"></div>
 
 <!-- ── 실시간 채팅 ──────────────────────────────────────────── -->
-<style>
-#chat-toggle {
-  position: fixed; bottom: 24px; right: 24px; z-index: 9000;
-  width: 56px; height: 56px; border-radius: 50%;
-  background: var(--brand, #3b82f6); color: #fff; border: none;
-  font-size: 24px; cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,.25);
-  display: flex; align-items: center; justify-content: center;
-  transition: transform .15s;
-}
-#chat-toggle:hover { transform: scale(1.1); }
-#chat-toggle .badge {
-  position: absolute; top: -2px; right: -2px;
-  background: #ef4444; color: #fff; font-size: 11px; font-weight: 700;
-  min-width: 20px; height: 20px; border-radius: 10px;
-  display: none; align-items: center; justify-content: center; padding: 0 5px;
-}
-#chat-panel {
-  position: fixed; bottom: 92px; right: 24px; z-index: 9001;
-  width: 380px; max-height: 520px; border-radius: 20px;
-  background: var(--card, #fff); border: 1px solid var(--border, #e5e7eb);
-  box-shadow: 0 16px 48px rgba(0,0,0,.15);
-  display: none; flex-direction: column; overflow: hidden;
-}
-#chat-panel.open { display: flex; }
-#chat-header {
-  padding: 16px 20px; background: var(--card, #fff); color: var(--text-primary);
-  display: flex; align-items: center; justify-content: space-between;
-  font-weight: 700; font-size: 16px; border-bottom: 1px solid var(--border, #e5e7eb);
-}
-#chat-header .online { font-size: 13px; color: var(--brand); font-weight: 600; }
-#chat-messages {
-  flex: 1; overflow-y: auto; padding: 16px;
-  max-height: 380px; min-height: 200px;
-  display: flex; flex-direction: column; gap: 8px;
-  font-size: 14px; background: var(--surface-page, #f5f6f8);
-}
-#chat-messages .sys {
-  color: var(--text-tertiary, #9ca3af); font-size: 12px; text-align: center;
-  margin: 8px 0; background: var(--surface-muted); padding: 4px 12px;
-  border-radius: 12px; align-self: center;
-}
-#chat-messages .msg {
-  display: flex; flex-direction: column;
-  background: var(--card, #fff); color: var(--text-primary);
-  padding: 10px 14px; border-radius: 18px 18px 18px 4px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  width: fit-content; max-width: 85%;
-}
-#chat-messages .msg.me {
-  align-self: flex-end;
-  background: var(--brand, #3182f6); color: #fff;
-  border-radius: 18px 18px 4px 18px;
-}
-#chat-messages .msg .nick { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
-#chat-messages .msg.me .nick { display: none; }
-#chat-messages .msg .content-row { display: flex; align-items: flex-end; gap: 8px; }
-#chat-messages .msg .text { word-break: break-word; line-height: 1.4; }
-#chat-messages .msg .time { font-size: 11px; color: var(--text-tertiary); flex-shrink: 0; margin-bottom: 2px; }
-#chat-messages .msg.me .time { color: rgba(255,255,255,0.75); }
-
-#chat-input-wrap {
-  display: flex; padding: 12px 16px; gap: 10px; background: var(--card, #fff); border-top: 1px solid var(--border, #e5e7eb);
-}
-#chat-input {
-  flex: 1; border: none; border-radius: 20px;
-  padding: 10px 16px; font-size: 14px; outline: none;
-  background: var(--surface-subtle, #f2f3f6); color: var(--text-primary);
-}
-#chat-input:focus { background: var(--surface-muted, #eaebee); }
-#chat-send {
-  background: var(--brand, #3b82f6); color: #fff; border: none;
-  border-radius: 20px; padding: 0 16px; font-weight: 700; cursor: pointer; font-size: 14px;
-}
-#chat-admin-btn {
-  background: none; border: none; cursor: pointer; font-size: 14px;
-  opacity: .5; transition: opacity .15s; padding: 0 0 0 8px; line-height: 1;
-}
-#chat-admin-btn:hover { opacity: 1; }
-#chat-admin-bar {
-  display: none; padding: 6px 10px; gap: 6px; border-bottom: 1px solid var(--border, #e5e7eb);
-  background: var(--surface-page, #f9fafb); align-items: center;
-}
-#chat-admin-bar.open { display: flex; }
-#chat-admin-bar input {
-  flex: 1; border: 1px solid var(--border, #ddd); border-radius: 6px;
-  padding: 5px 8px; font-size: 12px; outline: none;
-  background: var(--surface-card, #fff); color: var(--text-primary);
-}
-#chat-admin-bar button {
-  background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 4px;
-}
-.msg .admin-actions { display: none; margin-top: 4px; }
-.admin-mode .msg .admin-actions { display: block; }
-.msg .admin-actions button {
-  background: none; border: none; cursor: pointer; font-size: 12px;
-  opacity: .7; padding: 0 4px; color: var(--text-primary);
-}
-.msg .admin-actions button:hover { opacity: 1; color: #ef4444; }
-#chat-messages .announce {
-  background: var(--brand-tint, #e8f3ff); color: var(--brand, #3182f6); padding: 8px 12px; border-radius: 12px;
-  font-size: 13px; font-weight: 600; text-align: center; margin: 8px 0; align-self: center;
-}
-@media (max-width: 480px) {
-  #chat-panel { width: calc(100vw - 24px); right: 12px; bottom: 84px; }
-  #chat-toggle { bottom: 16px; right: 16px; width: 48px; height: 48px; font-size: 20px; }
-}
-</style>
 
 <button id="chat-toggle" title="실시간 채팅">
   <span>💬</span>
@@ -780,7 +644,6 @@
 
 <!-- socket.io: lazy-loaded on first chat open (45KB 초기 로드 제거) -->
 <!-- html2canvas: lazy-loaded on first capture (430KB 초기 로드 제거) -->
-<script src="/static/lib/lightweight-charts.standalone.production.js" defer></script>
 <script src="/static/app.js?v={{ v_app_js }}" defer></script>
 <script>
 /* ── Card Group Toggle + Section Nav ─────────────────────── */
@@ -1005,13 +868,12 @@ document.addEventListener('click', function(e) {
   }
   function addMsg(nick, msg, ts, id) {
     const el = document.createElement('div');
-    const isMe = nick === myNick;
-    el.className = 'msg' + (isMe ? ' me' : '');
+    el.className = 'msg';
     if (id) el.dataset.id = id;
     el.dataset.nick = nick;
-    let html = `<div class="nick">${escHtml(nick)}</div>`;
-    html += `<div class="content-row"><span class="text">${escHtml(msg)}</span><span class="time">${fmtTime(ts)}</span></div>`;
-    html += `<div class="admin-actions"><button class="del-btn" title="삭제">&times; 삭제</button><button class="ban-btn" title="차단">🚫 차단</button></div>`;
+    const isMe = nick === myNick;
+    let html = `<span class="nick${isMe?' me':''}">${escHtml(nick)}</span>${escHtml(msg)}<span class="time">${fmtTime(ts)}</span>`;
+    html += `<span class="admin-actions"><button class="del-btn" title="삭제">&times;</button><button class="ban-btn" title="차단">🚫</button></span>`;
     el.innerHTML = html;
     el.querySelector('.del-btn').onclick = () => { if (socket) socket.emit('admin_delete', { id: Number(el.dataset.id) }); };
     el.querySelector('.ban-btn').onclick = () => { if (socket) socket.emit('admin_ban', { nick: el.dataset.nick }); };

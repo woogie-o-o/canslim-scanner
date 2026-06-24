@@ -1236,6 +1236,8 @@ html, body {
       <!-- 과열·바닥 신호 카드 -->
       <div id="heat-signal-wrap" style="display:none; padding:0 24px 4px;"></div>
 
+      <!-- 진입 여건 분석 카드 -->
+      <div id="judge-wrap" style="display:none; padding:0 24px 4px;"></div>
 
       <!-- MECE 분석 프레임워크 카드 -->
       <div id="valuation-context-card" class="mece-card" style="display:none; padding:0 24px 4px;"></div>
@@ -1286,6 +1288,38 @@ html, body {
 </div><!-- end shell -->
 
 <script>const TICKER = "{{ ticker }}";</script>
+<script>
+(async function(){
+  try {
+    const r = await fetch('/api/judge/' + TICKER);
+    if (!r.ok) return;
+    const d = await r.json();
+    const el = document.getElementById('judge-wrap');
+    if (!el || d.error) return;
+    const riskColor = {LOW:'#2e7d32', MED:'#f57c00', HIGH:'#c62828', EXTREME:'#880e4f'};
+    el.innerHTML = `<div class="card" style="padding:14px 16px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.03em;margin-bottom:8px;">⚡ 진입 여건 분석</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:22px;">${d.color}</span>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text-primary);">${d.label}</div>
+          <div style="font-size:11px;color:${riskColor[d.risk]||'var(--text-tertiary)'};font-weight:600;">위험도 ${d.risk}</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;">
+        ${(d.reasons||[]).map(s=>`<div style="margin-bottom:3px;">• ${s}</div>`).join('')}
+      </div>
+      <div style="font-size:12px;font-weight:600;color:var(--text-primary);padding:8px 10px;background:var(--surface-subtle);border-radius:8px;">
+        📌 ${d.timing}
+      </div>
+      <div style="font-size:11px;color:var(--text-tertiary);margin-top:6px;">
+        프리장 ${d.premark?'✅ 가능':'⛔ 비추천'}
+      </div>
+    </div>`;
+    el.style.display = '';
+  } catch(e) {}
+})();
+</script>
 <script src="/static/app.js?v={{ v_app_js }}"></script>
 </body>
 </html>

@@ -412,6 +412,20 @@ def _load_scan_snapshot() -> bool:
             snapshot = pickle.load(f)
         if not snapshot:
             return False
+        try:
+            from quant_nexus_v20 import QuantNexusApp
+            _us_nm_snap = getattr(QuantNexusApp, "US_NAMES", {})
+        except Exception:
+            _us_nm_snap = {}
+        if _us_nm_snap:
+            for _sk, _sv in snapshot.items():
+                if not isinstance(_sk, tuple) or len(_sk) < 1 or _sk[0] != "US":
+                    continue
+                for _row in (_sv.get("data") or []):
+                    _tk = _row.get("Ticker") or ""
+                    _fixed = _us_nm_snap.get(_tk)
+                    if _fixed and _row.get("Name") != _fixed:
+                        _row["Name"] = _fixed
         with _scan_results_cache_lock:
             _scan_results_cache.update(snapshot)
         logging.info("scan snapshot loaded: %d entries (instant cold-start)", len(snapshot))
@@ -2350,6 +2364,7 @@ def api_ticker(ticker: str):
             if market_arg == "KR" and (
                 not _has_bf_breakdown(_td_cached.get("data"))
                 or not _has_current_kr_detail_schema(_td_cached.get("data"))
+                or not (_td_cached.get("data") or {}).get("BrokerTarget")
             ):
                 _ticker_detail_cache.pop(_td_key, None)
             else:
@@ -2394,7 +2409,28 @@ def api_ticker(ticker: str):
             _overlay_kr_realtime_quote(result, sync_new_high=True)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
+            # 캐시가 BrokerTarget=0으로 저장된 경우 실시간 재조회
+            if not result.get("BrokerTarget"):
+                try:
+                    bt = adapter._fetch_naver_target(ticker)
+                    if bt and bt > 0:
+                        result["BrokerTarget"] = float(bt)
+                        code6_ = _strip_kr_suffix(ticker).zfill(6)
+                        result["BrokerTargetSource"] = (
+                            getattr(adapter, "_naver_target_meta", {}).get(code6_, "")
+                            or "네이버 증권 컨센서스 (국내 증권사 평균)"
+                        )
+                except Exception as _bte:
+                    logging.debug("BrokerTarget live fetch failed: %s", _bte)
         else:
+            # US 종목: US_NAMES 한글명 우선 적용
+            try:
+                from quant_nexus_v20 import QuantNexusApp
+                _us_nm = getattr(QuantNexusApp, "US_NAMES", {}).get(ticker)
+                if _us_nm:
+                    result["Name"] = _us_nm
+            except Exception as _e:
+                logging.debug("silent except (app.py): %s", _e)
             # US 종목: yfinance + Finnhub 센티먼트는 /api/sentiment/<ticker>로 분리 (lazy-load).
             # 종목 상세 패널 첫 paint 지연(5~10s yfinance .info hang)을 제거하기 위함.
             # 프론트는 sentiment 응답 도착 시 _YF_*/_FH_* 키를 머지.
@@ -2438,16 +2474,27 @@ def api_ticker(ticker: str):
             logging.debug("MECE scenario failed: %s", _mece_e2)
             result.setdefault("Scenarios", None)
 
-        # ATR top-level 필드 추출
-        result['ATR'] = result.get('volatility', {}).get('details', {}).get('atr', 0)
-        result['ATR_pct'] = result.get('volatility', {}).get('details', {}).get('atr_pct', 0)
+        # ATR top-level 필드 추출 (EntryPlan.atr_pct → ATRPercent 순으로 폴백)
+        result['ATR'] = (result.get('volatility') or {}).get('details', {}).get('atr', 0) or 0
+        result['ATR_pct'] = (
+            (result.get('EntryPlan') or {}).get('atr_pct', 0)
+            or result.get('ATRPercent', 0)
+            or (result.get('volatility') or {}).get('details', {}).get('atr_pct', 0)
+            or 0
+        )
 
         try:
             from web_app.price_levels import build_price_strategy as _mece_price
             _mece_scenarios = result.get("Scenarios", {}).get("scores") if result.get("Scenarios") else None
-            result["PriceLevels"] = _mece_price(result, _mece_scenarios)
+            try:
+                import macro_gate
+                _vol = macro_gate.get_vol_index(market)  # KR=VKOSPI, US=VIX (캐시)
+            except Exception as _vol_e:
+                logging.debug("vol index fetch failed: %s", _vol_e)
+                _vol = None
+            result["PriceLevels"] = _mece_price(result, _mece_scenarios, vol=_vol)
         except Exception as _mece_e3:
-            logging.debug("MECE price levels failed: %s", _mece_e3)
+            logging.warning("MECE price levels failed: %s", _mece_e3)
             result.setdefault("PriceLevels", None)
 
         if market == "KR":
@@ -2726,19 +2773,29 @@ def api_peers(ticker: str):
     ))
     peers = candidates[:limit]
 
+    try:
+        from quant_nexus_v20 import QuantNexusApp as _QNA
+        _us_names_peer = getattr(_QNA, "US_NAMES", {}) if market == "US" else {}
+    except Exception:
+        _us_names_peer = {}
+
     def _row(r: dict) -> dict:
+        _tk = r.get("Ticker") or ""
+        # 0 은 '데이터 없음' — None 으로 변환해 프론트에서 '—' 표시
+        def _nz(v):
+            return v if v else None
         return {
-            "Ticker":          r.get("Ticker") or "",
-            "Name":            r.get("Name") or "",
+            "Ticker":          _tk,
+            "Name":            _us_names_peer.get(_tk) or r.get("Name") or "",
             "Sector":          r.get("Sector") or "",
             "Industry":        r.get("Industry") or "",
             "Price":           r.get("Price"),
             "TotalScore":      r.get("TotalScore"),
-            "MarketCap":       r.get("_MarketCap"),
-            "PER":             r.get("_PER"),
-            "PBR":             r.get("_PBR"),
-            "ROE":             r.get("_ROE"),
-            "OperatingMargin": r.get("_OperatingMargin"),
+            "MarketCap":       _nz(r.get("_MarketCap")),
+            "PER":             _nz(r.get("_PER")),
+            "PBR":             _nz(r.get("_PBR")),
+            "ROE":             _nz(r.get("_ROE")),
+            "OperatingMargin": _nz(r.get("_OperatingMargin")),
             "Mom12M":          r.get("Mom12M"),
             "DivYield":        r.get("_DivYield"),
         }
@@ -3706,11 +3763,11 @@ _four_axis_render_lock = threading.Lock()  # BG warm만 직렬화 — 유저 요
 
 
 def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> None:
-    """BG 선제 4축 캐시 채우기 — 클릭(드로어) 시 분석 즉시 표시.
+    """BG 선제 4축 캐시 채우기 — 클릭(드로어) 시 차트+분석 즉시 표시.
 
-    드로어는 차트를 쓰지 않으므로 no-chart(c0) 페이로드를 워밍한다.
+    드로어가 핸드드로잉 차트를 표시하므로 c1(차트 포함) 페이로드를 워밍한다.
     """
-    cache_key = f"{ticker}:{market}:{timeframe}:c0"
+    cache_key = f"{ticker}:{market}:{timeframe}:c1"
     with _four_axis_cache_lock:
         if cache_key in _four_axis_cache:
             return  # BG warm hit — move_to_end 호출 안 함 (cold entry가 hot으로 위장하는 것 방지)
@@ -3721,7 +3778,7 @@ def _warm_four_axis(ticker: str, market: str, timeframe: str = "default") -> Non
         with _four_axis_cache_lock:
             if cache_key in _four_axis_cache:
                 return
-        payload, err = _compute_four_axis_payload(ticker, market, want_chart=False)
+        payload, err = _compute_four_axis_payload(ticker, market, want_chart=True)
         if payload:
             with _four_axis_cache_lock:
                 if len(_four_axis_cache) >= _FOUR_AXIS_MAX:
@@ -4209,6 +4266,86 @@ def _cold_start_fill():
     _save_scan_snapshot()
     _warmup_search_index()
     _warmup_moat_cache()
+
+
+@app.route("/api/judge/<ticker>")
+def api_judge(ticker: str):
+    """GET /api/judge/005930.KS  → 진입 여건 시나리오 분류 (stock_judge)"""
+    safe = _validate_ticker(ticker)
+    if not safe:
+        return jsonify({"error": "invalid ticker"}), 400
+
+    _cache_key = f"judge:{safe}"
+    _now = int(time.time())
+    with _ticker_detail_cache_lock:
+        _hit = _ticker_detail_cache.get(_cache_key)
+        if _hit and (_now - _hit.get("_ts", 0)) < 300:   # 5분 TTL
+            return jsonify(_hit["data"])
+
+    try:
+        import sys as _sys
+        _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if _root not in _sys.path:
+            _sys.path.insert(0, _root)
+        from stock_judge import compute_technicals, classify, apply_regime, SCENARIOS
+
+        tc = compute_technicals(safe)
+        scenario, reasons = classify(tc)
+
+        regime_state = None
+        try:
+            from regime_classifier import get_market_regime
+            regime_state = get_market_regime("KR").state
+        except Exception:
+            pass
+
+        scenario, _ = apply_regime(scenario, regime_state, tc)
+        info = SCENARIOS[scenario]
+
+        result = {
+            "ticker":   safe,
+            "scenario": scenario,
+            "label":    info["label"],
+            "color":    info["color"],
+            "timing":   info["timing"],
+            "premark":  info["premark"],
+            "risk":     info["risk"],
+            "reasons":  reasons,
+            "technicals": {
+                "ma20_dev":  round(tc["ma20_dev"], 4),
+                "ma60_dev":  round(tc["ma60_dev"], 4) if tc["ma60_dev"] and not (tc["ma60_dev"] != tc["ma60_dev"]) else None,
+                "rsi":       round(tc["rsi"], 1),
+                "rvol":      round(tc["rvol"], 3),
+                "vol_trend": round(tc["vol_trend"], 3),
+                "chg5d":     round(tc["chg5d"], 4) if tc["chg5d"] and not (tc["chg5d"] != tc["chg5d"]) else None,
+                "dd60":      round(tc["dd60"], 4),
+                "streak_up": tc["streak_up"],
+            },
+        }
+        with _ticker_detail_cache_lock:
+            _ticker_detail_cache[_cache_key] = {"data": result, "_ts": _now}
+        return jsonify(result)
+
+    except Exception as e:
+        logging.warning("api_judge [%s]: %s", safe, e)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/serenity/<ticker>")
+def api_serenity(ticker: str):
+    """Serenity (@aleabitoreddit) 인사이트 조회."""
+    ticker = _validate_ticker(ticker)
+    if not ticker:
+        return jsonify({"error": "invalid ticker"}), 400
+    try:
+        from web_app.serenity import get_serenity_insight
+        result = get_serenity_insight(ticker)
+        if result:
+            return jsonify(result)
+        return jsonify({"error": "not_covered"}), 404
+    except Exception as e:
+        logging.warning("api_serenity: %s", e)
+        return jsonify({"error": str(e)}), 500
 
 
 threading.Thread(target=_cold_start_fill, daemon=True, name="cold-start-fill").start()

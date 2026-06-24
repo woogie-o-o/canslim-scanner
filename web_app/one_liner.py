@@ -4620,6 +4620,29 @@ _FORBIDDEN_FINAL = (
 
 _SAFE_FALLBACK = "AI 코멘트 점검 중"
 
+# 버킷별 평어 요약 — 슬랭 한줄평 아래 "→ ..." 형태로 표시
+_BUCKET_SUB: dict[str, str] = {
+    "SECTOR_LEADER":       "섹터 내 독주 상승 중",
+    "BREAKOUT":            "박스권 돌파 상승",
+    "MOMENTUM_LEADER":     "강한 상승 모멘텀",
+    "EARNINGS_BEAT":       "실적 개선 + 상승 중",
+    "TRUE_VALUE":          "저평가 가치주",
+    "SLEEPING_GIANT":      "저평가, 잠재력 보유",
+    "CASH_COW":            "현금 창출 우량주",
+    "DEFENSIVE":           "저변동 우량 — 방향성 약",
+    "EXPENSIVE_JUSTIFIED": "비싸지만 성장이 뒷받침",
+    "STRONG_BUY":          "강력 매수 신호",
+    "STORY_STOCK":         "테마·스토리 종목",
+    "OVERBOUGHT":          "단기 과열 — 조정 가능",
+    "BUBBLE":              "거품 고평가 — 주의",
+    "VALUE_TRAP":          "저PER이나 수익성·성장 부진",
+    "OVERSOLD":            "과매도 — 반등 가능",
+    "FALLING_KNIFE":       "하락 추세 — 저점 불명",
+    "AVOID":               "매수 비추천 구간",
+    "NEUTRAL":             "방향성 불분명",
+}
+
+
 def _scrub_oneliner(text: str) -> str:
     """공개 사이트용 최종 안전망 — 직접적 권유/단정/보장 표현만 폴백 처리.
     주갤 감성의 자연스러운 슬랭(손절/익절/진입 등)은 보존한다.
@@ -4634,7 +4657,7 @@ def _scrub_oneliner(text: str) -> str:
 
 
 def annotate(results: list[dict]) -> list[dict]:
-    """리스트에 OneLiner / OneLinerTag / OneLinerData 필드를 추가해 반환."""
+    """리스트에 OneLiner / OneLinerTag / OneLinerData / OneLinerSub 필드를 추가해 반환."""
     for r in results:
         try:
             bucket = _bucket(r)
@@ -4642,11 +4665,13 @@ def annotate(results: list[dict]) -> list[dict]:
             r["OneLinerTag"] = bucket
             r["OneLiner"] = _scrub_oneliner(wrap_oneliner(_friendly_one_liner(r)))
             r["OneLinerData"] = _scrub_oneliner(get_oneliner_data(r, bucket))
+            r["OneLinerSub"] = _BUCKET_SUB.get(bucket, "")
         except Exception:
             _log.exception("OneLiner.annotate failed for ticker=%s", r.get("Ticker"))
             r.setdefault("OneLiner", _SAFE_FALLBACK)
             r.setdefault("OneLinerTag", "NEUTRAL")
             r.setdefault("OneLinerData", "")
+            r.setdefault("OneLinerSub", "")
     return results
 
 

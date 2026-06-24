@@ -246,17 +246,19 @@ class FourAxisAnalyzer:
         bull_div = (recent["Close"].iloc[-1] <= recent["Close"].min() * 1.01
                     and recent["RSI14"].iloc[-1] > recent["RSI14"].min() * 1.05)
 
-        e20 = float(last.get("EMA20", last["Close"]))
-        e50 = float(last.get("EMA50", last["Close"]))
+        # 강한 상승 추세 여부 (모멘텀 해석 기준)
+        e20  = float(last.get("EMA20",  last["Close"]))
+        e50  = float(last.get("EMA50",  last["Close"]))
         e200 = float(last.get("EMA200", last["Close"]))
-        close = float(last["Close"])
-        in_strong_uptrend = e20 > e50 > e200 and close > e20
+        c    = float(last["Close"])
+        in_strong_uptrend = (e20 > e50 > e200) and (c > e20)
 
         if rsi <= 30:
             zone, verdict = "과매도", "RSI 과매도 — 반등 후보"
             score = 4
         elif rsi >= 70:
             if in_strong_uptrend:
+                # 모멘텀 투자 원칙: 강한 추세 안의 RSI 70+ = 추세 확인 신호
                 zone, verdict = "강세 과매수", "RSI 과매수 — 추세 모멘텀 확인"
                 score = 4
             else:
@@ -279,9 +281,10 @@ class FourAxisAnalyzer:
         if bull_div:  score = min(5, score+1); verdict += " · 상승 다이버전스"
         if bear_div:
             if in_strong_uptrend:
+                # 강한 추세 안에서는 다이버전스 = 과열 주의 메모, 점수 감산 없음
                 verdict += " · 하락 다이버전스 (추세 내 과열 주의)"
             else:
-                score = max(1, score-1); verdict += " · 하락 다이버전스"
+                score = max(1, score - 1); verdict += " · 하락 다이버전스"
 
         return AxisVerdict(
             verdict, score,
@@ -413,7 +416,7 @@ class FourAxisAnalyzer:
                 return "52주 신고가 돌파 진행 — 상단 저항 전무, 추세 가속 구간"
             return f"신고가권 접근 ({from_hi:.1f}%) — 정배열 유지, 거래량 확인 필수"
 
-        # ── 3. 고점 부근 경계
+        # ── 3. 고점 부근 경계 (추세가 강하지 않을 때만 — 정배열 강추세는 4번으로)
         if rsi >= 68 and (bear_div or vl.score <= 2) and 3 <= t.score <= 4:
             if bear_div:
                 return f"고점 부근 경계 — RSI {rsi:.0f} 과열 + 하락 다이버전스 포착"
@@ -512,12 +515,13 @@ class FourAxisAnalyzer:
                 "예상 승률 55~65% 기대 (손절 타이트하게)"
             )
         if m.details.get("bear_div"):
-            last = self.hist.iloc[-1]
-            e20 = float(last.get("EMA20", last["Close"]))
-            e50 = float(last.get("EMA50", last["Close"]))
-            e200 = float(last.get("EMA200", last["Close"]))
-            close = float(last["Close"])
-            if e20 > e50 > e200 and close > e20:
+            h = self.hist; last = h.iloc[-1]
+            _e20  = float(last.get("EMA20",  last["Close"]))
+            _e50  = float(last.get("EMA50",  last["Close"]))
+            _e200 = float(last.get("EMA200", last["Close"]))
+            _c    = float(last["Close"])
+            _in_uptrend = (_e20 > _e50 > _e200) and (_c > _e20)
+            if _in_uptrend:
                 tips.append(
                     "하락 다이버전스 감지 — 강한 추세 내 일시적 과열 신호. "
                     "신규 진입보다 눌림목 재매수 전략 검토 권장"
@@ -712,7 +716,7 @@ class FourAxisAnalyzer:
         # 추세-게이트: 추세가 약하면 진입 별점 캡 (역배열에서 ★5 방지)
         if t.score <= 2:        stars = min(stars, 3)
         if t.score == 1:        stars = min(stars, 2)
-        # 모멘텀 과매수+하락 다이버전스면 캡
+        # 모멘텀 과매수+하락 다이버전스 캡 — 강한 추세 안에서는 적용 안 함
         if m.details.get("bear_div") and m.score <= 2 and t.score <= 3:
             stars = min(stars, 2)
         return stars

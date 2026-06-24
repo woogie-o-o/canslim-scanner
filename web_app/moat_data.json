@@ -26937,5 +26937,135 @@
       "cost_advantage": 1,
       "roic_sustainability": 3
     }
+  },
+  "QNT": {
+    "category": "IP",
+    "label": "양자컴퓨터 기술",
+    "detail": "퀀티넘은 하니웰 양자부문과 케임브리지 퀀텀이 합병한 풀스택 양자컴퓨터 기업이다. 이온트랩 하드웨어부터 미들웨어·응용 SW까지 수직통합했고, 양자 분야 특허·인재가 핵심 진입장벽이다. (2026년 6월 나스닥 상장, 초기 적자 단계)",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 2,
+      "network_effects": 1,
+      "ip_efficiency": 4,
+      "cost_advantage": 0,
+      "roic_sustainability": 1
+    }
+  },
+  "FIG": {
+    "category": "SWITCHING",
+    "label": "협업 디자인 SaaS",
+    "detail": "피그마는 브라우저 기반 실시간 협업 UI/UX 디자인 툴로, 디자이너·개발자·PM이 한 파일에서 작업한다. 팀 워크플로우와 디자인 자산이 축적될수록 교체가 어렵고, 멀티플레이어 협업이 네트워크 효과를 만든다. (매출총이익률 90%대)",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 3,
+      "network_effects": 2,
+      "ip_efficiency": 3,
+      "cost_advantage": 1,
+      "roic_sustainability": 2
+    }
+  },
+  "GLXY": {
+    "category": "NETWORK",
+    "label": "디지털자산 금융",
+    "detail": "갤럭시 디지털은 암호화폐 트레이딩·자산운용·채굴·투자은행을 아우르는 디지털자산 금융사다. 기관 대상 종합 서비스와 규제권 라이선스가 강점이나 코인 시황 민감도가 크다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 1,
+      "network_effects": 2,
+      "ip_efficiency": 1,
+      "cost_advantage": 1,
+      "roic_sustainability": 2
+    }
+  },
+  "BLSH": {
+    "category": "NETWORK",
+    "label": "기관 암호화폐 거래소",
+    "detail": "불리시는 기관 투자자 대상 암호화폐 거래소로, 유동성·규제 라이선스·자체 마켓메이킹이 핵심 경쟁력이다. 거래 참여자가 늘수록 호가 깊이가 좋아지는 네트워크 효과를 가진다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 1,
+      "network_effects": 3,
+      "ip_efficiency": 1,
+      "cost_advantage": 1,
+      "roic_sustainability": 2
+    }
+  },
+  "SBET": {
+    "category": "NONE",
+    "label": "이더리움 트레저리",
+    "detail": "샤프링크는 이더리움(ETH)을 대량 보유·스테이킹 운용하는 암호화폐 트레저리 기업이다. 주가가 보유 ETH 가치에 연동되는 구조로, 구조적 해자보다는 코인 가격·스테이킹 수익률에 좌우된다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 0,
+      "network_effects": 0,
+      "ip_efficiency": 0,
+      "cost_advantage": 0,
+      "roic_sustainability": 1
+    }
+  },
+  "DEFT": {
+    "category": "INTANGIBLE",
+    "label": "디지털자산 운용",
+    "detail": "디파이 테크놀로지스는 나스닥 상장 디지털자산 운용사로, 자회사를 통해 ETP 발행·차익거래·스테이킹 수익을 창출한다. 규제권 내 상장 운용사라는 점이 차별점이나 코인 시황 의존도가 높다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 1,
+      "network_effects": 1,
+      "ip_efficiency": 1,
+      "cost_advantage": 1,
+      "roic_sustainability": 2
+    }
+  },
+  "SPIR": {
+    "category": "IP",
+    "label": "위성 데이터",
+    "detail": "스파이어 글로벌은 100여 기의 소형 위성으로 선박(AIS)·항공(ADS-B)·기상 데이터를 수집해 구독 판매한다. 자체 위성 군집과 시계열 데이터 축적이 진입장벽이나, 자본집약적이고 아직 적자 단계다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 2,
+      "network_effects": 1,
+      "ip_efficiency": 3,
+      "cost_advantage": 1,
+      "roic_sustainability": 1
+    }
+  },
+  "NXE": {
+    "category": "EFFICIENT_SCALE",
+    "label": "우라늄 희소자원",
+    "detail": "넥스젠 에너지는 캐나다 사스카치원의 세계급 루크(Rook I) 우라늄 광산을 개발 중이다. 고품위 매장량과 까다로운 원자력 인허가가 진입장벽이나, 아직 생산 전 개발 단계라 현금흐름이 없다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 1,
+      "network_effects": 0,
+      "ip_efficiency": 1,
+      "cost_advantage": 3,
+      "roic_sustainability": 1
+    }
+  },
+  "OMDA": {
+    "category": "SWITCHING",
+    "label": "디지털 헬스케어",
+    "detail": "오마다 헬스는 당뇨·고혈압 등 만성질환을 원격으로 관리하는 디지털 헬스케어 기업이다. 고용주·보험사 채널과 임상 데이터가 강점이나, 경쟁이 치열하고 수익성은 개선 단계다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 2,
+      "network_effects": 1,
+      "ip_efficiency": 1,
+      "cost_advantage": 1,
+      "roic_sustainability": 1
+    }
+  },
+  "LINE": {
+    "category": "EFFICIENT_SCALE",
+    "label": "콜드체인 REIT",
+    "detail": "리니지는 전세계 최대 규모의 냉장·냉동 물류창고를 운영하는 콜드체인 REIT다. 영하 시설은 신규 건설비가 일반 창고의 수배라 진입장벽이 높고, 식품 대기업 장기계약이 안정적 임대수익을 만든다.",
+    "confidence": "heuristic",
+    "scores": {
+      "switching_costs": 1,
+      "network_effects": 0,
+      "ip_efficiency": 0,
+      "cost_advantage": 3,
+      "roic_sustainability": 3
+    }
   }
 }

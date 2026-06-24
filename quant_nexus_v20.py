@@ -1,5 +1,5 @@
 """
-종목분석기
+(.)(.)스캐너
 =============================================================
 윌리엄 오닐(William O'Neil) CAN SLIM 원칙 + 월가 퀀트 전략 융합
 
@@ -27,6 +27,8 @@ v20.0 주요 변경:
   - RS Rating 80+ Leader 필터 / Bear 시장 50% Cap
   - 슈퍼 그로스 승수 / Fail-Safe Ceiling / Hurst + Kalman 필터
 """
+
+from __future__ import annotations
 
 import warnings
 # matplotlib/pyparsing 버전 불일치 DeprecationWarning 억제
@@ -132,7 +134,6 @@ except Exception:
     _urllib3 = None
     _NAVER_HTTP = None
 import valuation_engine
-from earnings_growth import select_canslim_c_growth
 from entry_pricing import strong_entry_floor as _strong_entry_floor
 
 # ── 세이프 모드 (공공장소용 — config.json "safe_mode": true) ──────────────
@@ -144,7 +145,7 @@ def _read_safe_mode() -> bool:
     except Exception:
         return False
 _SAFE_MODE = _read_safe_mode()
-_APP_NAME = "종목 스캐너" if _SAFE_MODE else "종목분석기"
+_APP_NAME = "종목 스캐너" if _SAFE_MODE else "(.)(.)스캐너"
 from us_company_info import US_COMPANY_INFO as _US_COMPANY_INFO
 from kr_company_info import KR_COMPANY_INFO as _KR_COMPANY_INFO
 from greedzone import calc_greedzone as _calc_greedzone
@@ -353,7 +354,6 @@ F = _resolve_fonts()   # 전역 폰트 딕셔너리 ─ 이하 코드에서 F["T
 # ─── 필수 라이브러리 임포트 ─────────────────────────────────────────────
 try:
     import yfinance as yf
-    import xlsxwriter
     import pandas as pd
     import numpy as np
     import io
@@ -365,8 +365,13 @@ try:
     except Exception as _e:
         logging.warning("[yf] cache dir init failed: %s", _e)
 except ImportError:
-    print("필수 라이브러리 설치 필요: pip install yfinance pandas xlsxwriter numpy")
+    print("필수 라이브러리 설치 필요: pip install yfinance pandas numpy")
     sys.exit(1)
+
+try:
+    import xlsxwriter
+except ImportError:
+    xlsxwriter = None  # type: ignore
 
 # swing_scan 종목명 조회 — 루프마다 import 하지 않도록 1회 캐시
 try:
@@ -1604,7 +1609,6 @@ class DataCache:
     - 파일 해시를 별도로 저장하여 오염된 캐시를 자동 폐기합니다.
     - max_age_minutes 를 초과한 항목은 만료 처리합니다.
     """
-    CACHE_SCHEMA = 3  # v3: CAN SLIM C 분기 YoY 우선 + 표시 문구 정리
     REQUIRED_KEYS = {"Ticker", "Name", "Price", "TotalScore", "Signal", "_AvgVol20"}
     NAME_FIXUPS = {
         "LITE": "루멘텀"}
@@ -1666,10 +1670,6 @@ class DataCache:
                 logging.warning(f"[Cache] 무결성 실패: {ticker}")
                 os.remove(path)
                 return None
-            if data.get("_CacheSchema") != self.CACHE_SCHEMA:
-                logging.info(f"[Cache] 스키마 만료: {ticker}")
-                os.remove(path)
-                return None
             base_ticker = str(data.get("Ticker") or ticker).split("__")[0].upper()
             fixed_name = self.NAME_FIXUPS.get(base_ticker)
             if fixed_name and data.get("Name") != fixed_name:
@@ -1687,9 +1687,6 @@ class DataCache:
         path = self._path(ticker)
         tmp = path + ".tmp"
         try:
-            if isinstance(data, dict):
-                data = dict(data)
-                data["_CacheSchema"] = self.CACHE_SCHEMA
             with open(tmp, "wb") as f:
                 pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
             os.replace(tmp, path)
@@ -3087,7 +3084,7 @@ class WallStreetQuantStrategies:
           • EPS 성장 < 0                  → 강력 페널티 (Fail-Safe 트리거)
 
         반환값:
-          eps_growth:       CAN SLIM C 기준 성장률(최근 분기 YoY 우선)
+          eps_growth:       연간 EPS 성장률
           eps_acceleration: True/False (3분기 연속 가속)
           c_score:          C 원칙 원점수
           a_score_bonus:    A 원칙 추가 보너스
@@ -3104,24 +3101,44 @@ class WallStreetQuantStrategies:
             "accel_quarters":   0,       # 연속 가속 분기 수
             "fail_safe_eps":    False,   # EPS < 0 → Ceiling 트리거
             "eps_src":          "",      # EPS 성장률 출처 (디버그/표시용)
-            "eps_basis":        "",      # 화면 표시용 기준 설명
             "data_missing":     False,   # True → 모든 소스 부재 (진짜 데이터 부족)
         }
         try:
-            growth = select_canslim_c_growth(info)
-            rg = growth["rev_growth"]
-            eg = growth["eps_growth"]
+            rg = safe_get(info.get("revenueGrowth"), 0.0)
+
+            # ── [C] 분기 EPS 성장률 소스 폴백 체인 ──────────────────
+            # yfinance info 의 earningsGrowth(연간)는 KR·ADR·소형주에서
+            # 누락이 잦다. C 원칙은 본래 '분기 실적'이므로 아래 우선순위로
+            # 실데이터를 끌어와 '데이터 부족' 오표기를 차단한다.
+            #   1) earningsGrowth          (연간 EPS — 기존 동작 보존)
+            #   2) earningsQuarterlyGrowth (분기 YoY 순이익 — C 원칙 정통)
+            #   3) forwardEps vs trailingEps 파생 성장률
+            #   4) revenueGrowth 보수적 프록시 (0.6× 할인)
+            eg  = safe_get(info.get("earningsGrowth"), None)
+            src = "annual_eps"
+            if eg is None:
+                eg = safe_get(info.get("earningsQuarterlyGrowth"), None)
+                src = "quarterly_eps"
+            if eg is None:
+                fe = safe_get(info.get("forwardEps"),  None)
+                te = safe_get(info.get("trailingEps"), None)
+                if fe is not None and te is not None and abs(te) > 1e-9:
+                    eg  = (fe - te) / abs(te)
+                    src = "forward_vs_trailing_eps"
+            if eg is None and rg not in (None, 0.0):
+                # 매출 성장만 확보 — 순이익 레버리지 보수 추정(0.6×)
+                eg  = rg * 0.6
+                src = "revenue_proxy"
 
             result["rev_growth"] = rg
 
             # 모든 소스 부재 → 진짜 데이터 부족 (페널티 없음)
-            if growth["data_missing"]:
+            if eg is None:
                 result["data_missing"] = True
                 return result
 
             result["eps_growth"] = eg
-            result["eps_src"]    = growth["eps_src"]
-            result["eps_basis"]  = growth["eps_basis"]
+            result["eps_src"]    = src
 
             # Fail-Safe 트리거
             if eg < 0:
@@ -3683,16 +3700,16 @@ class WallStreetQuantStrategies:
 # ============================================================
 class QuantNexusApp:
     """
-    종목분석기 메인 애플리케이션.
+    (.)(.)스캐너 메인 애플리케이션.
 
     스큐어모피즘 UI + 전략 패턴 아키텍처.
     v20: High DPI 지원 / Malgun Gothic 한글 폰트 / 섹터 대규모 확장.
     """
 
     def __init__(self, root: tk.Tk):
-        logging.info("종목분석기 시작")
+        logging.info(f"{_APP_NAME} 시작")
         self.root = root
-        self.root.title("종목분석기")
+        self.root.title(_APP_NAME)
 
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         w, h   = min(int(sw * 0.88), 1650), min(int(sh * 0.90), 960)
@@ -3789,15 +3806,12 @@ class QuantNexusApp:
 
     def _save_naver_cache(self):
         """(DEPRECATED: DCF로 대체됨) 네이버 컨센서스 목표가 캐시 저장."""
-        # 조회 실패값(0)은 재시작 뒤 다시 시도할 수 있도록 디스크에 남기지 않는다.
-        to_save = {
-            key: value for key, value in self._naver_target_cache.items()
-            if key not in ('_ts', '_meta') and value and value > 0
-        }
+        # 성공(>0)한 항목만 저장 — 실패(0)는 세션 내 메모리에만 유지하여
+        # 재시작 시 재시도할 수 있게 함
+        to_save = {k: v for k, v in self._naver_target_cache.items()
+                   if k not in ('_ts', '_meta') and v and v > 0}
         to_save['_ts'] = datetime.now()
-        to_save['_meta'] = {
-            key: value for key, value in self._naver_target_meta.items() if value
-        }
+        to_save['_meta'] = {k: v for k, v in self._naver_target_meta.items() if v}
         try:
             with open(self._naver_cache_path, 'wb') as f:
                 pickle.dump(to_save, f)
@@ -4106,7 +4120,7 @@ class QuantNexusApp:
         # ─ 왼쪽: 타이틀
         left = tk.Frame(inner, bg=C["HEADER_BG"])
         left.pack(side=tk.LEFT, fill=tk.Y)
-        tk.Label(left, text="종목분석기", font=F["TITLE"],
+        tk.Label(left, text=_APP_NAME, font=F["TITLE"],
                  bg=C["HEADER_BG"], fg=C["ACCENT"]).pack(side=tk.LEFT)
         tk.Label(left, text="  주식 스캐너",
                  font=F["BODY"], bg=C["HEADER_BG"], fg=C["GOLD"]).pack(side=tk.LEFT)
@@ -5266,7 +5280,7 @@ class QuantNexusApp:
     @rate_limit(max_per_second=20)
     def _analyze_ticker(self, ticker: str) -> dict | None:
         """
-        종목분석기 단일 티커 분석 진입점 (v20.1)
+        (.)(.)스캐너 단일 티커 분석 진입점 (v20.1)
         ─────────────────────────────────────────────────────────────────
         점수 산출 순서 (예산 분배 아키텍처):
           1. 19개 전략 원점수 계산
@@ -5293,15 +5307,27 @@ class QuantNexusApp:
             # 날짜 포함 캐시 키 — 날짜가 바뀌면 자동으로 새 스캔 (어제 DayChg 고착 방지)
             _today = datetime.now().strftime("%Y%m%d")
             strategy_key = f"{ticker}__{self._scan_strategy}__{_today}"
-            force_refresh = bool(getattr(self, "_force_refresh", False))
             # rate-limit 회피: 캐시 TTL 4시간 (KR 풀스캔 부하 경감)
-            cached = None if force_refresh else self.cache.get(strategy_key, max_age_minutes=240)
+            cached = self.cache.get(strategy_key, max_age_minutes=240)
             if cached:
                 with self._stats_lock:
                     self.stats["cache_hits"] += 1
                 fixed_name = self._resolve_display_name(ticker, cached.get("Name", ""))
                 if fixed_name and cached.get("Name") != fixed_name:
                     cached["Name"] = fixed_name
+                # 캐시 히트 시 DayChg 실시간 갱신 (장중 등락 역전 방지)
+                # fast_info는 yfinance의 경량 API라 rate-limit 부담이 낮음
+                try:
+                    if _YF_COOLDOWN["until"] <= time.time():
+                        _fi = yf.Ticker(ticker).fast_info
+                        _rt = getattr(_fi, "last_price", None)
+                        _pc = getattr(_fi, "previous_close", None)
+                        if _rt and _pc and _pc > 0:
+                            _live_chg = (_rt - _pc) / _pc
+                            cached["DayChg"] = _live_chg
+                            cached["_DayChgPct"] = _live_chg * 100
+                except Exception:
+                    pass
                 return cached
             with self._stats_lock:
                 self.stats["cache_misses"] += 1
@@ -5341,8 +5367,8 @@ class QuantNexusApp:
                     break
             if hist is None or hist.empty or len(hist) < 30:
                 # 오늘 날짜 키로 먼저 조회, 없으면 최대 7일 이전 키까지 lookback
-                stale = None if force_refresh else self.cache.get(strategy_key, max_age_minutes=60 * 24 * 30)
-                if not force_refresh and not stale:
+                stale = self.cache.get(strategy_key, max_age_minutes=60 * 24 * 30)
+                if not stale:
                     for _days_back in range(1, 8):
                         _prev = (datetime.now() - timedelta(days=_days_back)).strftime("%Y%m%d")
                         _prev_key = f"{ticker}__{self._scan_strategy}__{_prev}"
@@ -5464,69 +5490,23 @@ class QuantNexusApp:
             _liq_cap_thr     = 20_000_000_000 if _is_kr else 20_000_000  # KR 200억 / US $20M
             low_liquidity = avg_turnover < _liq_cap_thr
 
-            # ── KR 재무 팩터 보강 (점수·표시 단일 기준) ─────────────────
-            # KR 종목은 yfinance 재무 필드가 비거나 지연되는 경우가 많다.
-            # 상세 화면에는 네이버 분기/TTM 기반 PER·PBR·ROE가 자연스러운
-            # "현재 투자정보"로 보이므로, 같은 값을 fama_french 호출 전에
-            # info에 주입한다. 이 순서가 깨지면 [A] 카드/TopReason과
-            # 실적 한눈에 카드가 서로 다른 ROE를 표시한다.
-            _kr_ttm_fin = None
-            _kr_annual_fin = None
+            # ── KR 밸류 팩터 보강 (단일 진실원천) ──────────────────────
+            # yfinance 는 .KS/.KQ 의 priceToBook·trailingPE 를 거의 항상
+            # None 으로 준다. 그 결과 fama_french 의 value_score 가 0 으로
+            # 고정돼 '밸류 팩터'가 집계되지 않았다. 화면 표시 _PER/_PBR 과
+            # 동일한 소스(_fetch_naver_fundamentals 네이버 연간 재무 API)를
+            # fama_french 호출 '전에' info 에 주입 → 화면·점수 불일치 제거.
+            # (_fetch_naver_fundamentals 는 캐시되므로 5277행 재호출은 무비용.)
             if _is_kr_t:
                 try:
-                    if _NAVERQ_OK and _naver_q is not None:
-                        _nq = _naver_q.get_ttm_financials(ticker)
-                        if _nq.get("available"):
-                            _kr_ttm_fin = _nq
-                    if _kr_ttm_fin:
-                        _roe_pct = safe_get(_kr_ttm_fin.get("roe"), 0.0)
-                        _debt_pct = safe_get(_kr_ttm_fin.get("debt_ratio"), 0.0)
-                        _rev = safe_get(_kr_ttm_fin.get("revenue"), 0.0)
-                        _op = safe_get(_kr_ttm_fin.get("operating_income"), 0.0)
-                        _ni = safe_get(_kr_ttm_fin.get("net_income"), 0.0)
-                        _eps = safe_get(_kr_ttm_fin.get("eps"), 0.0)
-                        _bps = safe_get(_kr_ttm_fin.get("bps"), 0.0)
-                        _shares = safe_get(_kr_ttm_fin.get("shares_outstanding"), 0.0)
-                        if _roe_pct:
-                            info["returnOnEquity"] = _roe_pct / 100.0
-                        if _debt_pct:
-                            info["debtToEquity"] = _debt_pct
-                        if _rev > 0:
-                            if _op:
-                                info["operatingMargins"] = _op / _rev
-                            if _ni:
-                                info["profitMargins"] = _ni / _rev
-                        if _eps > 0:
-                            info["trailingEps"] = _eps
-                            if cur > 0:
-                                info["trailingPE"] = cur / _eps
-                        if _bps > 0:
-                            info["bookValue"] = _bps
-                            if cur > 0:
-                                info["priceToBook"] = cur / _bps
-                        if _shares > 0:
-                            info["sharesOutstanding"] = _shares
-                        if _op:
-                            info["freeCashflow"] = _op
-                            info["ebitda"] = _kr_ttm_fin.get("ebitda") or _op
-                    else:
-                        _kr_annual_fin = self._fetch_naver_fundamentals(ticker) or {}
-                        if _kr_annual_fin.get("roe"):
-                            info["returnOnEquity"] = float(_kr_annual_fin["roe"]) / 100.0
-                        if _kr_annual_fin.get("operating_margin"):
-                            info["operatingMargins"] = float(_kr_annual_fin["operating_margin"]) / 100.0
-                        if _kr_annual_fin.get("debt_ratio"):
-                            info["debtToEquity"] = float(_kr_annual_fin["debt_ratio"])
-                        if _kr_annual_fin.get("per"):
-                            info["trailingPE"] = float(_kr_annual_fin["per"])
-                        if _kr_annual_fin.get("pbr"):
-                            info["priceToBook"] = float(_kr_annual_fin["pbr"])
-                        if _kr_annual_fin.get("eps_naver"):
-                            info["trailingEps"] = float(_kr_annual_fin["eps_naver"])
-                        if _kr_annual_fin.get("bps_naver"):
-                            info["bookValue"] = float(_kr_annual_fin["bps_naver"])
+                    if not info.get("trailingPE") or not info.get("priceToBook"):
+                        _nf = self._fetch_naver_fundamentals(ticker)
+                        if _nf.get("per") and not info.get("trailingPE"):
+                            info["trailingPE"] = float(_nf["per"])
+                        if _nf.get("pbr") and not info.get("priceToBook"):
+                            info["priceToBook"] = float(_nf["pbr"])
                 except Exception as _e:
-                    logging.debug(f"[KR finance] {ticker} 재무 보강 실패: {_e}")
+                    logging.debug(f"[KR value] {ticker} PER/PBR 보강 실패: {_e}")
 
             # ════════════════════════════════════════════════════════════
             # STEP 1 — 19개 전략 계산
@@ -5556,8 +5536,8 @@ class QuantNexusApp:
                 # 2026 기준 데이터 우선순위:
                 #   1) 네이버 분기 TTM (직전 분기 + 차기 분기 컨센서스 포함 → 2026 기준)
                 #   2) 네이버 연간
-                fin = _kr_ttm_fin
-                if fin is None and _NAVERQ_OK and _naver_q is not None:
+                fin = None
+                if _NAVERQ_OK and _naver_q is not None:
                     try:
                         nq = _naver_q.get_ttm_financials(ticker)
                         if nq.get("available"):
@@ -5600,7 +5580,7 @@ class QuantNexusApp:
                     target_source = f"DCF ({src_tag} {fin.get('fiscal_period','')})"
                 else:
                     # 마지막 폴백: 네이버 연간
-                    nf = _kr_annual_fin or self._fetch_naver_fundamentals(ticker) or {}
+                    nf = self._fetch_naver_fundamentals(ticker) or {}
                     if nf.get('eps_naver'):
                         info["trailingEps"] = nf['eps_naver']
                     if nf.get('bps_naver'):
@@ -6314,6 +6294,27 @@ class QuantNexusApp:
             # vol_impact = 변동성 조정 후 점수 - 슈퍼 그로스 직전 base
             # (괄호 누락 + super_mult 분할 보정의 클리핑 손실 문제 수정)
             vol_impact = va["adj_score"] - base_pre_super
+            _KO_EN = {
+                'ACCUMULATION': '매집', 'DISTRIBUTION': '분산',
+                'HIGH': '높음', 'LOW': '낮음', 'MODERATE': '보통', 'NORMAL': '보통',
+                'EXTREME': '극위험', 'VERY_HIGH': '매우 높음', 'ELEVATED': '주의',
+                'STRONG_BUY': '강력 매수', 'BUY': '매수', 'MODERATE_BUY': '적정 매수',
+                'SLIGHT_UPSIDE': '소폭 상승 여력', 'AT_TARGET': '목표가 수준',
+                'SLIGHT_OVERVALUED': '소폭 고평가', 'OVERVALUED': '고평가',
+                'NOT_APPLICABLE': '해당 없음',
+                'STRONG_TREND': '강한 추세', 'TRENDING': '추세 지속',
+                'MEAN_REVERTING': '평균 회귀', 'RANDOM_WALK': '랜덤 워크',
+                'BULLISH': '강세', 'MILD_BULLISH': '약 강세',
+                'BEARISH': '약세', 'MILD_BEARISH': '약 약세',
+                'STRONG_BULLISH': '강한 상승', 'STRONG_BEARISH': '강한 하락',
+                'BUY_TREND': '매수 추세', 'SELL_TREND': '매도 추세',
+                'POSSIBLE_REVERSAL': '반전 가능',
+                'NEUTRAL': '중립', 'SELL': '약세 신호',
+                'STRONG_BULL': '강한 상승장', 'BULL': '상승장',
+                'SIDEWAYS_BULL': '횡보(상승 우위)', 'SIDEWAYS': '횡보',
+                'STRONG_BEAR': '강한 하락장', 'BEAR': '하락장',
+            }
+            _ko = lambda v: _KO_EN.get(str(v), str(v))
             try:
                 breakdown = [
                 # ── CAN SLIM 7원칙 ───────────────────────────────────
@@ -6321,7 +6322,7 @@ class QuantNexusApp:
                  None if earn.get("data_missing") else round(earn["c_score"], 1),
                  "실적 데이터가 아직 공개되지 않았어요. (분기 보고 전이거나 공시 미반영)"
                  if earn.get("data_missing") else
-                 f"{earn.get('eps_basis', 'EPS 성장률')}: {earn['eps_growth']:+.0%} 변동했어요. "
+                 f"지난 분기 순이익이 {earn['eps_growth']:+.0%} 변동했어요. "
                  f"{'연속 성장 중이에요' if earn.get('eps_acceleration') else '성장 추세예요' if earn.get('trend') == 'up' else '주춤하고 있어요'}."),
 
                 ("[A] 연간실적 ROE 기준 (Annual EPS)",
@@ -6347,12 +6348,12 @@ class QuantNexusApp:
 
                 ("[I] 기관 수급 (Institutional)",
                  round(f_smart_money, 1),
-                 f"기관 자금 흐름: '{flow['signal']}'이에요. "
+                 f"기관 자금 흐름: '{_ko(flow['signal'])}'이에요. "
                  f"매수 압력이 {'강해요' if flow['mfi'] > 60 else '약해요' if flow['mfi'] < 40 else '중립이에요'} (MFI {flow['mfi']:.0f})."),
 
                 ("[M] 시장 방향 (Market Direction)",
                  round(f_regime, 1),
-                 f"현재 시장 방향: '{regime['m_label']}'이에요. "
+                 f"현재 시장 방향: '{_ko(regime.get('regime', ''))}'이에요. "
                  f"추세 강도가 {'강해요' if regime['adx'] > 25 else '약해요'} (ADX {regime['adx']:.0f})."),
 
                 # ── 보조 퀀트 전략 ────────────────────────────────────
@@ -6377,41 +6378,40 @@ class QuantNexusApp:
                  round(f_mtf, 1),
                  f"단기·중기·장기 추세 종합: "
                  f"{'강한 상승 추세예요.' if mtf_raw >= 30 else '상승 추세예요.' if mtf_raw > 0 else '하락 추세예요.' if mtf_raw < 0 else '중립이에요.'} "
-                 f"(신호: {mtf['signal']})"),
+                 f"(신호: {_ko(mtf['signal'])})"),
 
                 ("[Quant] Drawdown Risk",
                  round(f_drawdown, 1),
-                 f"최근 최대 낙폭(MDD) {dd['current_dd']:.0%}이에요. "
-                 f"위험도는 '{dd['risk']}'로 평가돼요."),
+                 f"기간 내 최대 낙폭(MDD) {dd['max_dd']:.0%} / 현재 고점 대비 {dd['current_dd']:.0%}이에요. "
+                 f"위험도는 '{_ko(dd['risk'])}'로 평가돼요."),
 
                 ("[Quant] Smart Money Flow",
                  round(f_smart_money, 1),
                  f"스마트머니 흐름 — A/D: "
-                 f"{'매집' if flow['ad'] == 'bullish' else '분산' if flow['ad'] == 'bearish' else '중립'}, "
-                 f"OBV 추세: {'상승' if flow['obv_trend'] == 'up' else '하락' if flow['obv_trend'] == 'down' else '횡보'}이에요. "
-                 f"기관 자금이 {'들어오고 있어요.' if flow['ad'] == 'bullish' else '빠져나가고 있어요.' if flow['ad'] == 'bearish' else '중립이에요.'}"),
+                 f"{'매집' if flow['ad'] == 1 else '분산' if flow['ad'] == -1 else '중립'}, "
+                 f"OBV 추세: {'상승' if flow['obv_trend'] == 'BULLISH' else '하락' if flow['obv_trend'] == 'BEARISH' else '횡보'}이에요. "
+                 f"기관 자금이 {'들어오고 있어요.' if flow['ad'] == 1 else '빠져나가고 있어요.' if flow['ad'] == -1 else '중립이에요.'}"),
 
                 ("[Quant] Target Price Factor",
                  round(f_price_target, 1),
                  f"목표가 팩터 점수 {pt['score']:+.0f}점을 "
                  f"{'노무라식 ' + str(pt.get('target_method', 'Nomura')) if pt.get('nomura_target', 0) > 0 and float(pt.get('target', 0)) == float(pt.get('nomura_target', 0)) else 'DCF'} "
                  f"기준 목표가로 계산했어요. "
-                 f"현재 목표가 {pt['target']:,.0f}, 상승여력 {pt['upside']:+.0%}, 전망은 '{pt['view']}'예요."),
+                 f"현재 목표가 {pt['target']:,.0f}, 상승여력 {pt['upside']:+.0%}, 전망은 '{_ko(pt['view'])}'예요."),
 
                 ("[Quant] Short Interest",
                  round(f_short_int, 1),
-                 f"공매도 비율 {si['pct']:.0%}로 위험도는 '{si['risk']}'이에요. "
+                 f"공매도 비율 {si['pct']:.0%}로 위험도는 '{_ko(si['risk'])}'이에요. "
                  f"{'공매도가 많아 주의가 필요해요.' if si['pct'] > 0.05 else '공매도 부담이 적어요.'}"),
 
                 ("[Math] Hurst Exponent",
                  round(_n(hurst["score"], scale=2.5), 1),
-                 f"허스트 지수 {hurst['h']:.2f}로 '{hurst['nature']}'를 나타내요. "
+                 f"허스트 지수 {hurst['h']:.2f}로 '{_ko(hurst['nature'])}'를 나타내요. "
                  f"{'추세가 지속될 가능성이 높아요.' if hurst['h'] > 0.6 else '평균 회귀 성향이 강해요.' if hurst['h'] < 0.4 else '방향성이 불확실해요.'}"),
 
                 ("[Math] Kalman Filter",
                  round(_n(kf["score"], scale=2.5), 1),
-                 f"칼만 필터 신호: "
-                 f"{'매수' if kf['signal'] == 'buy' else '매도' if kf['signal'] == 'sell' else '중립'}이에요. "
+                 f"칼만 필터 신호: {_ko(kf.get('signal', 'NEUTRAL'))}이에요. "
                  f"추세 신뢰도 {hurst_kalman_trust:.0%}예요."),
 
                 ("[Math] Stat Arb Z-Score",
@@ -6427,7 +6427,7 @@ class QuantNexusApp:
                 ("[Sentiment] 시장 심리 프록시",
                  round(f_sentiment, 1),
                  (f"뉴스 없이 가격·거래량만으로 심리를 추정했어요. "
-                  f"현재 신호는 '{sent['signal']}'이에요. "
+                  f"현재 신호는 '{_ko(sent['signal'])}'이에요. "
                   f"상승 거래량 비중 {sent['up_vol_ratio']:.0%}, "
                   f"갭 방향 {'+위' if sent['gap_bias'] > 0 else '아래'}, "
                   f"종가 강도 {sent['close_strength']:.0%}예요."))]
@@ -6504,8 +6504,7 @@ class QuantNexusApp:
             try:
                 _detail_inputs = {
                 "[C]": (c_raw, f"_n01({c_raw:.1f}, best=60)",
-                    f"• 기준: {earn.get('eps_basis', 'EPS 성장률')}\n"
-                    f"• 성장률: {earn['eps_growth']:+.0%}\n"
+                    f"• EPS 성장률: {earn['eps_growth']:+.0%}\n"
                     f"• 가속 성장: {'예 ✓' if earn.get('eps_acceleration') else '아니오'}\n"
                     f"• 추세: {earn.get('trend', '-')}"),
                 "[A]": (a_raw, f"_n({a_raw:.1f})",
@@ -6900,8 +6899,6 @@ class QuantNexusApp:
                 "Sector":           _sector_for_nomura or (info.get("industry", "") or info.get("sector", "")),
                 # NH 필터용 원시 재무 데이터
                 "_EPSGrowth":       earn["eps_growth"],
-                "_EPSGrowthSource": earn.get("eps_src", ""),
-                "_EPSGrowthBasis":  earn.get("eps_basis", ""),
                 "_ROE":             ff["roe"],
                 "_PBR":             safe_get(info.get("priceToBook"), 0),
                 "_PER":             safe_get(info.get("trailingPE"), 0),
@@ -6944,29 +6941,10 @@ class QuantNexusApp:
                 result["GreedZoneDays"]  = 0
                 result["GreedZoneScore"] = 0
 
-            # 한국 종목: 점수 계산에 사용한 같은 재무 기준으로 표시 필드 보강
+            # 한국 종목: 네이버 증권 재무 데이터로 보강
             if _is_kr:
-                if _kr_ttm_fin:
-                    _rev = safe_get(_kr_ttm_fin.get("revenue"), 0.0)
-                    _op = safe_get(_kr_ttm_fin.get("operating_income"), 0.0)
-                    _eps = safe_get(_kr_ttm_fin.get("eps"), 0.0)
-                    _bps = safe_get(_kr_ttm_fin.get("bps"), 0.0)
-                    if _eps > 0 and cur > 0:
-                        result['_PER'] = cur / _eps
-                    if _bps > 0 and cur > 0:
-                        result['_PBR'] = cur / _bps
-                    if _kr_ttm_fin.get("roe"):
-                        result['_ROE'] = safe_get(_kr_ttm_fin.get("roe"), 0.0) / 100.0
-                    if _rev > 0 and _op:
-                        result['_OperatingMargin'] = _op / _rev
-                    if _kr_ttm_fin.get("debt_ratio"):
-                        result['_DebtRatio'] = safe_get(_kr_ttm_fin.get("debt_ratio"), result.get('_DebtRatio'))
-                    if _kr_ttm_fin.get("shares_outstanding") and cur > 0:
-                        result['_MarketCap'] = cur * safe_get(_kr_ttm_fin.get("shares_outstanding"), 0.0)
-                else:
-                    nf = _kr_annual_fin or self._fetch_naver_fundamentals(ticker)
-                    if not nf:
-                        nf = {}
+                nf = self._fetch_naver_fundamentals(ticker)
+                if nf:
                     if 'per' in nf:
                         result['_PER'] = nf['per']
                     if 'pbr' in nf:
@@ -6979,7 +6957,6 @@ class QuantNexusApp:
                         result['_DebtRatio'] = nf['debt_ratio']
                     if 'div_yield_naver' in nf:
                         result['_DivYield'] = nf['div_yield_naver'] / 100.0   # % → decimal
-                result["_DataSchema"] = "kr_toss_price_naver_ttm_v1"
 
             self.cache.set(strategy_key, result)
             return result
@@ -8756,10 +8733,10 @@ class QuantNexusApp:
     # ─────────────────────────────────────────────────────────────────────
     def _show_guide(self):
         win = tk.Toplevel(self.root)
-        win.title("📘 종목분석기 가이드")
+        win.title(f"📘 {_APP_NAME} 가이드")
         win.geometry("900x960")
         win.configure(bg=C["PANEL"])
-        tk.Label(win, text="⭐  종목분석기",
+        tk.Label(win, text=f"⭐  {_APP_NAME}",
                  font=F["POPUP_SUB"], bg=C["PANEL"], fg=C["ACCENT"], pady=14).pack()
         tk.Label(win, text="윌리엄 오닐(William O'Neil) 7원칙 + 월가 퀀트 19전략 융합",
                  font=F["BODY"], bg=C["PANEL"], fg=C["GOLD"]).pack()
@@ -8938,8 +8915,11 @@ class QuantNexusApp:
         if not self.current_data:
             messagebox.showwarning("데이터 없음", "먼저 스캔을 실행해 주세요.")
             return
+        if xlsxwriter is None:
+            messagebox.showerror("라이브러리 없음", "엑셀 내보내기에는 xlsxwriter 설치가 필요합니다.")
+            return
         try:
-            fname = f"종목분석기_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            fname = f"{_APP_NAME}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             wb    = xlsxwriter.Workbook(fname)
             ws    = wb.add_worksheet("분석_결과")
 
@@ -10100,6 +10080,16 @@ class QuantNexusApp:
     # US_NAMES — 미국 종목 한글명 (yfinance 영문명 대신 표시)
     # ─────────────────────────────────────────────────────────────────────
     US_NAMES: dict[str, str] = {
+        # 지수 밖 신규 상장·인기 종목 보강 (2026-06)
+        "QNT": "퀀티넘",
+        "FIG": "피그마",
+        "BLSH": "불리시",
+        "SBET": "샤프링크",
+        "DEFT": "디파이 테크놀로지스",
+        "SPIR": "스파이어 글로벌",
+        "NXE": "넥스젠 에너지",
+        "OMDA": "오마다 헬스",
+        "LINE": "리니지 (콜드체인 리츠)",
         "AA": "알코아",
         "AAL": "아메리칸 항공",
         "AAPL": "애플",
@@ -11705,6 +11695,16 @@ class QuantNexusApp:
     # US_DESC — 미국 종목 한글 설명 (Name 컬럼 옆에 표시)
     # ─────────────────────────────────────────────────────────────────────
     US_DESC: dict[str, str] = {
+        # 지수 밖 신규 상장·인기 종목 보강 (2026-06)
+        "QNT":  "양자컴퓨터 · 하니웰 스핀오프",
+        "FIG":  "협업 UI/UX 디자인 SaaS",
+        "BLSH": "기관용 암호화폐 거래소",
+        "SBET": "이더리움(ETH) 트레저리",
+        "DEFT": "DeFi 디지털자산 운용",
+        "SPIR": "위성 우주 데이터",
+        "NXE":  "우라늄 광산 개발",
+        "OMDA": "만성질환 디지털 헬스케어",
+        "LINE": "콜드체인 물류 리츠",
         # 공급망 병목(화합물반도체 기판·에피·레이저) — CPO/광 I-O 상류 희소층
         "AXTI": "InP·GaAs 화합물반도체 기판(substrate) · CPO 광통신 핵심소재",
         "SIVEF": "Sivers 반도체 · CW/DFB 머천트 레이저 광원 · CPO",
@@ -13409,7 +13409,7 @@ class QuantNexusApp:
                                       "S","SAIL","TENB","VRNS","ZS"],
                 "SaaS & Software":      ["ADBE","ADSK","APP","APPF","BILL","BL","BSY","CDNS","CRM","CTSH","CWAN","DOCU","DUOL",
                                       "EPAM","FFIV","FRSH","GLOB","GTLB","HUBS","JKHY","LPSN",
-                                      "MANH","MGNI","MNDY","NOW","PCOR","PCTY","PTC","RAMP",
+                                      "FIG","MANH","MGNI","MNDY","NOW","PCOR","PCTY","PTC","RAMP",
                                       "RNG","SHOP","SNPS","TRMB","TTD","TWLO","TYL","VEEV",
                                       "YEXT","ZBRA","ZM"]
             },
@@ -13426,13 +13426,13 @@ class QuantNexusApp:
                 "Memory & Packaging":   ["AMKR","CEVA","MU","NTAP","NVTS","PSTG","SIMO","SMCI","SNDK","STX","WDC"],
                 # 공급망 병목(상류 희소층) — 화합물반도체 기판·에피·머천트 레이저. CPO/광 I-O 슈퍼사이클 길목.
                 "Compound Semi & Substrates": ["AXTI","SIVEF","IQEPF"],
-                "Quantum Computing":    ["ARQQ","INFQ","IONQ","QBTS","QUBT","RGTI","XNDU"]
+                "Quantum Computing":    ["ARQQ","INFQ","IONQ","QBTS","QNT","QUBT","RGTI","XNDU"]
             },
 
             # ── 3. 핀테크 & 금융 ───────────────────────────────────────────────
             "💰 Finance & Fintech": {
-                "Crypto & Blockchain":  ["BITF","BMNR","BTBT","BTDR","CIFR","CLSK","COIN","CORZ","CRCL","HOOD","HUT","IREN","MARA",
-                                      "MSTR","RIOT","SOLS","WULF"],
+                "Crypto & Blockchain":  ["BITF","BLSH","BMNR","BTBT","BTDR","CIFR","CLSK","COIN","CORZ","CRCL","DEFT","GLXY","HOOD","HUT","IREN","MARA",
+                                      "MSTR","RIOT","SBET","SOLS","WULF"],
                 "Fintech & Payments":   ["AFRM","ALLY","AXP","BILL","COF","DLO","EVTC","FISV","FLUT","FLYW","FOUR","GDOT","GPN","IBKR",
                                       "IMXI","MA","MELI","MQ","NU","PAYO","PGY","PSFE","PYPL",
                                       "RELY","RPAY","SE","SOFI","SYF","TOST","UPST","V","XYZ"],
@@ -13460,7 +13460,7 @@ class QuantNexusApp:
                 "Aerospace & Defense":  ["ACHR","AIR","ASTS","AVAV","AXON","BA","BAH","BKSY","BWXT","CACI","CRS","CW","DCO","DRS",
                                       "ESLT","GD","GE","HAYW","HII","HWM","HXL","JOBY","KTOS",
                                       "LDOS","LHX","LMT","LPTH","LUNR","MOG-A","MRCY","NOC",
-                                      "PL","RDW","RKLB","RTX","SAIC","TDG","TXT","VSEC"],
+                                      "PL","RDW","RKLB","RTX","SAIC","SPIR","TDG","TXT","VSEC"],
                 "Power Grid & Infra":   ["ATKR","AYI","EME","ETN","FLUX","GEV","GNE","GNRC","HON","HUBB","NVT","POWL","PRIM",
                                       "PWR","SHLS","SPXC","TPC","VRT","WATT","XPEL"],
                 "Industrials":          ["AAON","ACA","AGCO","AIT","ALLE","ALSN","AME","AMRC","AOS","APG","ASGN","B","BCPC","BLD",
@@ -13489,7 +13489,7 @@ class QuantNexusApp:
                                       "WES","WMB"],
                 "Clean Energy":         ["ARRY","BE","CSIQ","DQ","ENPH","FCEL","FLNC","FSLR","GEV","JKS","MAXN","NEE","NXT",
                                       "PLUG","RUN","SEDG","SHLS","SPWR","STEM"],
-                "Nuclear & Uranium":    ["BWXT","CCJ","CEG","DNN","EU","GLATF","LEU","NNE","OKLO","SMR","TLN","UEC",
+                "Nuclear & Uranium":    ["BWXT","CCJ","CEG","DNN","EU","GLATF","LEU","NNE","NXE","OKLO","SMR","TLN","UEC",
                                       "UUUU","VST"],
                 "Utilities":            ["AEE","AEP","AES","ATO","AVA","AWK","BEP","BKH","CLNE","CMS","CNP","CWT","D","DTE","DUK","ED",
                                       "EIX","ES","ETR","EVRG","EXC","FE","HE","IDA","LNT","MDU",
@@ -13521,7 +13521,7 @@ class QuantNexusApp:
                                       "TMDX","TMO","TNDM","VCYT","WAT","WRBY","ZBH","ZTS"],
                 "Healthcare Services":  ["ACHC","AMN","AMWL","CCRN","CHE","CI","CNC","COR","CVS","DVA","ELV","ENSG","EVH","GDRX",
                                       "HCA","HIMS","HUM","INVA","IQV","MCK","MD","MDRX","MOH",
-                                      "OPCH","OSCR","PNTG","PRCT","SDGR","SGRY","SHC","TDOC",
+                                      "OMDA","OPCH","OSCR","PNTG","PRCT","SDGR","SGRY","SHC","TDOC",
                                       "THC","UHS","UNH","USPH"]
             },
 
@@ -13580,7 +13580,7 @@ class QuantNexusApp:
             # ── 10. 부동산 ───────────────────────────────────────────────────
             "🏠 Real Estate": {
                 "Data Center REITs":    ["AMT","CCI","DLR","EQIX","IRM","SBAC","UNIT"],
-                "Industrial REITs":     ["COLD","CUBE","EGP","EXR","FR","GTY","IIPR","LAND","LTC","NSA","PLD","PSA","REXR","SLG","STAG",
+                "Industrial REITs":     ["COLD","CUBE","EGP","EXR","FR","GTY","IIPR","LAND","LINE","LTC","NSA","PLD","PSA","REXR","SLG","STAG",
                                       "TRNO"],
                 "Residential REITs":    ["AMH","APLE","AVB","BRT","CPT","CSR","ELME","ELS","EQR","ESS","INVH","IRT","MAA","NHI","NXRT",
                                       "SUI","UDR"],
@@ -13892,7 +13892,7 @@ class QuantNexusApp:
 # ============================================================
 if __name__ == "__main__":
     try:
-        logging.info("종목분석기 시작")
+        logging.info(f"{_APP_NAME} 시작")
         root = tk.Tk()
         app  = QuantNexusApp(root)
         root.mainloop()
