@@ -1702,6 +1702,11 @@ def detail(ticker: str):
     })
 
 
+@app.route("/pyramid")
+def pyramid_page():
+    return _render_static_template("pyramid.html")
+
+
 @app.route("/compare")
 def compare_page():
     raw = request.args.get("tickers", "")

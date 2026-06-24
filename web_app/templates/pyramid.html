@@ -1,0 +1,214 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>피라미딩 계산기</title>
+<link rel="stylesheet" href="/static/theme.css?v={{ v_theme_css }}">
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--surface-page);color:var(--text-primary);font-family:-apple-system,'Pretendard','Noto Sans KR',system-ui,sans-serif;min-height:100vh}
+.shell{max-width:860px;margin:0 auto;padding:24px 16px 60px}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.back-btn{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px;border-radius:999px;text-decoration:none;background:var(--card);border:1px solid var(--border);color:var(--text-secondary);font-weight:700;font-size:14px;transition:background .15s}
+.back-btn:hover{background:var(--surface-subtle)}
+.page-title{font-size:22px;font-weight:800;letter-spacing:-.4px}
+.page-sub{font-size:13px;color:var(--text-tertiary);margin-top:2px}
+.input-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px}
+.input-card h2{font-size:15px;font-weight:700;margin:0 0 18px;color:var(--text-secondary)}
+.input-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;font-weight:600;color:var(--text-tertiary);letter-spacing:.3px}
+.field input,.field select{height:44px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface-subtle);color:var(--text-primary);font-size:15px;padding:0 12px;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field .hint{font-size:11px;color:var(--text-tertiary)}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:14px}
+.alloc-btns{display:flex;gap:8px}
+.alloc-btn{flex:1;height:44px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s}
+.alloc-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
+.calc-btn{width:100%;height:52px;border-radius:14px;border:none;background:var(--accent);color:#fff;font-size:16px;font-weight:700;cursor:pointer;margin-top:18px;transition:opacity .15s}
+.calc-btn:hover{opacity:.88}
+.result-section{display:none}
+.result-section.show{display:block}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+.summary-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+.summary-card .s-label{font-size:11px;color:var(--text-tertiary);font-weight:600;margin-bottom:6px}
+.summary-card .s-val{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.summary-card .s-sub{font-size:12px;color:var(--text-tertiary);margin-top:3px}
+.s-val.pos{color:#22c55e}.s-val.neg{color:#ef4444}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden}
+.table-wrap table{width:100%;border-collapse:collapse;font-size:14px}
+.table-wrap thead th{padding:12px 14px;text-align:right;font-size:11px;font-weight:700;color:var(--text-tertiary);background:var(--surface-subtle);letter-spacing:.3px;white-space:nowrap}
+.table-wrap thead th:first-child{text-align:center}
+.table-wrap tbody td{padding:13px 14px;text-align:right;border-top:1px solid var(--border);white-space:nowrap}
+.table-wrap tbody td:first-child{text-align:center;font-weight:700;color:var(--text-secondary)}
+.table-wrap tbody tr:last-child td{background:var(--surface-subtle);font-weight:700}
+.stage-badge{display:inline-block;width:28px;height:28px;line-height:28px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px;font-weight:800}
+.stage-badge.total{background:var(--text-tertiary)}
+.bar-wrap{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.bar{height:6px;border-radius:3px;background:var(--accent);min-width:4px}
+@media(max-width:600px){
+  .shell{padding:16px 12px 60px}
+  .input-grid,.row2{grid-template-columns:1fr 1fr}
+  .summary-grid{grid-template-columns:1fr 1fr}
+  .table-wrap{overflow-x:auto}
+  .table-wrap table{min-width:560px}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <a href="/" class="back-btn">← 스캐너</a>
+    <div>
+      <div class="page-title">📐 피라미딩 계산기</div>
+      <div class="page-sub">추가 매수 단계별 가격 · 금액 · 평균 단가 자동 계산</div>
+    </div>
+  </div>
+  <div class="input-card">
+    <h2>입력 정보</h2>
+    <div class="input-grid">
+      <div class="field">
+        <label>1차 진입가</label>
+        <input id="in-entry" type="number" min="0" step="any" placeholder="예: 150.00">
+        <span class="hint">첫 번째 매수 체결 가격</span>
+      </div>
+      <div class="field">
+        <label>총 투자 예산</label>
+        <input id="in-budget" type="number" min="0" step="any" placeholder="예: 5000000">
+        <span class="hint">전체 투자금 (원 또는 달러)</span>
+      </div>
+      <div class="field">
+        <label>단계 수</label>
+        <select id="in-stages">
+          <option value="2">2단계</option>
+          <option value="3" selected>3단계</option>
+          <option value="4">4단계</option>
+          <option value="5">5단계</option>
+        </select>
+        <span class="hint">몇 번 나눠 살지</span>
+      </div>
+      <div class="field">
+        <label>단계당 상승 %</label>
+        <input id="in-step" type="number" min="0.1" step="0.1" placeholder="예: 5">
+        <span class="hint">각 추가 매수 기준 상승폭</span>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>목표가 (선택)</label>
+        <input id="in-target" type="number" min="0" step="any" placeholder="예: 200.00">
+        <span class="hint">목표 달성 시 수익률 계산</span>
+      </div>
+      <div class="field">
+        <label>손절가 (선택)</label>
+        <input id="in-stop" type="number" min="0" step="any" placeholder="예: 130.00">
+        <span class="hint">손절 시 손실률 계산</span>
+      </div>
+      <div class="field">
+        <label>예산 배분 방식</label>
+        <div class="alloc-btns">
+          <button class="alloc-btn active" id="btn-equal" onclick="setAlloc('equal')">균등</button>
+          <button class="alloc-btn" id="btn-pyramid" onclick="setAlloc('pyramid')">역피라미딩</button>
+        </div>
+        <span class="hint">역피라미딩: 낮은 단계에 더 많이</span>
+      </div>
+    </div>
+    <button class="calc-btn" onclick="calculate()">계산하기</button>
+  </div>
+  <div class="result-section" id="result-section">
+    <div class="summary-grid" id="summary-grid"></div>
+    <div class="table-wrap">
+      <table id="result-table">
+        <thead>
+          <tr>
+            <th>단계</th>
+            <th>매수 가격</th>
+            <th>배분 금액</th>
+            <th>매수 수량</th>
+            <th>누적 평균 단가</th>
+            <th>누적 투자금</th>
+            <th>비중</th>
+          </tr>
+        </thead>
+        <tbody id="result-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+let allocMode = 'equal';
+function setAlloc(mode) {
+  allocMode = mode;
+  document.getElementById('btn-equal').classList.toggle('active', mode === 'equal');
+  document.getElementById('btn-pyramid').classList.toggle('active', mode === 'pyramid');
+}
+function fmt(n, dec) {
+  dec = dec || 0;
+  if (n == null || isNaN(n)) return '-';
+  return n.toLocaleString('ko-KR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function fmtPct(n) {
+  if (n == null || isNaN(n)) return '-';
+  var sign = n >= 0 ? '+' : '';
+  return sign + n.toFixed(2) + '%';
+}
+function calculate() {
+  var entry  = parseFloat(document.getElementById('in-entry').value);
+  var budget = parseFloat(document.getElementById('in-budget').value);
+  var stages = parseInt(document.getElementById('in-stages').value);
+  var step   = parseFloat(document.getElementById('in-step').value) / 100;
+  var targetVal = parseFloat(document.getElementById('in-target').value);
+  var stopVal   = parseFloat(document.getElementById('in-stop').value);
+  var target = isNaN(targetVal) ? null : targetVal;
+  var stopP  = isNaN(stopVal)   ? null : stopVal;
+  if (!entry || !budget || !step || stages < 2) {
+    alert('진입가, 예산, 단계당 상승 %를 모두 입력해주세요.');
+    return;
+  }
+  var prices = [];
+  for (var i = 0; i < stages; i++) prices.push(entry * Math.pow(1 + step, i));
+  var weights = [];
+  if (allocMode === 'equal') {
+    for (var i = 0; i < stages; i++) weights.push(1);
+  } else {
+    for (var i = stages; i >= 1; i--) weights.push(i);
+  }
+  var wSum = weights.reduce(function(a,b){return a+b;}, 0);
+  var budgets = weights.map(function(w){return budget * w / wSum;});
+  var cumCost = 0, cumShares = 0;
+  var rows = prices.map(function(price, i) {
+    var alloc = budgets[i];
+    var shares = alloc / price;
+    cumCost += alloc;
+    cumShares += shares;
+    var avgCost = cumCost / cumShares;
+    return {stage:i+1, price:price, alloc:alloc, shares:shares, avgCost:avgCost, cumCost:cumCost, cumShares:cumShares};
+  });
+  var totalShares = cumShares;
+  var totalCost = cumCost;
+  var avgCost = totalCost / totalShares;
+  var targetPct = target ? (target - avgCost) / avgCost * 100 : null;
+  var stopPct   = stopP  ? (stopP  - avgCost) / avgCost * 100 : null;
+  var summaryEl = document.getElementById('summary-grid');
+  summaryEl.innerHTML =
+    '<div class="summary-card"><div class="s-label">평균 단가</div><div class="s-val">' + fmt(avgCost,2) + '</div><div class="s-sub">총 ' + fmt(totalShares,4) + '주</div></div>' +
+    '<div class="summary-card"><div class="s-label">총 투자금</div><div class="s-val">' + fmt(totalCost) + '</div><div class="s-sub">' + stages + '단계 합산</div></div>' +
+    '<div class="summary-card"><div class="s-label">최종 단계 진입가</div><div class="s-val">' + fmt(prices[stages-1],2) + '</div><div class="s-sub">1차 대비 +' + ((prices[stages-1]-entry)/entry*100).toFixed(1) + '%</div></div>' +
+    (target ? '<div class="summary-card"><div class="s-label">목표가 수익률</div><div class="s-val ' + (targetPct>=0?'pos':'neg') + '">' + fmtPct(targetPct) + '</div><div class="s-sub">목표가 ' + fmt(target,2) + '</div></div>' : '') +
+    (stopP  ? '<div class="summary-card"><div class="s-label">손절 손실률</div><div class="s-val ' + (stopPct>=0?'pos':'neg') + '">' + fmtPct(stopPct) + '</div><div class="s-sub">손절가 ' + fmt(stopP,2) + '</div></div>' : '');
+  var maxAlloc = Math.max.apply(null, rows.map(function(r){return r.alloc;}));
+  var tbody = document.getElementById('result-tbody');
+  tbody.innerHTML = rows.map(function(r) {
+    var barW = Math.round(r.alloc / maxAlloc * 80);
+    var pct = (r.alloc / budget * 100).toFixed(0);
+    return '<tr><td><span class="stage-badge">' + r.stage + '</span></td><td>' + fmt(r.price,2) + '</td><td>' + fmt(r.alloc) + '</td><td>' + fmt(r.shares,4) + '</td><td>' + fmt(r.avgCost,2) + '</td><td>' + fmt(r.cumCost) + '</td><td><div class="bar-wrap"><div class="bar" style="width:' + barW + 'px"></div><span style="font-size:12px;color:var(--text-tertiary)">' + pct + '%</span></div></td></tr>';
+  }).join('') +
+  '<tr><td><span class="stage-badge total">합</span></td><td>—</td><td>' + fmt(totalCost) + '</td><td>' + fmt(totalShares,4) + '</td><td><strong>' + fmt(avgCost,2) + '</strong></td><td>' + fmt(totalCost) + '</td><td>100%</td></tr>';
+  document.getElementById('result-section').classList.add('show');
+  document.getElementById('result-section').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+document.addEventListener('keydown', function(e){ if(e.key==='Enter') calculate(); });
+</script>
+</body>
+</html>
