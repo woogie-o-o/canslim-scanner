@@ -403,7 +403,11 @@ function _entryLight(stock) {
     aqBadge = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${col};margin-left:2px;vertical-align:middle;" title="${esc(stock.AQ_Verdict||'')}"></span>`;
   }
   const volBadge = _volRegimeBadge(stock);
-  return `<span class="entry-badge entry-${cls}" title="${esc(tip)}">${ico}${lbl ? `<span class="entry-badge-label">${esc(lbl)}</span>` : ''}${aqBadge}</span>${volBadge}`;
+  const cons = stock.EntryConsecutive != null ? Number(stock.EntryConsecutive) : 0;
+  const consBadge = cons >= 2
+    ? `<span class="entry-consecutive-badge" title="${cons}일 연속 ${esc(_ENTRY_LABEL[st] || st)}">${cons}일↑</span>`
+    : '';
+  return `<span class="entry-badge entry-${cls}" title="${esc(tip)}">${ico}${lbl ? `<span class="entry-badge-label">${esc(lbl)}</span>` : ''}${aqBadge}</span>${consBadge}${volBadge}`;
 }
 
 function _renderSignalHtml(signal, stock) {

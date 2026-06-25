@@ -265,6 +265,13 @@ if not _already:
     _fh.setFormatter(_LOG_FMT)
     _root_logger.addHandler(_fh)
 
+# yfinance 내부 HTTP 에러(404/429)를 ERROR→WARNING 으로 낮춰 로그 노이즈 제거
+for _yf_lg in (
+    "yfinance", "yfinance.base", "yfinance.scrapers.quote",
+    "yfinance.scrapers.history", "yfinance.scrapers.holders", "peewee",
+):
+    logging.getLogger(_yf_lg).setLevel(logging.WARNING)
+
 # ─── High DPI 인식 (Windows 고해상도 흐림 현상 해결) ────────────────────
 def _apply_dpi_awareness():
     """
@@ -410,11 +417,11 @@ def _load_delisted_cache() -> None:
         if isinstance(data, list):
             for t in data:
                 if isinstance(t, str) and t.strip():
-                    _US_DELISTED.add(t.strip().upper())
+                    _US_DELISTED.add(t.strip().upper().replace(".", "-"))
         elif isinstance(data, dict) and isinstance(data.get("tickers"), list):
             for t in data["tickers"]:
                 if isinstance(t, str) and t.strip():
-                    _US_DELISTED.add(t.strip().upper())
+                    _US_DELISTED.add(t.strip().upper().replace(".", "-"))
     except Exception as e:
         logging.warning("[delisted-blocklist] cache load failed: %s", e)
 
@@ -436,14 +443,14 @@ def _persist_delisted_cache() -> None:
 def _is_delisted_us(ticker: str) -> bool:
     if not ticker:
         return False
-    return str(ticker).strip().upper() in _US_DELISTED
+    return str(ticker).strip().upper().replace(".", "-") in _US_DELISTED
 
 
 def _add_delisted(ticker: str) -> None:
     """yahoo 404 + stooq miss 가 동시에 발생하면 자동 블록리스트에 추가."""
     if not ticker:
         return
-    t = str(ticker).strip().upper()
+    t = str(ticker).strip().upper().replace(".", "-")
     if t in _US_DELISTED:
         return
     _US_DELISTED.add(t)
@@ -1474,7 +1481,33 @@ def _compute_entry_status_v2(
 # v3 Hysteresis & Persistence (월가 패널 P0-1)
 # ──────────────────────────────────────────────────────────────────────
 
-_ENTRY_STATUS_CACHE: dict = {}
+_ENTRY_STATUS_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "entry_status_cache.json"
+)
+
+
+def _load_entry_status_cache() -> dict:
+    try:
+        if os.path.exists(_ENTRY_STATUS_CACHE_PATH):
+            with open(_ENTRY_STATUS_CACHE_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        pass
+    return {}
+
+
+def _save_entry_status_cache(cache: dict) -> None:
+    try:
+        tmp = _ENTRY_STATUS_CACHE_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False)
+        os.replace(tmp, _ENTRY_STATUS_CACHE_PATH)
+    except Exception:
+        pass
+
+
+_ENTRY_STATUS_CACHE: dict = _load_entry_status_cache()
 
 
 def _apply_status_hysteresis(
@@ -1562,8 +1595,10 @@ def _apply_hysteresis_to_result(ticker: str, result: dict) -> dict:
     result = dict(result)
     result["status"] = status
     result["label"] = label
+    result["consecutive"] = cons
     _ENTRY_STATUS_CACHE[ticker] = {
         "score": score, "status": status, "consecutive": cons}
+    _save_entry_status_cache(_ENTRY_STATUS_CACHE)
     return result
 
 
@@ -2592,7 +2627,15 @@ class WallStreetQuantStrategies:
                 result["ad"] = -1
 
             obv = (np.sign(c.diff()) * v).cumsum()
-            result["obv_trend"] = "BULLISH" if obv.iloc[-1] > obv.rolling(10).mean().iloc[-1] else "BEARISH"
+            _obv_last = float(obv.iloc[-1])
+            _obv_ma = float(obv.rolling(10).mean().iloc[-1])
+            _obv_band = abs(_obv_ma) * 0.01 + 1e-9
+            if _obv_last > _obv_ma + _obv_band:
+                result["obv_trend"] = "BULLISH"
+            elif _obv_last < _obv_ma - _obv_band:
+                result["obv_trend"] = "BEARISH"
+            else:
+                result["obv_trend"] = "NEUTRAL"
 
             tp  = (h + l + c) / 3
             mf  = tp * v
@@ -2603,8 +2646,8 @@ class WallStreetQuantStrategies:
             score = 0
             if result["ad"] == 1:            score += 10
             elif result["ad"] == -1:         score -= 10
-            if result["obv_trend"] == "BULLISH": score += 8
-            else:                            score -= 5
+            if result["obv_trend"] == "BULLISH":   score += 8
+            elif result["obv_trend"] == "BEARISH": score -= 5
             score += _smooth_band(result["mfi"], [
                 (10.0, 12.0), (20.0, 10.0), (35.0, 3.0),
                 (50.0, 0.0),
@@ -3693,6 +3736,33 @@ class WallStreetQuantStrategies:
         except Exception as e:
             logging.error(f"[Strategy] bb_mean_reversion: {e}")
         return result
+
+
+# ─── CAN SLIM breakdown 한글 번역 테이블 (모듈 레벨 — 티커마다 재할당 방지) ────
+_KO_EN: dict = {
+    'ACCUMULATION': '매집', 'DISTRIBUTION': '분산',
+    'HIGH': '높음', 'LOW': '낮음', 'MODERATE': '보통', 'NORMAL': '보통',
+    'EXTREME': '극위험', 'VERY_HIGH': '매우 높음', 'ELEVATED': '주의',
+    'STRONG_BUY': '강력 매수', 'BUY': '매수', 'MODERATE_BUY': '적정 매수',
+    'SLIGHT_UPSIDE': '소폭 상승 여력', 'AT_TARGET': '목표가 수준',
+    'SLIGHT_OVERVALUED': '소폭 고평가', 'OVERVALUED': '고평가',
+    'NOT_APPLICABLE': '해당 없음',
+    'STRONG_TREND': '강한 추세', 'TRENDING': '추세 지속',
+    'MEAN_REVERTING': '평균 회귀', 'RANDOM_WALK': '랜덤 워크',
+    'BULLISH': '강세', 'MILD_BULLISH': '약 강세',
+    'BEARISH': '약세', 'MILD_BEARISH': '약 약세',
+    'STRONG_BULLISH': '강한 상승', 'STRONG_BEARISH': '강한 하락',
+    'BUY_TREND': '매수 추세', 'SELL_TREND': '매도 추세',
+    'POSSIBLE_REVERSAL': '반전 가능',
+    'NEUTRAL': '중립', 'SELL': '약세 신호',
+    'STRONG_BULL': '강한 상승장', 'BULL': '상승장',
+    'SIDEWAYS_BULL': '횡보(상승 우위)', 'SIDEWAYS': '횡보',
+    'STRONG_BEAR': '강한 하락장', 'BEAR': '하락장',
+}
+
+
+def _ko(v: object) -> str:
+    return _KO_EN.get(str(v), str(v))
 
 
 # ============================================================
@@ -5412,11 +5482,15 @@ class QuantNexusApp:
             try:
                 info = stock.info or {}
             except Exception as _e:
+                _e_str = str(_e)
                 logging.warning(f"[yf.info] {ticker} 실패: {_e}")
                 info = {}
                 if _is_rate_limit_error(_e):
                     _info_rate_limited = True
                     _yf_mark_rate_limited(30.0)
+                elif is_us and ("404" in _e_str or "Not Found" in _e_str or "No fundamentals" in _e_str):
+                    _add_delisted(ticker)
+                    logging.debug("[no-fundamentals] %s 블록리스트 런타임 등록", ticker)
             # rate-limit 였다면 fast_info 도 같은 IP라 또 429 — 폴백 자체를 skip
             if not info and not _info_rate_limited:
                 try:
@@ -6294,27 +6368,6 @@ class QuantNexusApp:
             # vol_impact = 변동성 조정 후 점수 - 슈퍼 그로스 직전 base
             # (괄호 누락 + super_mult 분할 보정의 클리핑 손실 문제 수정)
             vol_impact = va["adj_score"] - base_pre_super
-            _KO_EN = {
-                'ACCUMULATION': '매집', 'DISTRIBUTION': '분산',
-                'HIGH': '높음', 'LOW': '낮음', 'MODERATE': '보통', 'NORMAL': '보통',
-                'EXTREME': '극위험', 'VERY_HIGH': '매우 높음', 'ELEVATED': '주의',
-                'STRONG_BUY': '강력 매수', 'BUY': '매수', 'MODERATE_BUY': '적정 매수',
-                'SLIGHT_UPSIDE': '소폭 상승 여력', 'AT_TARGET': '목표가 수준',
-                'SLIGHT_OVERVALUED': '소폭 고평가', 'OVERVALUED': '고평가',
-                'NOT_APPLICABLE': '해당 없음',
-                'STRONG_TREND': '강한 추세', 'TRENDING': '추세 지속',
-                'MEAN_REVERTING': '평균 회귀', 'RANDOM_WALK': '랜덤 워크',
-                'BULLISH': '강세', 'MILD_BULLISH': '약 강세',
-                'BEARISH': '약세', 'MILD_BEARISH': '약 약세',
-                'STRONG_BULLISH': '강한 상승', 'STRONG_BEARISH': '강한 하락',
-                'BUY_TREND': '매수 추세', 'SELL_TREND': '매도 추세',
-                'POSSIBLE_REVERSAL': '반전 가능',
-                'NEUTRAL': '중립', 'SELL': '약세 신호',
-                'STRONG_BULL': '강한 상승장', 'BULL': '상승장',
-                'SIDEWAYS_BULL': '횡보(상승 우위)', 'SIDEWAYS': '횡보',
-                'STRONG_BEAR': '강한 하락장', 'BEAR': '하락장',
-            }
-            _ko = lambda v: _KO_EN.get(str(v), str(v))
             try:
                 breakdown = [
                 # ── CAN SLIM 7원칙 ───────────────────────────────────
@@ -6628,6 +6681,7 @@ class QuantNexusApp:
             # 인라인 로직은 _compute_entry_status() 순수 함수로 추출됨
             # (Stage 2 백테스트 호출 가능 · 동일 결정성 보장).
             _es = _compute_entry_status_dispatch(
+                ticker=ticker,
                 mr=mr, vwap=vwap, atr=atr, regime=regime, mom=mom, vol_a=vol_a,
                 hist=hist, cur=cur, day_chg=day_chg,
                 fail_safe_triggered=fail_safe_triggered,
@@ -6635,6 +6689,7 @@ class QuantNexusApp:
             )
             entry_score = _es["score"]
             entry_status = _es["status"]
+            entry_consecutive = int(_es.get("consecutive", 0))
             status_label = _es["label"]
             _phrases = _es["phrases"]
             _score_breakdown = _es["breakdown"]
@@ -6876,6 +6931,7 @@ class QuantNexusApp:
                 # 진입 타이밍 신호 (단기 매수 적정성)
                 "EntryScore":       entry_score,
                 "EntryStatus":      entry_status,
+                "EntryConsecutive": entry_consecutive,
                 "EntryPhrase":      entry_phrase,
                 "EntryPlan":        entry_plan,
                 # 단타 팩터
