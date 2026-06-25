@@ -2028,13 +2028,13 @@ td.score-col {
 .dp-section-timing {
   padding: 0;
 }
-/* 점수존 숨김 — 점수는 배너에서 이미 표시, 하단은 수치 3칸만 */
+/* 점수존 숨김 — 점수는 stat-strip 첫 셀에 표시 */
 .dp-section-timing .dp-verdict-zone { display: none; }
 /* stat-strip 내 점수 색상 + 크기 */
 .dp-stat-val.score-high { color: var(--success); }
 .dp-stat-val.score-mid  { color: var(--warning); }
 .dp-stat-val.score-low  { color: var(--destructive); }
-#dp-score.dp-stat-val   { font-size: 30px; letter-spacing: -0.04em; }
+#dp-score.dp-stat-val   { font-size: 36px; letter-spacing: -0.04em; }
 .dp-section-timing .dp-hero-left {
   display: block;
   border-right: none;
@@ -2861,20 +2861,7 @@ td.score-col {
   display: flex; align-items: baseline; gap: 4px; margin-bottom: 6px;
 }
 
-/* 점수 숫자 — 판결문 레이아웃 핵심 요소 */
-.dp-score-num {
-  font-size: 46px;
-  font-weight: 800;
-  line-height: .9;
-  color: var(--text-primary);
-  letter-spacing: -0.045em;
-  font-variant-numeric: tabular-nums;
-  /* 점수 값에 따라 색상으로 상태를 외침 */
-  transition: color 0.3s var(--ease-default);
-}
-.dp-score-num.score-high { color: var(--success); }
-.dp-score-num.score-mid  { color: var(--warning); }
-.dp-score-num.score-low  { color: var(--destructive); }
+/* 점수 숫자 — dp-stat-val 기반 */
 
 .dp-score-unit {
   font-size: 14px;
