@@ -344,6 +344,62 @@ def _kr_scan_rows_need_broker_target(rows: list) -> bool:
     return False
 
 
+def _apply_kr_toss_scan_cache_overlay(rows: list) -> bool:
+    """캐시된 KR 리스트의 현재가/등락을 Toss 배치 시세로 가볍게 갱신한다."""
+    if not rows:
+        return False
+    items = []
+    seen = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        symbol = _kr_quote_symbol(str(row.get("Ticker") or ""))
+        if not symbol:
+            continue
+        items.append((row, symbol))
+        seen.add(symbol)
+    if not items:
+        return False
+    try:
+        import toss_invest
+        if not toss_invest.is_available():
+            return False
+        symbols = list(seen)
+        quotes = toss_invest.get_prices(symbols)
+        previous_closes = toss_invest.get_cached_previous_closes(symbols)
+    except Exception as exc:
+        logging.debug("KR Toss scan cache overlay failed: %s", exc)
+        return False
+
+    changed = False
+    for row, symbol in items:
+        quote = quotes.get(symbol) if isinstance(quotes, dict) else None
+        if not isinstance(quote, dict):
+            continue
+        price = _as_float(quote.get("price"))
+        if price is None or price <= 0:
+            continue
+        if _as_float(row.get("Price")) != price:
+            row["Price"] = float(price)
+            changed = True
+        previous_close = _as_float(previous_closes.get(symbol)) if isinstance(previous_closes, dict) else None
+        if previous_close and previous_close > 0:
+            day_chg = float(price) / previous_close - 1.0
+            if _as_float(row.get("DayChg")) != day_chg:
+                row["DayChg"] = day_chg
+                row["_DayChgPct"] = day_chg * 100.0
+                changed = True
+        source = quote.get("source")
+        if source and row.get("_QuoteSource") != source:
+            row["_QuoteSource"] = source
+            changed = True
+        ts = quote.get("timestamp")
+        if ts and row.get("_QuoteTimestamp") != ts:
+            row["_QuoteTimestamp"] = ts
+            changed = True
+    return changed
+
+
 _DETAIL_SCAN_SCORE_FIELDS: frozenset = frozenset({
     "TotalScore",
     "ScoreDelta",
@@ -2064,6 +2120,8 @@ def api_scan():
                 _cached_rows = _sr_cached.get("data") or []
                 _cached_dirty = True
             if market == "KR":
+                if _apply_kr_toss_scan_cache_overlay(_cached_rows):
+                    _cached_dirty = True
                 if _normalize_kr_scan_cache_rows(_cached_rows):
                     _cached_dirty = True
                 if _kr_scan_rows_need_broker_target(_cached_rows):

@@ -198,7 +198,7 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(detail["Breakdown"][0][1], 35.0)
         self.assertTrue(detail["_ScoreSyncedFromScan"])
 
-    def test_scan_cache_hit_does_not_call_external_kr_overrides(self) -> None:
+    def test_scan_cache_hit_skips_broker_repair_when_target_exists(self) -> None:
         key = ("KR", "BALANCED", "")
         cached_rows = [
             {
@@ -219,7 +219,10 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "app._apply_kr_toss_stock_names",
             ) as stock_names, patch(
                 "app._apply_kr_broker_target_fallback",
-            ) as targets:
+            ) as targets, patch(
+                "app._apply_kr_toss_scan_cache_overlay",
+                return_value=False,
+            ) as price_overlay:
                 resp = client.get("/api/scan?market=KR&strategy=BALANCED")
         finally:
             with app._scan_results_cache_lock:
@@ -229,6 +232,49 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.get_json()[0]["Ticker"], "005930.KS")
         stock_names.assert_not_called()
+        price_overlay.assert_called_once()
+        targets.assert_not_called()
+
+    def test_scan_cache_hit_applies_realtime_price_overlay(self) -> None:
+        key = ("KR", "BALANCED", "")
+        cached_rows = [
+            {
+                "Ticker": "005930.KS",
+                "Name": "삼성전자",
+                "TotalScore": 76.0,
+                "ScoreDelta": 1.0,
+                "BrokerTarget": 455833.0,
+                "Price": 340500.0,
+                "DayChg": -0.01,
+                "EntryConsecutive": 0,
+            }
+        ]
+
+        def overlay(rows):
+            rows[0]["Price"] = 359500.0
+            rows[0]["DayChg"] = 0.0589
+            return True
+
+        with app._scan_results_cache_lock:
+            old_cache = dict(app._scan_results_cache)
+            app._scan_results_cache.clear()
+            app._scan_results_cache[key] = {"_ts": int(__import__("time").time()), "data": cached_rows}
+        try:
+            with app.app.test_client() as client, patch(
+                "app._apply_kr_toss_scan_cache_overlay",
+                side_effect=overlay,
+            ) as price_overlay, patch("app._apply_kr_broker_target_fallback") as targets:
+                resp = client.get("/api/scan?market=KR&strategy=BALANCED")
+        finally:
+            with app._scan_results_cache_lock:
+                app._scan_results_cache.clear()
+                app._scan_results_cache.update(old_cache)
+
+        self.assertEqual(resp.status_code, 200)
+        row = resp.get_json()[0]
+        self.assertEqual(row["Price"], 359500.0)
+        self.assertAlmostEqual(row["DayChg"], 0.0589)
+        price_overlay.assert_called_once()
         targets.assert_not_called()
 
     def test_scan_cache_hit_repairs_missing_broker_target_and_latest_fields(self) -> None:
@@ -248,6 +294,9 @@ class TestKrRealtimeOverlay(unittest.TestCase):
             app._scan_results_cache[key] = {"_ts": int(__import__("time").time()), "data": cached_rows}
         try:
             with app.app.test_client() as client, patch(
+                "app._apply_kr_toss_scan_cache_overlay",
+                return_value=False,
+            ), patch(
                 "app._apply_kr_broker_target_fallback",
                 side_effect=lambda rows, limit=None: rows[0].update({"BrokerTarget": 455833.0}) or True,
             ) as targets:
