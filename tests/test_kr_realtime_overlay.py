@@ -206,6 +206,8 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "Name": "삼성전자",
                 "TotalScore": 76.0,
                 "ScoreDelta": 1.0,
+                "BrokerTarget": 455833.0,
+                "EntryConsecutive": 0,
             }
         ]
         with app._scan_results_cache_lock:
@@ -228,6 +230,38 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(resp.get_json()[0]["Ticker"], "005930.KS")
         stock_names.assert_not_called()
         targets.assert_not_called()
+
+    def test_scan_cache_hit_repairs_missing_broker_target_and_latest_fields(self) -> None:
+        key = ("KR", "BALANCED", "")
+        cached_rows = [
+            {
+                "Ticker": "005930.KS",
+                "Name": "삼성전자",
+                "TotalScore": 76.0,
+                "ScoreDelta": 1.0,
+                "BrokerTarget": 0.0,
+            }
+        ]
+        with app._scan_results_cache_lock:
+            old_cache = dict(app._scan_results_cache)
+            app._scan_results_cache.clear()
+            app._scan_results_cache[key] = {"_ts": int(__import__("time").time()), "data": cached_rows}
+        try:
+            with app.app.test_client() as client, patch(
+                "app._apply_kr_broker_target_fallback",
+                side_effect=lambda rows, limit=None: rows[0].update({"BrokerTarget": 455833.0}) or True,
+            ) as targets:
+                resp = client.get("/api/scan?market=KR&strategy=BALANCED")
+        finally:
+            with app._scan_results_cache_lock:
+                app._scan_results_cache.clear()
+                app._scan_results_cache.update(old_cache)
+
+        self.assertEqual(resp.status_code, 200)
+        row = resp.get_json()[0]
+        self.assertEqual(row["BrokerTarget"], 455833.0)
+        self.assertEqual(row["EntryConsecutive"], 0)
+        targets.assert_called_once()
 
     def test_apply_curated_detail_sector_uses_scan_taxonomy(self) -> None:
         row = {"Ticker": "005930.KS", "Sector": "기술"}

@@ -321,6 +321,29 @@ def _scan_rows_have_deltas(rows: list) -> bool:
     return any(isinstance(r, dict) and "ScoreDelta" in r for r in (rows or []))
 
 
+def _normalize_kr_scan_cache_rows(rows: list) -> bool:
+    """오래된 KR 스캔 캐시가 최신 리스트 필드를 빠뜨리지 않게 보정한다."""
+    if not rows:
+        return False
+    changed = False
+    for row in rows:
+        if not isinstance(row, dict) or not _kr_quote_symbol(str(row.get("Ticker") or "")):
+            continue
+        if "EntryConsecutive" not in row:
+            row["EntryConsecutive"] = 0
+            changed = True
+    return changed
+
+
+def _kr_scan_rows_need_broker_target(rows: list) -> bool:
+    for row in rows or []:
+        if not isinstance(row, dict) or not _kr_quote_symbol(str(row.get("Ticker") or "")):
+            continue
+        if (_as_float(row.get("BrokerTarget"), 0.0) or 0.0) <= 0:
+            return True
+    return False
+
+
 _DETAIL_SCAN_SCORE_FIELDS: frozenset = frozenset({
     "TotalScore",
     "ScoreDelta",
@@ -2029,21 +2052,35 @@ def api_scan():
             if _age_sec > _SCAN_RESULTS_TTL_SEC:
                 _refresh_scan_background(market, strategy, sector)
             _cached_dirty = False
+            _cached_rows = _sr_cached.get("data") or []
             if not _scan_rows_have_deltas(_sr_cached.get("data") or []):
                 _sr_cached["data"] = _attach_scan_deltas(
-                    _sr_cached.get("data") or [],
+                    _cached_rows,
                     market,
                     adapter=None,
                     sector=sector,
                     save_snapshot=False,
                 )
+                _cached_rows = _sr_cached.get("data") or []
                 _cached_dirty = True
+            if market == "KR":
+                if _normalize_kr_scan_cache_rows(_cached_rows):
+                    _cached_dirty = True
+                if _kr_scan_rows_need_broker_target(_cached_rows):
+                    try:
+                        if _apply_kr_broker_target_fallback(
+                            _cached_rows,
+                            limit=_broker_target_scan_limit(),
+                        ):
+                            _cached_dirty = True
+                    except Exception as be:
+                        logging.warning("KR broker target cache repair failed: %s", be)
             if _cached_dirty:
                 _store_scan_cache(_sr_key, _sr_cached.get("_ts", _sr_now), _sr_cached["data"])
             # 사전 압축 캐시 히트 — flask_compress 재압축 완전 우회
             with _scan_gz_cache_lock:
                 _gz_bytes = _scan_gz_cache.get(_sr_key)
-            if _gz_bytes:
+            if _gz_bytes and "gzip" in request.headers.get("Accept-Encoding", ""):
                 resp = Response(_gz_bytes, mimetype="application/json")
                 resp.headers["Content-Encoding"] = "gzip"
             else:
@@ -2092,6 +2129,12 @@ def api_scan():
                 results = _override_kr_day_chg(results)
             except Exception as ne:
                 logging.warning("naver DayChg override failed: %s", ne)
+            _normalize_kr_scan_cache_rows(results)
+            if _kr_scan_rows_need_broker_target(results):
+                try:
+                    _apply_kr_broker_target_fallback(results, limit=_broker_target_scan_limit())
+                except Exception as be:
+                    logging.warning("KR broker target fallback failed: %s", be)
         # 촌철살인 한줄평 추가 (이미 채워진 경우 스킵)
         try:
             results = _annotate_one_liners(results)
