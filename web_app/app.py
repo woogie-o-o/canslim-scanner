@@ -763,6 +763,84 @@ def _as_float(value, default: float | None = None) -> float | None:
         return default
 
 
+def _apply_kr_quarterly_earnings_growth(row: dict) -> dict:
+    """상세 EPS 성장률은 CAN SLIM C 기준인 최신 분기 순이익 YoY를 우선 표시한다."""
+    if not isinstance(row, dict):
+        return row
+    ticker = str(row.get("Ticker") or "")
+    if not _kr_quote_symbol(ticker):
+        return row
+    try:
+        import naver_quarter
+        ttm = naver_quarter.get_ttm_financials(ticker)
+        qm = naver_quarter.get_quarter_metrics(ticker)
+        growth = _as_float(ttm.get("eps_qoq_growth")) if isinstance(ttm, dict) else None
+        basis = "최근 분기 EPS YoY"
+        if growth is None:
+            growth = _as_float(qm.get("ni_yoy"))
+            basis = "최근 분기 순이익 YoY"
+        if growth is None:
+            return row
+        row["_EPSGrowth"] = growth
+        row["_EPSGrowthBasis"] = basis
+        if qm.get("streak") is not None:
+            row["EPSAcceleration"] = bool((qm.get("streak") or 0) >= 2 and growth > 0)
+        _patch_canslim_c_breakdown(row, growth)
+    except Exception as e:
+        logging.debug("KR quarterly earnings overlay failed: %s", e)
+    return row
+
+
+def _patch_canslim_c_breakdown(row: dict, eps_growth: float) -> None:
+    bd = row.get("Breakdown")
+    if not isinstance(bd, list):
+        return
+    accel = bool(row.get("EPSAcceleration"))
+    if eps_growth >= 1.0:
+        raw, trend = 40, "EXPLOSIVE"
+    elif eps_growth >= 0.5:
+        raw, trend = 28, "EXPLOSIVE"
+    elif eps_growth >= 0.25:
+        raw, trend = 18, "STRONG"
+    elif eps_growth >= 0.15:
+        raw, trend = 10, "GOOD"
+    elif eps_growth >= 0.05:
+        raw, trend = 5, "MODERATE"
+    elif eps_growth < -0.30:
+        raw, trend = -25, "SHARPLY_DECLINING"
+    elif eps_growth < -0.15:
+        raw, trend = -18, "DECLINING"
+    elif eps_growth < 0:
+        raw, trend = -10, "SLIGHT_DECLINE"
+    else:
+        raw, trend = 0, "NEUTRAL"
+    if accel and eps_growth > 0.25:
+        raw *= 2
+        trend += " [Earnings Acceleration🔥]"
+    norm = max(0, min(100, raw / 60 * 100))
+    desc = (
+        f"지난 분기 순이익이 {eps_growth:+.0%} 변동했어요. "
+        f"{'연속 성장 중이에요.' if accel else '가속 신호는 제한적이에요.'}\n"
+        f"📐 점수 {norm:.1f}/100 × 가중치 6.0% = 기여도 {norm * 0.06:.1f}점"
+    )
+    detail = (
+        "📊 입력 데이터\n"
+        f"• EPS 성장률: {eps_growth:+.0%}\n"
+        f"• 가속 성장: {'예 ✓' if accel else '아니오'}\n"
+        f"• 추세: {trend}\n"
+        "📐 계산 과정\n"
+        f"① 원점수: {raw:.1f}\n"
+        f"② 정규화: _n01({raw:.1f}, best=60) → {norm:.1f}/100\n"
+        "③ 가중치: 6.0% (BALANCED)\n"
+        f"④ 기여도: {norm:.1f} × 6.0% = {norm * 0.06:.1f}점"
+    )
+    for idx, item in enumerate(bd):
+        if isinstance(item, (list, tuple)) and item and str(item[0]).startswith("[C]"):
+            patched = [item[0], raw, desc, detail]
+            bd[idx] = tuple(patched) if isinstance(item, tuple) else patched
+            return
+
+
 def _find_n_breakdown(row: dict) -> tuple[int | None, list | None]:
     bd = row.get("Breakdown")
     if not isinstance(bd, list):
@@ -2607,6 +2685,7 @@ def api_ticker(ticker: str):
                     _apply_curated_detail_sector(fresh, market_arg)
                     _apply_kr_broker_target_fallback([fresh], limit=None, refresh_existing=True)
                     _overlay_kr_realtime_quote(fresh, sync_new_high=True)
+                    _apply_kr_quarterly_earnings_growth(fresh)
                     _sync_detail_score_from_scan_cache(fresh, market_arg, strategy_arg)
                     _sync_detail_rs_from_scan_cache(fresh, market_arg, strategy_arg)
                 try:
@@ -2640,6 +2719,7 @@ def api_ticker(ticker: str):
                 except Exception as _e:
                     logging.debug("silent except (app.py): %s", _e)
             _overlay_kr_realtime_quote(result, sync_new_high=True)
+            _apply_kr_quarterly_earnings_growth(result)
             # 네이버 투자자 동향은 /api/investor_flow/<ticker>로 분리 (lazy-load)
             result["_Investor_Available"] = False
             # 캐시가 BrokerTarget=0으로 저장된 경우 실시간 재조회
