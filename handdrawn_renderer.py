@@ -39,7 +39,30 @@ from four_axis_analyzer import Annotation, FourAxisResult
 
 # ───────── 한글 폰트 자동 탐색 ────────────────────────────────────
 def _korean_font() -> Optional[str]:
-    candidates = ["Malgun Gothic", "맑은 고딕", "NanumGothic", "Nanum Gothic",
+    # 웹 UI 기본 폰트(Paperlogy)를 차트 PNG에도 우선 적용한다.
+    # matplotlib는 브라우저 CSS를 읽지 못하므로 repo에 포함된 TTF를 직접 등록해야 한다.
+    base_dir = os.path.abspath(os.path.dirname(__file__))
+    app_font_dir = os.path.join(base_dir, "web_app", "static", "fonts")
+    font_paths = []
+    for fn in (
+        "Paperlogy-4Regular.ttf",
+        "Paperlogy-5Medium.ttf",
+        "Paperlogy-6SemiBold.ttf",
+        "Paperlogy-7Bold.ttf",
+    ):
+        p = os.path.join(app_font_dir, fn)
+        if os.path.exists(p):
+            font_paths.append((p, "Paperlogy"))
+
+    app_font_names = []
+    for path, _name in font_paths:
+        try:
+            fm.fontManager.addfont(path)
+            app_font_names.append(fm.FontProperties(fname=path).get_name())
+        except Exception:
+            continue
+
+    candidates = [*app_font_names, "Paperlogy", "Malgun Gothic", "맑은 고딕", "NanumGothic", "Nanum Gothic",
                   "Apple SD Gothic Neo", "Noto Sans CJK KR", "Gulim", "Dotum"]
     available = {f.name for f in fm.fontManager.ttflist}
     for c in candidates:
@@ -49,7 +72,6 @@ def _korean_font() -> Optional[str]:
     # 폰트 매니저 캐시에 없으면 시스템 폰트 디렉토리에서 직접 등록 시도
     import os as _os
     import sys as _sys
-    font_paths = []
     if _sys.platform.startswith("win"):
         winfonts = _os.path.join(_os.environ.get("WINDIR", r"C:\Windows"), "Fonts")
         for fn, nm in [
