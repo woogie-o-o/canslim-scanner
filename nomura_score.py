@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 import logging
+import os
+import queue
 import re
+import threading
 import time
 import yfinance as yf
 from tradingkey_api import is_kr_ticker, get_tradingkey_data
 
 logger = logging.getLogger(__name__)
+
+_SCORE_CACHE: dict[str, tuple[dict, float]] = {}
+_SCORE_CACHE_TTL = int(os.getenv("NOMURA_SCORE_CACHE_TTL_SEC", str(6 * 3600)))
+_YF_KR_TIMEOUT_SEC = float(os.getenv("NOMURA_YF_KR_TIMEOUT_SEC", "7"))
+_YF_KR_DISABLED_UNTIL = 0.0
 
 
 # ── yfinance 일괄 수집 ───────────────────────────────────────────────────────
@@ -109,7 +117,7 @@ def _fetch_yf(ticker: str) -> dict:
     }
 
 
-def _fetch_yf_kr(ticker: str) -> tuple:
+def _fetch_yf_kr_uncached(ticker: str) -> tuple:
     """KR 종목 yfinance 재무제표 + 1개월 수익률. .KS → .KQ 폴백."""
     base = re.sub(r'\.(KS|KQ)$', '', ticker.upper(), flags=re.IGNORECASE)
     yf_data = None
@@ -208,6 +216,34 @@ def _fetch_yf_kr(ticker: str) -> tuple:
             logger.debug("_fetch_yf_kr %s failed: %s", yf_sym, _e)
             time.sleep(1.0)
     return yf_data, rev_1m
+
+
+def _fetch_yf_kr(ticker: str) -> tuple:
+    """KR yfinance 조회를 짧게 제한한다. 지연 시 네이버 보조 데이터만으로 계속 진행."""
+    global _YF_KR_DISABLED_UNTIL
+    now = time.time()
+    if now < _YF_KR_DISABLED_UNTIL:
+        return None, 0.0
+
+    out: "queue.Queue[tuple[object, object]]" = queue.Queue(maxsize=1)
+
+    def _worker():
+        try:
+            out.put(("ok", _fetch_yf_kr_uncached(ticker)), block=False)
+        except Exception as e:
+            out.put(("err", e), block=False)
+
+    threading.Thread(target=_worker, name=f"nomura-yf-kr-{ticker}", daemon=True).start()
+    try:
+        status, value = out.get(timeout=_YF_KR_TIMEOUT_SEC)
+    except queue.Empty:
+        _YF_KR_DISABLED_UNTIL = time.time() + 10 * 60
+        logger.warning("KR yfinance timeout for %s; using degraded Nomura score", ticker)
+        return None, 0.0
+    if status == "err":
+        logger.debug("KR yfinance failed for %s: %s", ticker, value)
+        return None, 0.0
+    return value
 
 
 # ── 내부 계산 함수 (pre-fetched data 사용) ──────────────────────────────────
@@ -618,8 +654,16 @@ def _get_nomura_score_kr(ticker: str) -> dict | None:
 
 def get_nomura_score(ticker: str) -> dict | None:
     """노무라式 종합 스코어 반환. yfinance를 1회만 호출한다."""
+    cache_key = ticker.upper()
+    cached = _SCORE_CACHE.get(cache_key)
+    if cached and time.time() - cached[1] < _SCORE_CACHE_TTL:
+        return dict(cached[0])
+
     if is_kr_ticker(ticker):
-        return _get_nomura_score_kr(ticker)
+        result = _get_nomura_score_kr(ticker)
+        if result is not None:
+            _SCORE_CACHE[cache_key] = (dict(result), time.time())
+        return result
     try:
         tk_data = get_tradingkey_data(ticker)  # None이어도 계속 진행
 
@@ -655,7 +699,7 @@ def get_nomura_score(ticker: str) -> dict | None:
         rating  = _grade_to_rating(grade)
 
         analyst = td.get("analyst", {})
-        return {
+        result = {
             "quantitative_score": q_score,
             "grade":              grade,
             "piotroski":          piotroski,
@@ -668,6 +712,8 @@ def get_nomura_score(ticker: str) -> dict | None:
             "score_breakdown":    _calc_score_breakdown(td, piotroski),
             "piotroski_detail":   _piotroski_breakdown(yf_data) if yf_data else {},
         }
+        _SCORE_CACHE[cache_key] = (dict(result), time.time())
+        return result
     except Exception as e:
         logger.warning("get_nomura_score failed for %s: %s", ticker, e)
         return None
