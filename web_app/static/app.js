@@ -403,11 +403,23 @@ function _entryLight(stock) {
     aqBadge = `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${col};margin-left:2px;vertical-align:middle;" title="${esc(stock.AQ_Verdict||'')}"></span>`;
   }
   const volBadge = _volRegimeBadge(stock);
-  const cons = stock.EntryConsecutive != null ? Number(stock.EntryConsecutive) : 0;
-  const consBadge = cons >= 2
-    ? `<span class="entry-consecutive-badge" title="${cons}일 연속 ${esc(_ENTRY_LABEL[st] || st)}">${cons}일↑</span>`
-    : '';
-  return `<span class="entry-badge entry-${cls}" title="${esc(tip)}">${ico}${lbl ? `<span class="entry-badge-label">${esc(lbl)}</span>` : ''}${aqBadge}</span>${consBadge}${volBadge}`;
+  return `<span class="entry-badge entry-${cls}" title="${esc(tip)}">${ico}${lbl ? `<span class="entry-badge-label">${esc(lbl)}</span>` : ''}${aqBadge}</span>${volBadge}`;
+}
+
+function _entrySignalCellHtml(stock) {
+  const html = _entryLight(stock);
+  return html || '<span class="entry-empty">—</span>';
+}
+
+function _entryConsecutiveCellHtml(stock) {
+  if (!stock || !stock.EntryStatus) return '<span class="entry-empty">—</span>';
+  const raw = Number(stock.EntryConsecutive || 0);
+  const days = Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
+  if (days <= 0) return '<span class="entry-empty" title="연속 일수 데이터 없음">—</span>';
+  const tier = days >= 5 ? 'hot' : days >= 3 ? 'strong' : days >= 2 ? 'steady' : 'new';
+  const suffix = days >= 5 ? '🔥' : days >= 3 ? '★' : days >= 2 ? '✓' : '';
+  const label = _ENTRY_LABEL[stock.EntryStatus] || stock.EntryStatus;
+  return `<span class="entry-days-badge ${tier}" title="${days}일 연속 ${esc(label)}">${days}${suffix ? `<span>${suffix}</span>` : ''}</span>`;
 }
 
 function _renderSignalHtml(signal, stock) {
@@ -424,8 +436,8 @@ function _renderSignalHtml(signal, stock) {
       ? `<span class="grade-badge grade-${g}" title="종합점수 ${Math.round(Number(stock.TotalScore))} 기준 등급">${g}</span>`
       : `<span class="signal-badge" style="color:${signalColor(base)};background:${signalBg(base)}">${esc(tr)}</span>`;
   }
-  // 태그([BREAKOUT],[VOL] 등)는 핵심 이유 컬럼과 중복 → 등급+진입만 표시
-  return `<div class="signal-row">${_entryLight(stock)}${qualityHtml}</div>`;
+  // 데스크톱 표에서는 진입 타이밍을 별도 컬럼으로 표시한다.
+  return `<div class="signal-row">${qualityHtml}</div>`;
 }
 
 function fmt(v, digits = 0) {
@@ -1690,6 +1702,8 @@ function renderStockRow(stock, rank) {
     ${_renderSignalHtml(stock.Signal, stock)}
     ${riskHtml}
   </td>
+  <td class="center">${_entrySignalCellHtml(stock)}</td>
+  <td class="center">${_entryConsecutiveCellHtml(stock)}</td>
   <td class="right">${fmtPrice(stock.Price)}</td>
   <td class="right ${chgClass}">${chgSign}${chgPct}%</td>
   <td class="right rsi-cell">${_rsiCellHtml(stock)}</td>
@@ -1736,6 +1750,8 @@ function renderMobileCard(stock, rank) {
   </div>
   <div class="stock-card-row2">
     ${_renderSignalHtml(stock.Signal, stock)}
+    ${_entryLight(stock)}
+    ${_entryConsecutiveCellHtml(stock)}
     ${stock.RSI != null ? `<span class="stock-card-rsi" style="font-size:11px;font-weight:700;color:${Number(stock.RSI) > 70 ? '#E03131' : Number(stock.RSI) < 30 ? '#1971C2' : '#9CA3AF'}">RSI ${fmt(stock.RSI, 0)}</span>` : ''}
     ${_greedBadge(stock)}
     ${_midcapMobileChip(stock)}

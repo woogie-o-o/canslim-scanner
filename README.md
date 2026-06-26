@@ -8,7 +8,7 @@
 미국/한국 주식 스캐너
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab?logo=python&logoColor=white)](https://python.org)
-[![Flask](https://img.shields.io/badge/Flask-SocketIO-000?logo=flask)](https://flask.palletsprojects.com)
+[![Flask](https://img.shields.io/badge/Flask-000?logo=flask)](https://flask.palletsprojects.com)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ed?logo=docker&logoColor=white)](https://docker.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 

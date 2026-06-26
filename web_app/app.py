@@ -30,7 +30,6 @@ if _BASE not in sys.path:
     sys.path.insert(0, _BASE)
 
 from flask import Flask, request, jsonify, render_template, Response
-from chat import socketio
 from config_manager import apply_to_environ
 
 from logging.handlers import RotatingFileHandler
@@ -4302,9 +4301,6 @@ def api_score_history(ticker: str):
 
 
 
-# SocketIO 초기화 (gunicorn / 직접 실행 모두 대응)
-socketio.init_app(app)
-
 # KR 캐시 워밍 시작 (gunicorn import 시점에도 트리거; file-lock으로 중복 방지)
 try:
     _start_kr_warmup_once()
@@ -4369,7 +4365,7 @@ def _cold_start_fill():
     Phase 2: 개별 pickle에서 최신 데이터로 BG 갱신 (스냅샷 히트 시 join 없이 비동기).
     Phase 3: pickle도 없으면 라이브 scan_all BG 트리거.
     """
-    time.sleep(0.1)  # Flask/SocketIO 초기화 완료 대기
+    time.sleep(0.1)  # Flask 초기화 완료 대기
 
     # Phase 1: 스냅샷 즉시 복원 (단일 파일 → 수 초 이내)
     _snapshot_hit = _load_scan_snapshot()
@@ -4505,11 +4501,8 @@ if __name__ == "__main__":
         port = int(port_raw)
     except ValueError:
         port = 5000
-    # allow_unsafe_werkzeug: dev runner(werkzeug)에서 SocketIO 스레드 호환 필요.
-    # PRODUCTION=1 환경에서는 gunicorn이 기동하므로 이 분기 자체가 실행되지 않음.
-    is_production = os.environ.get("PRODUCTION", "").strip() in ("1", "true", "yes")
     try:
-        socketio.run(app, debug=debug, port=port, host=host, allow_unsafe_werkzeug=not is_production)
+        app.run(debug=debug, port=port, host=host)
     except OSError as e:
         # 포트 충돌(WinError 10048 / EADDRINUSE)을 트레이스백 대신 친절 메시지로 처리.
         # launcher가 사전 체크하지만 race condition / 직접 실행 경로에서 발생할 수 있다.

@@ -171,6 +171,8 @@
               <th class="sortable" data-sort="Sector">섹터 <span class="sort-arrow"></span></th>
               <th class="score-col sortable" data-sort="TotalScore" title="5개 전략(균형/모멘텀/가치/CAN SLIM/스캘핑)을 평균 60% + 최고 40% 로 통합한 복합 점수">점수 <span class="sort-arrow"></span></th>
               <th>시그널</th>
+              <th class="center" title="진입 타이밍 신호 — 2일 이상 유지되면 더 안정적인 신호로 봅니다">진입 신호</th>
+              <th class="center" title="현재 진입 신호가 연속 유지된 일수">연속</th>
               <th class="right sortable" data-sort="Price">현재가 <span class="sort-arrow"></span></th>
               <th class="right sortable" data-sort="DayChg">등락 <span class="sort-arrow"></span></th>
               <th class="right sortable" data-sort="RSI">RSI <span class="sort-arrow"></span></th>
@@ -180,7 +182,7 @@
             </tr>
           </thead>
           <tbody id="stock-list">
-            <tr><td colspan="12" class="state-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</td></tr>
+            <tr><td colspan="14" class="state-msg">섹터를 선택하거나 스캔 버튼을 눌러주세요.</td></tr>
           </tbody>
         </table>
       </div>
@@ -615,31 +617,6 @@
 <!-- 오프스크린 카드 렌더링 영역 -->
 <div id="share-card-render" style="position:fixed;left:-9999px;top:0;z-index:-1;"></div>
 
-<!-- ── 실시간 채팅 ──────────────────────────────────────────── -->
-
-<button id="chat-toggle" title="실시간 채팅">
-  <span>💬</span>
-  <span class="badge" id="chat-badge"></span>
-</button>
-<div id="chat-panel">
-  <div id="chat-header">
-    <span>익명 토론방</span>
-    <span class="online" id="chat-online">0명 접속</span>
-    <button id="chat-admin-btn" title="관리자 로그인">🔒</button>
-  </div>
-  <div id="chat-admin-bar">
-    <input id="admin-announce-input" placeholder="공지사항 입력..." maxlength="500">
-    <button id="admin-announce-btn" title="공지 전송">📢</button>
-    <button id="admin-clear-btn" title="전체 삭제">🗑️</button>
-  </div>
-  <div id="chat-messages"></div>
-  <div id="chat-input-wrap">
-    <input id="chat-input" placeholder="메시지를 입력하세요..." maxlength="500" autocomplete="off">
-    <button id="chat-send">전송</button>
-  </div>
-</div>
-
-<!-- socket.io: lazy-loaded on first chat open (45KB 초기 로드 제거) -->
 <!-- html2canvas: lazy-loaded on first capture (430KB 초기 로드 제거) -->
 <script src="/static/app.js?v={{ v_app_js }}" defer></script>
 <script>
@@ -734,256 +711,6 @@ document.addEventListener('click', function(e) {
   var arg = el.getAttribute('data-arg');
   if (arg != null) { fn(arg); } else { fn(); }
 });
-</script>
-<script>
-(function(){
-  const toggle = document.getElementById('chat-toggle');
-  const panel  = document.getElementById('chat-panel');
-  const msgs   = document.getElementById('chat-messages');
-  const input  = document.getElementById('chat-input');
-  const sendBtn= document.getElementById('chat-send');
-  const badge  = document.getElementById('chat-badge');
-  const onlineEl = document.getElementById('chat-online');
-  const adminBtn = document.getElementById('chat-admin-btn');
-  const adminBar = document.getElementById('chat-admin-bar');
-  const announceInput = document.getElementById('admin-announce-input');
-  const announceBtn = document.getElementById('admin-announce-btn');
-  const clearBtn = document.getElementById('admin-clear-btn');
-  let myNick = '', isOpen = false, unread = 0, isAdmin = false;
-  let socket = null, _socketLoading = null;
-
-  function _loadSocketIO() {
-    if (window.io) return Promise.resolve();
-    if (_socketLoading) return _socketLoading;
-    _socketLoading = new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
-      s.onload = () => resolve();
-      s.onerror = () => { _socketLoading = null; reject(new Error('socket.io load failed')); };
-      document.head.appendChild(s);
-    });
-    return _socketLoading;
-  }
-
-  function _createPollingSocket() {
-    const handlers = {};
-    let sid = '';
-    let closed = false;
-    let connected = false;
-    let ready = null;
-
-    function _url() {
-      return '/socket.io/?EIO=4&transport=polling' +
-        (sid ? '&sid=' + encodeURIComponent(sid) : '') +
-        '&t=' + Date.now().toString(36);
-    }
-    function _fire(name, data) {
-      (handlers[name] || []).forEach(fn => {
-        try { fn(data); } catch (e) { console.warn('[chat]', e); }
-      });
-    }
-    async function _post(packet) {
-      await fetch(_url(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-        body: packet,
-        cache: 'no-store',
-      });
-    }
-    function _packets(payload) {
-      return String(payload || '').split('\x1e').filter(Boolean);
-    }
-    async function _handle(packet) {
-      const type = packet.charAt(0);
-      if (type === '0') {
-        sid = JSON.parse(packet.slice(1)).sid;
-        return;
-      }
-      if (type === '2') {
-        await _post('3');
-        return;
-      }
-      if (packet === '40' || packet.startsWith('40{')) {
-        connected = true;
-        return;
-      }
-      if (packet.startsWith('42')) {
-        const payload = JSON.parse(packet.slice(2));
-        if (Array.isArray(payload) && payload.length) _fire(payload[0], payload[1]);
-      }
-    }
-    async function _poll() {
-      while (!closed && sid) {
-        try {
-          const res = await fetch(_url(), { cache: 'no-store' });
-          if (!res.ok) throw new Error('poll ' + res.status);
-          const text = await res.text();
-          for (const packet of _packets(text)) await _handle(packet);
-        } catch (e) {
-          if (!closed) {
-            console.warn('[chat] polling fallback retry', e);
-            await new Promise(r => setTimeout(r, 1200));
-          }
-        }
-      }
-    }
-    ready = (async () => {
-      const res = await fetch(_url(), { cache: 'no-store' });
-      if (!res.ok) throw new Error('open ' + res.status);
-      for (const packet of _packets(await res.text())) await _handle(packet);
-      await _post('40');
-      _poll();
-      const started = Date.now();
-      while (!connected && Date.now() - started < 3000) {
-        await new Promise(r => setTimeout(r, 30));
-      }
-    })();
-    return {
-      on(name, fn) {
-        (handlers[name] = handlers[name] || []).push(fn);
-      },
-      emit(name, data) {
-        ready.then(() => _post('42' + JSON.stringify([name, data || {}])))
-          .catch(e => console.warn('[chat] emit failed', e));
-      },
-      disconnect() {
-        closed = true;
-        if (sid) _post('41').catch(() => {});
-      },
-    };
-  }
-
-  function fmtTime(ts) {
-    const d = new Date(ts * 1000);
-    return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
-  }
-  function escHtml(s) {
-    const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
-  }
-  function scrollBottom() {
-    requestAnimationFrame(() => { msgs.scrollTop = msgs.scrollHeight; });
-  }
-  function addMsg(nick, msg, ts, id) {
-    const el = document.createElement('div');
-    el.className = 'msg';
-    if (id) el.dataset.id = id;
-    el.dataset.nick = nick;
-    const isMe = nick === myNick;
-    let html = `<span class="nick${isMe?' me':''}">${escHtml(nick)}</span>${escHtml(msg)}<span class="time">${fmtTime(ts)}</span>`;
-    html += `<span class="admin-actions"><button class="del-btn" title="삭제">&times;</button><button class="ban-btn" title="차단">🚫</button></span>`;
-    el.innerHTML = html;
-    el.querySelector('.del-btn').onclick = () => { if (socket) socket.emit('admin_delete', { id: Number(el.dataset.id) }); };
-    el.querySelector('.ban-btn').onclick = () => { if (socket) socket.emit('admin_ban', { nick: el.dataset.nick }); };
-    msgs.appendChild(el);
-    scrollBottom();
-    if (!isOpen) { unread++; badge.textContent = unread > 99 ? '99+' : unread; badge.style.display = 'flex'; }
-  }
-  function addSys(text) {
-    const el = document.createElement('div');
-    el.className = 'sys';
-    el.textContent = text;
-    msgs.appendChild(el);
-    scrollBottom();
-  }
-  function addAnnounce(msg, ts) {
-    const el = document.createElement('div');
-    el.className = 'announce';
-    el.innerHTML = '📢 ' + escHtml(msg) + (ts ? `<span class="time" style="margin-left:8px">${fmtTime(ts)}</span>` : '');
-    msgs.appendChild(el);
-    scrollBottom();
-  }
-
-  function _initSocket() {
-    if (socket) return;
-    socket = (typeof io !== 'undefined')
-      ? io({ transports: ['websocket','polling'] })
-      : _createPollingSocket();
-
-    socket.on('init', (data) => {
-      myNick = data.nick;
-      onlineEl.textContent = data.online + '명 접속';
-      data.history.forEach(m => {
-        if (m.nick === '공지') addAnnounce(m.msg, m.ts);
-        else addMsg(m.nick, m.msg, m.ts, m.id);
-      });
-    });
-    socket.on('chat', (data) => { addMsg(data.nick, data.msg, data.ts, data.id); });
-    socket.on('system', (data) => {
-      if (typeof data.online === 'number') onlineEl.textContent = data.online + '명 접속';
-      if (!/(입장|퇴장)$/.test(String(data.msg || ''))) addSys(data.msg);
-    });
-    socket.on('announce', (data) => { addAnnounce(data.msg, data.ts); });
-    socket.on('msg_deleted', (data) => {
-      const el = msgs.querySelector('.msg[data-id="' + data.id + '"]');
-      if (el) el.remove();
-    });
-    socket.on('chat_cleared', () => { msgs.innerHTML = ''; addSys('채팅이 초기화되었습니다.'); });
-    socket.on('banned', () => { addSys('관리자에 의해 채팅이 차단되었습니다.'); input.disabled = true; sendBtn.disabled = true; });
-    socket.on('unbanned', () => { addSys('채팅 차단이 해제되었습니다.'); input.disabled = false; sendBtn.disabled = false; });
-    socket.on('system_private', (data) => { addSys(data.msg); });
-    socket.on('admin_ok', (data) => {
-      if (data.ok) {
-        isAdmin = true;
-        adminBtn.textContent = '🔓';
-        adminBar.classList.add('open');
-        msgs.classList.add('admin-mode');
-        addSys('관리자 모드 활성화');
-      } else {
-        addSys('비밀번호가 틀립니다.');
-      }
-    });
-  }
-
-  // 토글은 socket과 무관하게 우선 등록 (패널 열기/닫기는 항상 동작)
-  toggle.addEventListener('click', () => {
-    isOpen = !isOpen;
-    panel.classList.toggle('open', isOpen);
-    if (isOpen) {
-      unread = 0; badge.style.display = 'none';
-      try { input.focus(); } catch(e){}
-      try { scrollBottom(); } catch(e){}
-      if (!socket) _loadSocketIO().then(_initSocket).catch(e => console.warn('[chat]', e));
-    }
-  });
-
-  function send() {
-    if (!socket) return;
-    const v = input.value.trim();
-    if (!v) return;
-    socket.emit('chat', { msg: v });
-    input.value = '';
-    input.focus();
-  }
-  sendBtn.addEventListener('click', send);
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
-
-  adminBtn.addEventListener('click', () => {
-    if (isAdmin) {
-      isAdmin = false;
-      adminBtn.textContent = '🔒';
-      adminBar.classList.remove('open');
-      msgs.classList.remove('admin-mode');
-      return;
-    }
-    if (!socket) return;
-    const pw = prompt('관리자 비밀번호:');
-    if (pw) socket.emit('admin_login', { pw });
-  });
-  announceBtn.addEventListener('click', () => {
-    if (!socket) return;
-    const v = announceInput.value.trim();
-    if (!v) return;
-    socket.emit('admin_announce', { msg: v });
-    announceInput.value = '';
-  });
-  announceInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); announceBtn.click(); }
-  });
-  clearBtn.addEventListener('click', () => {
-    if (!socket) return;
-    if (confirm('모든 채팅 기록을 삭제하시겠습니까?')) socket.emit('admin_clear', {});
-  });
-})();
 </script>
 
 </body>
