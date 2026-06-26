@@ -80,6 +80,11 @@ except Exception:
     _NAVERQ_OK = False
 
 try:
+    from earnings_growth import select_canslim_c_growth as _select_canslim_c_growth
+except Exception:
+    _select_canslim_c_growth = None  # type: ignore
+
+try:
     import dart_api as _dart_api
     _DART_OK = True
 except Exception:
@@ -3149,31 +3154,33 @@ class WallStreetQuantStrategies:
         try:
             rg = safe_get(info.get("revenueGrowth"), 0.0)
 
-            # ── [C] 분기 EPS 성장률 소스 폴백 체인 ──────────────────
-            # yfinance info 의 earningsGrowth(연간)는 KR·ADR·소형주에서
-            # 누락이 잦다. C 원칙은 본래 '분기 실적'이므로 아래 우선순위로
-            # 실데이터를 끌어와 '데이터 부족' 오표기를 차단한다.
-            #   1) earningsGrowth          (연간 EPS — 기존 동작 보존)
-            #   2) earningsQuarterlyGrowth (분기 YoY 순이익 — C 원칙 정통)
-            #   3) forwardEps vs trailingEps 파생 성장률
-            #   4) revenueGrowth 보수적 프록시 (0.6× 할인)
-            eg  = safe_get(info.get("earningsGrowth"), None)
-            src = "annual_eps"
-            if eg is None:
-                eg = safe_get(info.get("earningsQuarterlyGrowth"), None)
+            # ── [C] 분기 EPS/순이익 성장률 소스 폴백 체인 ─────────────
+            # CAN SLIM C는 Current Quarterly Earnings이므로 분기 YoY가
+            # 연간/TTM EPS 성장률보다 우선이다.
+            if _select_canslim_c_growth is not None:
+                selected = _select_canslim_c_growth(info)
+                eg = selected.get("eps_growth")
+                src = selected.get("eps_src") or ""
+                rg = selected.get("rev_growth", rg)
+                result["data_missing"] = bool(selected.get("data_missing"))
+            else:
+                eg  = safe_get(info.get("earningsQuarterlyGrowth"), None)
                 src = "quarterly_eps"
-            if eg is None:
-                fe = safe_get(info.get("forwardEps"),  None)
-                te = safe_get(info.get("trailingEps"), None)
-                if fe is not None and te is not None and abs(te) > 1e-9:
-                    eg  = (fe - te) / abs(te)
-                    src = "forward_vs_trailing_eps"
-            if eg is None and rg not in (None, 0.0):
-                # 매출 성장만 확보 — 순이익 레버리지 보수 추정(0.6×)
-                eg  = rg * 0.6
-                src = "revenue_proxy"
+                if eg is None:
+                    eg = safe_get(info.get("earningsGrowth"), None)
+                    src = "annual_eps"
+                if eg is None:
+                    fe = safe_get(info.get("forwardEps"),  None)
+                    te = safe_get(info.get("trailingEps"), None)
+                    if fe is not None and te is not None and abs(te) > 1e-9:
+                        eg  = (fe - te) / abs(te)
+                        src = "forward_vs_trailing_eps"
+                if eg is None and rg not in (None, 0.0):
+                    eg  = rg * 0.6
+                    src = "revenue_proxy"
+                result["data_missing"] = eg is None
 
-            result["rev_growth"] = rg
+            result["rev_growth"] = rg or 0.0
 
             # 모든 소스 부재 → 진짜 데이터 부족 (페널티 없음)
             if eg is None:
@@ -5650,6 +5657,15 @@ class QuantNexusApp:
                         info["earningsGrowth"] = annual_eg
                     if fin.get("eps_qoq_growth") is not None:
                         info["earningsQuarterlyGrowth"] = fin["eps_qoq_growth"]
+                    elif _NAVERQ_OK and _naver_q is not None:
+                        try:
+                            qm = _naver_q.get_quarter_metrics(ticker)
+                            # 네이버 분기 API에서 EPS가 없거나 결측이면 C 원칙용으로
+                            # 최신 분기 지배주주순이익 YoY를 사용한다.
+                            if qm.get("ni_yoy") is not None:
+                                info["earningsQuarterlyGrowth"] = qm["ni_yoy"]
+                        except Exception as _e:
+                            logging.debug(f"[NaverQ] {ticker} 분기 YoY 조회 실패: {_e}")
                     src_tag = fin.get("source", "?")
                     target_source = f"DCF ({src_tag} {fin.get('fiscal_period','')})"
                 else:
