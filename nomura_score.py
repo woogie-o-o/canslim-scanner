@@ -14,7 +14,33 @@ logger = logging.getLogger(__name__)
 _SCORE_CACHE: dict[str, tuple[dict, float]] = {}
 _SCORE_CACHE_TTL = int(os.getenv("NOMURA_SCORE_CACHE_TTL_SEC", str(6 * 3600)))
 _YF_KR_TIMEOUT_SEC = float(os.getenv("NOMURA_YF_KR_TIMEOUT_SEC", "7"))
+_NAVER_KR_TIMEOUT_SEC = float(os.getenv("NOMURA_NAVER_KR_TIMEOUT_SEC", "3"))
 _YF_KR_DISABLED_UNTIL = 0.0
+
+
+def _start_daemon_job(fn, *args):
+    out: "queue.Queue[tuple[str, object]]" = queue.Queue(maxsize=1)
+
+    def _worker():
+        try:
+            out.put(("ok", fn(*args)), block=False)
+        except Exception as e:
+            out.put(("err", e), block=False)
+
+    threading.Thread(target=_worker, name=f"nomura-{getattr(fn, '__name__', 'job')}", daemon=True).start()
+    return out
+
+
+def _read_daemon_job(job, timeout: float, fallback, label: str):
+    try:
+        status, value = job.get(timeout=max(0.05, timeout))
+    except queue.Empty:
+        logger.warning("%s timeout; using fallback", label)
+        return fallback, True
+    if status == "err":
+        logger.debug("%s failed: %s", label, value)
+        return fallback, False
+    return value, False
 
 
 # ── yfinance 일괄 수집 ───────────────────────────────────────────────────────
@@ -225,24 +251,14 @@ def _fetch_yf_kr(ticker: str) -> tuple:
     if now < _YF_KR_DISABLED_UNTIL:
         return None, 0.0
 
-    out: "queue.Queue[tuple[object, object]]" = queue.Queue(maxsize=1)
-
-    def _worker():
-        try:
-            out.put(("ok", _fetch_yf_kr_uncached(ticker)), block=False)
-        except Exception as e:
-            out.put(("err", e), block=False)
-
-    threading.Thread(target=_worker, name=f"nomura-yf-kr-{ticker}", daemon=True).start()
-    try:
-        status, value = out.get(timeout=_YF_KR_TIMEOUT_SEC)
-    except queue.Empty:
+    value, timed_out = _read_daemon_job(
+        _start_daemon_job(_fetch_yf_kr_uncached, ticker),
+        _YF_KR_TIMEOUT_SEC,
+        (None, 0.0),
+        f"KR yfinance {ticker}",
+    )
+    if timed_out:
         _YF_KR_DISABLED_UNTIL = time.time() + 10 * 60
-        logger.warning("KR yfinance timeout for %s; using degraded Nomura score", ticker)
-        return None, 0.0
-    if status == "err":
-        logger.debug("KR yfinance failed for %s: %s", ticker, value)
-        return None, 0.0
     return value
 
 
@@ -597,13 +613,33 @@ def _calc_score_breakdown_kr(piotroski: int, altman_z, beneish_m, rev_1m: float,
 
 def _get_nomura_score_kr(ticker: str) -> dict | None:
     """KR 종목 노무라式 스코어. 재무제표 기반, TradingKey 미사용."""
+    global _YF_KR_DISABLED_UNTIL
     try:
-        naver = _fetch_naver_kr_supplement(ticker)
+        started = time.time()
+        naver_job = _start_daemon_job(_fetch_naver_kr_supplement, ticker)
+        yf_job = None
+        if started >= _YF_KR_DISABLED_UNTIL:
+            yf_job = _start_daemon_job(_fetch_yf_kr_uncached, ticker)
+
+        naver, _ = _read_daemon_job(
+            naver_job,
+            min(_NAVER_KR_TIMEOUT_SEC, _YF_KR_TIMEOUT_SEC),
+            {"rev_1m": 0.0, "inst_net_5d": 0.0, "foreign_net_5d": 0.0},
+            f"KR naver supplement {ticker}",
+        )
         rev_1m       = naver["rev_1m"]
         inst_net_5d  = naver["inst_net_5d"]
         frgn_net_5d  = naver["foreign_net_5d"]
 
-        yf_data, yf_rev = _fetch_yf_kr(ticker)
+        if yf_job is not None:
+            remaining = _YF_KR_TIMEOUT_SEC - (time.time() - started)
+            (yf_data, yf_rev), yf_timed_out = _read_daemon_job(
+                yf_job, remaining, (None, 0.0), f"KR yfinance {ticker}"
+            )
+            if yf_timed_out:
+                _YF_KR_DISABLED_UNTIL = time.time() + 10 * 60
+        else:
+            yf_data, yf_rev = None, 0.0
         if rev_1m == 0.0 and yf_rev != 0.0:
             rev_1m = yf_rev
 
