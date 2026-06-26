@@ -198,6 +198,31 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(detail["Breakdown"][0][1], 35.0)
         self.assertTrue(detail["_ScoreSyncedFromScan"])
 
+    def test_sync_detail_rs_from_scan_cache_uses_list_bucket(self) -> None:
+        detail = {"Ticker": "005930.KS", "RSRating": 52}
+        scan_row = {
+            "Ticker": "005930.KS",
+            "RSRating": 99,
+            "RSBucket": 1,
+            "RSBucketName": "주도주",
+        }
+        key = ("KR", "BALANCED", "")
+        with app._scan_results_cache_lock:
+            old_cache = dict(app._scan_results_cache)
+            app._scan_results_cache.clear()
+            app._scan_results_cache[key] = {"_ts": 1, "data": [scan_row]}
+        try:
+            changed = app._sync_detail_rs_from_scan_cache(detail, "KR", "BALANCED")
+        finally:
+            with app._scan_results_cache_lock:
+                app._scan_results_cache.clear()
+                app._scan_results_cache.update(old_cache)
+
+        self.assertTrue(changed)
+        self.assertEqual(detail["RSRating"], 99)
+        self.assertEqual(detail["RSBucket"], 1)
+        self.assertEqual(detail["RSBucketName"], "주도주")
+
     def test_scan_cache_hit_skips_broker_repair_when_target_exists(self) -> None:
         key = ("KR", "BALANCED", "")
         cached_rows = [

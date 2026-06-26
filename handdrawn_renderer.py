@@ -32,6 +32,7 @@ from PIL import Image
 # xkcd 폰트 미설치 경고 억제 (matplotlib 자체 폴백 사용)
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
+warnings.filterwarnings("ignore", message="Glyph .* missing from font", category=UserWarning)
 
 from four_axis_analyzer import Annotation, FourAxisResult
 
@@ -129,18 +130,14 @@ class HandDrawnChartRenderer:
 
     def __init__(self, hist: pd.DataFrame, result: FourAxisResult,
                  ticker: str = "", lookback: int = 120,
-                 width_px: int = 720, height_px: int = 600, dpi: int = 100):
+                 width_px: int = 720, height_px: int = 600, dpi: int = 100,
+                 support: float | None = None,
+                 resistance: float | None = None,
+                 show_fib: bool = True,
+                 show_sr: bool = True):
         from four_axis_analyzer import _ema, _bb
         h = hist.copy()
-        # GreedZone 시리즈 계산 (차트 배경 음영용)
         self._gz_zone = None
-        try:
-            from greedzone import calc_greedzone
-            gz_series = calc_greedzone(h, low_period=112, stdev_period=50, _return_series=True)
-            if gz_series is not None and len(gz_series) == len(h):
-                self._gz_zone = gz_series
-        except Exception:
-            pass
         # 기본 지표
         if "EMA20" not in h.columns:
             h["EMA20"]  = _ema(h["Close"], 20)
@@ -164,6 +161,10 @@ class HandDrawnChartRenderer:
         self.ticker    = ticker
         self.size      = (width_px / dpi, height_px / dpi)
         self.dpi       = dpi
+        self._support = support
+        self._resistance = resistance
+        self._show_fib = show_fib
+        self._show_sr = show_sr
 
     # ---------------------------------------------------------------
     def render(self) -> Image.Image:
@@ -179,6 +180,11 @@ class HandDrawnChartRenderer:
         lw_scale  = s
 
         with plt.xkcd(scale=1.0, length=80, randomness=2):
+            if KFONT:
+                _cur = matplotlib.rcParams.get("font.family", [])
+                if isinstance(_cur, str):
+                    _cur = [_cur]
+                matplotlib.rcParams["font.family"] = _cur + [KFONT]
             fig = plt.figure(figsize=self.size, dpi=self.dpi, facecolor="#FFFFFF")
             # 2패널 구성 — 가격 + 거래량 (RSI/MACD는 4축 분석 점수 카드와 중복이라 제거)
             gs  = gridspec.GridSpec(
@@ -226,19 +232,6 @@ class HandDrawnChartRenderer:
                                       self.hist["BB_UP"].values,
                                       color="#3182F6", alpha=0.05, zorder=1)
 
-            # ── GreedZone 구간 음영 ──────────────────────────────────
-            if self._gz_zone is not None:
-                gz_tail = self._gz_zone.iloc[-self._lookback:].reset_index(drop=True).values
-                if len(gz_tail) == len(x):
-                    ymin, ymax = ax_price.get_ylim()
-                    ax_price.fill_between(
-                        x, ymin, ymax,
-                        where=gz_tail.astype(bool),
-                        color="#FCD34D", alpha=0.18, zorder=0,
-                        label="GreedZone",
-                    )
-                    ax_price.set_ylim(ymin, ymax)
-
             # 어노테이션/하이쿠 제목 제거 — 차트 위 텍스트는 모두 분석 카드로 분리
             ax_price.set_title(
                 self.ticker,
@@ -249,6 +242,69 @@ class HandDrawnChartRenderer:
             for t in leg.get_texts():
                 t.set_color("#444")
             plt.setp(ax_price.get_xticklabels(), visible=False)
+
+            if self._show_fib and len(self.hist) > 1:
+                try:
+                    h_max = float(self.hist["High"].max())
+                    h_min = float(self.hist["Low"].min())
+                    fib_levels = [0.236, 0.382, 0.5, 0.618, 0.786]
+                    fib_colors = ["#a78bfa", "#8b5cf6", "#7c3aed", "#6d28d9", "#5b21b6"]
+                    fib_names = {0.236: "얕은", 0.382: "1차지지", 0.5: "중간",
+                                 0.618: "황금비", 0.786: "강한지지"}
+                    _ffs = max(8, int(fs_tick * 0.88))
+
+                    def _fmt_fib(p):
+                        if p >= 1000:
+                            return f"{p:,.0f}"
+                        if p >= 10:
+                            return f"{p:,.1f}"
+                        return f"{p:,.2f}"
+
+                    for lvl, col in zip(fib_levels, fib_colors):
+                        fib_price = h_min + (h_max - h_min) * lvl
+                        ax_price.axhline(fib_price, color=col, linewidth=0.8 * lw_scale,
+                                         linestyle=(0, (5, 4)), alpha=0.55)
+                        ax_price.text(
+                            0.99, fib_price,
+                            f"{_fmt_fib(fib_price)} {fib_names[lvl]}",
+                            transform=ax_price.get_yaxis_transform(),
+                            fontsize=_ffs, color=col, va="center", ha="right",
+                            bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                                      alpha=0.75, edgecolor=col, linewidth=0.6),
+                        )
+                    cur = float(close[-1])
+                    pad = (h_max - h_min) * 0.25
+                    ax_price.set_ylim(min(h_min, cur - pad), max(h_max, cur + pad) * 1.04)
+                except Exception:
+                    pass
+
+            if self._show_sr:
+                try:
+                    _srfs = max(8, int(fs_tick * 0.88))
+                    if self._support is not None:
+                        ax_price.axhline(self._support, color="#22c55e",
+                                         linewidth=1.2 * lw_scale, linestyle="--", alpha=0.7)
+                        ax_price.text(
+                            0.0, self._support,
+                            f" S  {self._support:,.0f}",
+                            transform=ax_price.get_yaxis_transform(),
+                            fontsize=_srfs, color="#22c55e", va="bottom", ha="left",
+                            bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                                      alpha=0.75, edgecolor="#22c55e", linewidth=0.6),
+                        )
+                    if self._resistance is not None:
+                        ax_price.axhline(self._resistance, color="#ef4444",
+                                         linewidth=1.2 * lw_scale, linestyle="--", alpha=0.7)
+                        ax_price.text(
+                            0.0, self._resistance,
+                            f" R  {self._resistance:,.0f}",
+                            transform=ax_price.get_yaxis_transform(),
+                            fontsize=_srfs, color="#ef4444", va="top", ha="left",
+                            bbox=dict(boxstyle="round,pad=0.15", facecolor="white",
+                                      alpha=0.75, edgecolor="#ef4444", linewidth=0.6),
+                        )
+                except Exception:
+                    pass
 
             # ── ② 거래량 + OBV 패널 ──────────────────────────────────
             vol = self.hist["Volume"].values
@@ -286,7 +342,13 @@ class HandDrawnChartRenderer:
 
             # tight_layout이 일부 Axes(워터마크/주석 텍스트 포함)와 호환되지 않아
             # 수동 여백 지정으로 대체 — UserWarning 제거
-            fig.subplots_adjust(left=0.06, right=0.97, top=0.94, bottom=0.10, hspace=0.10)
+            ax_price.yaxis.set_major_formatter(
+                plt.FuncFormatter(lambda v, _:
+                    f"{v/10000:.0f}만" if v >= 10000 else
+                    f"{v:,.0f}" if v >= 1000 else
+                    f"{v:,.1f}")
+            )
+            fig.subplots_adjust(left=0.10, right=0.97, top=0.94, bottom=0.10, hspace=0.10)
 
             buf = io.BytesIO()
             fig.savefig(buf, format="png", dpi=self.dpi,

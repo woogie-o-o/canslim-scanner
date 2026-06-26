@@ -5045,8 +5045,9 @@ function _renderUSInsight(container, data) {
 async function loadConsensus(ticker, wrapId = 'consensus-wrap', prefix = 'cons') {
   const wrap = document.getElementById(wrapId);
   if (!wrap) return;
-  const p = new URLSearchParams({ market: currentMarket });
-  const cacheKey = `consensus:${ticker}:${currentMarket}`;
+  const mkt = /\.(KS|KQ)$/i.test(ticker) ? 'KR' : currentMarket;
+  const p = new URLSearchParams({ market: mkt });
+  const cacheKey = `consensus:${ticker}:${mkt}`;
   const cached = _clientCache.get(cacheKey);
   if (cached) { _renderConsensusData(wrap, cached, prefix); return; }
   try {
@@ -5263,13 +5264,15 @@ function _renderIndexBarMeta() {
   const parts = [];
   if (_indexMeta && _indexMeta.generated) {
     const day = String(_indexMeta.generated).slice(0, 10);
-    parts.push(`명단 ${day}${_indexMeta.is_stale ? ' ⚠️갱신요망' : ''}`);
+    const staleDays = _indexMeta.stale_days;
+    const ageStr = staleDays != null ? (staleDays === 0 ? '오늘' : `${staleDays}일 전`) : day;
+    parts.push(`명단 ${ageStr}${_indexMeta.is_stale ? ' ⚠️갱신요망' : ''}`);
   }
   if (_scanCacheAgeMin != null && isFinite(_scanCacheAgeMin)) {
     const h = _scanCacheAgeMin / 60;
     const fresh = h < 24 ? `${Math.round(_scanCacheAgeMin)}분 전` :
                   `${(h / 24).toFixed(1)}일 전`;
-    const warn = h >= 24 ? ' ⚠️' : '';
+    const warn = h >= 72 ? ' ⚠️' : '';
     parts.push(`시세 ${fresh}${warn}`);
   }
   el.textContent = parts.join('  ·  ');
@@ -5523,7 +5526,6 @@ const _MACRO_DEFS = [
   { key: 'us10y',   label: '美10Y',       fixed: 2, invert: false, suffix: '%' },
   { key: 'gold',    label: '금',          fixed: 1, invert: false },
   { key: 'wti',     label: 'WTI',         fixed: 2, invert: false },
-  { key: 'btc',     label: 'BTC',         fixed: 0, invert: false },
   { key: 'us_rate', label: '美기준금리',  fixed: 2, invert: false, suffix: '%' },
   { key: 'kr_rate', label: '韓기준금리',  fixed: 2, invert: false, suffix: '%' },
 ];

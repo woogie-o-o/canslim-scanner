@@ -457,6 +457,44 @@ def _sync_detail_score_from_scan_cache(row: dict, market: str, strategy: str) ->
     return changed
 
 
+def _sync_detail_rs_from_scan_cache(row: dict, market: str, strategy: str) -> bool:
+    """상세 RS 표기를 현재 리스트 스캔 캐시의 퍼센타일/버킷 값과 맞춘다."""
+    if not isinstance(row, dict):
+        return False
+    ticker = str(row.get("Ticker") or "").upper()
+    if not ticker:
+        return False
+    market_key = (market or "KR").upper()
+    strategy_key = (strategy or "BALANCED").upper()
+    scan_row = None
+    with _scan_results_cache_lock:
+        preferred_keys = ((market_key, strategy_key, ""), (market_key, "BALANCED", ""))
+        cache_values = [_scan_results_cache.get(key) for key in preferred_keys]
+        cache_values.extend(_scan_results_cache.values())
+        for cached in cache_values:
+            rows = cached.get("data") if isinstance(cached, dict) else None
+            if not rows:
+                continue
+            scan_row = next(
+                (
+                    r for r in rows
+                    if isinstance(r, dict) and str(r.get("Ticker") or "").upper() == ticker
+                ),
+                None,
+            )
+            if scan_row:
+                break
+    if not scan_row:
+        return False
+    changed = False
+    for field in ("RSRating", "RSBucket", "RSBucketName"):
+        value = scan_row.get(field)
+        if value is not None and value != "" and row.get(field) != value:
+            row[field] = value
+            changed = True
+    return changed
+
+
 _scan_snapshot_lock = threading.Lock()
 
 
@@ -2477,6 +2515,7 @@ def api_ticker(ticker: str):
                     _apply_kr_broker_target_fallback([fresh], limit=None)
                     _overlay_kr_realtime_quote(fresh, sync_new_high=True)
                     _sync_detail_score_from_scan_cache(fresh, market_arg, strategy_arg)
+                    _sync_detail_rs_from_scan_cache(fresh, market_arg, strategy_arg)
                 try:
                     from one_liner import annotate as _ol_annotate
                     _ol_annotate([fresh])
@@ -2600,6 +2639,7 @@ def api_ticker(ticker: str):
 
         if market == "KR":
             _sync_detail_score_from_scan_cache(result, market_arg, strategy_arg)
+            _sync_detail_rs_from_scan_cache(result, market_arg, strategy_arg)
 
         # ── 응답 캐시 저장 ──
         with _ticker_detail_cache_lock:
@@ -3398,6 +3438,14 @@ def api_consensus(ticker: str):
                     break
             except Exception:
                 continue
+        if result["reports"] and not result["summary"].get("high"):
+            tgts = [
+                int(r["target"]) for r in result["reports"]
+                if r.get("target") and int(r["target"]) > 0
+            ]
+            if tgts:
+                result["summary"]["high"] = max(tgts)
+                result["summary"]["low"] = min(tgts)
 
     else:  # US ? yfinance ??? (?? broker ???? ??)
         try:
@@ -3487,7 +3535,6 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
         tried = []
         periods = ("2y", "1y", "6mo", "3mo")
         for yt in candidates:
-            rate_limited_break = False
             for period in periods:
                 tried.append(f"{yt}({period})")
                 try:
@@ -3508,7 +3555,7 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                     logging.warning("four_axis history fetch failed: %s", exc)
                     if "too many requests" in msg or "rate" in msg and "limit" in msg:
                         try:
-                            time.sleep(1.0)
+                            time.sleep(3.0)
                             h = _run_with_timeout(
                                 lambda yt=yt, period=period: yf.Ticker(yt).history(
                                     period=period,
@@ -3523,8 +3570,7 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
                                 break
                         except Exception as _e:
                             logging.debug("silent except (app.py): %s", _e)
-                        rate_limited_break = True
-                        break
+                        continue
                     continue
             if hist is not None:
                 break
@@ -3596,7 +3642,7 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
         if want_chart:
             renderer = HandDrawnChartRenderer(
                 hist, result, ticker=chart_title,
-                width_px=1200, height_px=560, dpi=100,
+                width_px=1140, height_px=532, dpi=100,
             )
             img = renderer.render()
 

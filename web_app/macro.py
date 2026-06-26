@@ -47,7 +47,6 @@ _RANGES = {
     "dxy":      (50.0, 200.0),
     "gold":     (100.0, 10000.0),
     "wti":      (0.0, 500.0),
-    "btc":      (1.0, 10_000_000.0),
     "nasdaq":   (1.0, 100000.0),
     "hyg":      (30.0, 200.0),
     "lqd":      (50.0, 200.0),
@@ -88,7 +87,6 @@ _YF_MAP = {
     "DX-Y.NYB": "dxy",       # 달러인덱스
     "GC=F":    "gold",       # 금 선물(USD/oz)
     "CL=F":    "wti",        # WTI 원유(USD/bbl)
-    "BTC-USD": "btc",        # 비트코인(USD)
     "HYG":     "hyg",        # 하이일드 채권 — 신용 스트레스
     "LQD":     "lqd",        # 투자등급 채권 — HY 스프레드 계산용
 }
@@ -102,7 +100,7 @@ def _fetch_yf() -> dict:
         symbols = list(_YF_MAP.keys())
         df = yf.download(
             symbols, period="5d", interval="1d",
-            progress=False, group_by="ticker", threads=True,
+            progress=False, group_by="ticker", threads=False,
         )
     except Exception as e:
         _LOG.warning("macro: yfinance batch failed: %s", e)
@@ -281,7 +279,7 @@ def _signal(vix, usdkrw, us10y_chg=None, dxy_chg=None, vix_prev=None) -> dict:
 _ALL_KEYS = (
     "vix", "vix3m", "skew", "sp500", "nasdaq", "kospi", "usdkrw",
     "kr_rate", "us_rate", "us10y", "dxy",
-    "gold", "wti", "btc", "hyg", "lqd",
+    "gold", "wti", "hyg", "lqd",
 )
 
 
@@ -388,7 +386,6 @@ def _build() -> dict:
         "dxy":     cell("dxy"),
         "gold":    cell("gold"),
         "wti":     cell("wti"),
-        "btc":     cell("btc"),
         "hyg":     cell("hyg"),
         "lqd":     cell("lqd"),
         "kr_rate": ({"value": kr_rate, "change_pct": None} if kr_rate is not None else None),
