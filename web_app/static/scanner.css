@@ -883,8 +883,6 @@ td.score-col {
 .chip[data-filter="laggard"] { border-color: #FCA5A5; color: #B91C1C; }
 .chip[data-filter="laggard"].active { background: #B91C1C; border-color: #B91C1C; color: #fff; }
 
-/* "설명" 컬럼 — 종목명 hover 팝업(showStockPopup)과 내용이 중복되지만,
-   사용자 요청으로 목록에 직접 노출(td.desc-cell 스타일은 아래 ~2970 참조). */
 .moat-conf {
   display: inline-block;
   font-size: 10px;
@@ -3417,46 +3415,6 @@ td.score-col {
 .btn-seg:hover { background: rgba(255,255,255,0.5); color: var(--text-primary); }
 .btn-seg.active { background: #fff; color: var(--text-primary); box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
 
-/* ── 설명 컬럼 ─────────────────────────────────────────────────────────── */
-.desc-col { width: 200px; max-width: 200px; }
-td.desc-cell {
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  max-width: 200px;
-  white-space: normal;
-  word-break: keep-all;
-}
-
-/* ── 핵심 이유 컬럼 ───────────────────────────────────────────────────── */
-.reason-col { min-width: 120px; max-width: 220px; }
-td.reason-cell {
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  max-width: 220px;
-  white-space: normal;
-  word-break: keep-all;
-}
-.reason-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px 7px;
-  margin: 1px 2px;
-  border-radius: 100px;
-  font-size: 10px;
-  font-weight: 600;
-  background: var(--surface-subtle);
-  color: var(--text-secondary);
-  white-space: nowrap;
-  cursor: default;
-  transition: background 0.15s;
-}
-.reason-tag:hover { background: var(--surface-page); }
-.reason-tag.positive { background: rgba(107,155,122,0.15); color: var(--success); }
-.reason-tag.negative { background: rgba(212,24,61,0.1); color: var(--destructive); }
-
 /* ── 리스크 배지 ──────────────────────────────────────────────────────── */
 .risk-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
 .risk-badge {
@@ -3832,7 +3790,6 @@ th.sortable.desc .sort-arrow::after { content: "▼"; opacity: 1; color: var(--b
     font-size: 14px;
   }
   .stock-table th, .stock-table td { padding: 10px 8px; font-size: 12px; }
-  .desc-col, .reason-col { display: none; }
   th[data-sort="BrokerTarget"], td:nth-child(12) { display: none; }
   .name-cell { max-width: 130px; }
   .stock-name { font-size: 13px; }

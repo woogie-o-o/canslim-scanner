@@ -1375,8 +1375,6 @@ function renderStockTable(stocks) {
 
   // 지수 보기 카운트 갱신 + 지수/퀵필터 적용
   _updateIndexBar(_currentResults);
-  // _updateIndexBar가 _activeIndex를 리셋할 수 있으므로 헤더 가시성을 항상 동기화
-  _toggleMidcapCol(_activeIndex === 'SP400');
   const indexScoped   = _applyIndexFilter(_currentResults);
   const quickFiltered = _applyQuickFilter(indexScoped);
   _renderOneLinerFilterChip(quickFiltered);
@@ -1654,9 +1652,6 @@ function renderStockRow(stock, rank) {
   if (stock.BearCap)      risks.push('<span class="risk-badge risk-badge-bear" title="하락장 상한 발동 — 하락장으로 점수 50점 상한 제한">하락장↓</span>');
   if (risks.length) riskHtml = `<div class="risk-badges">${risks.join('')}</div>`;
 
-  // TopReason 태그 HTML
-  const reasonHtml = _renderReasonTags(stock.TopReason);
-
   // 증권사 컨센서스 목표가 HTML (IIFE 제거 — 500+ 종목 렌더 시 함수 생성 오버헤드 제거)
   let brokerHtml;
   if (stock.BrokerTarget) {
@@ -1686,7 +1681,6 @@ function renderStockRow(stock, rank) {
     <span class="stock-name">${logoHtml}${esc(stock.Name || stock.Ticker)}${stock.IsSpeculativeTheme ? ` <span class="theme-warn" title="${esc(stock.ThemeWarning || '투기성 테마주 — 점수 신뢰도 낮음')}">⚠ 테마</span>` : ''}${stock.MicroOutlier ? ` <span class="micro-outlier" title="${esc(stock.MicroOutlierReason || '마이크로구조 이상치')}">🔬 마이크로 이상</span>` : ''}${_greedBadge(stock)}${_bottleneckBadge(stock)}</span>
     <span class="stock-code">${t}</span>
   </td>
-  <td class="desc-cell">${esc(stock.Desc || _industryKo(stock.Industry) || '')}</td>
   <td><span class="sector-tag">${esc(stock.Sector || '—')}</span></td>
   <td class="score-col">
     <div class="score-line"><span class="score-num ${sc}">${score}</span>${_deltaBadge(stock)}</div>
@@ -1702,8 +1696,6 @@ function renderStockRow(stock, rank) {
   <td class="right">${avgVol}</td>
   <td class="right">${marketCap}</td>
   <td class="right" title="${stock.BrokerTargetSource ? esc(stock.BrokerTargetSource) : '증권사 컨센서스 없음'}">${brokerHtml}</td>
-  <td class="reason-cell">${reasonHtml}</td>
-  ${_midcapAlphaCell(stock)}
 </tr>`;
 }
 
@@ -5109,39 +5101,6 @@ function toggleBookmark(btn) {
   icon.setAttribute('stroke', '#3182F6');
 }
 
-// ── TopReason 태그 렌더링 ────────────────────────────────────────────
-
-function _reasonShorthand(text) {
-  let m;
-  if (/52주.*신고가/.test(text))            return { ico: '\u{1F4C8}', short: '신고가' };
-  if ((m = text.match(/거래량\s*([\d.]+)x/))) return { ico: '\u{1F50A}', short: m[1] + 'x' };
-  if ((m = text.match(/RS\s*(\d+)\s*주도주/))) return { ico: '\u{1F3C6}', short: 'RS' + m[1] };
-  if (/EPS\s*가속/.test(text))              return { ico: '\u{1F4CA}', short: 'EPS\u2191' };
-  if ((m = text.match(/ROE\s*([\d.]+%?)/)))  return { ico: '\u{1F4B0}', short: 'ROE' + m[1] };
-  if ((m = text.match(/RSI\s*(\d+)\s*과매도/))) return { ico: '\u{1F4C9}', short: 'RSI' + m[1] };
-  if ((m = text.match(/RSI\s*(\d+)\s*과열/)))  return { ico: '\u{1F525}', short: 'RSI' + m[1] };
-  if ((m = text.match(/DCF\s*([+\-]?\d+%?)/))) return { ico: '\u{1F3AF}', short: m[1] };
-  if (/⛔.*EPS/.test(text))                 return { ico: '\u26D4', short: 'EPS' };
-  if ((m = text.match(/⛔RS(\d+)/)))         return { ico: '\u26D4', short: 'RS' + m[1] };
-  return null;
-}
-
-function _renderReasonTags(topReason) {
-  if (!topReason || topReason === '-') return '<span style="color:var(--text-tertiary)">—</span>';
-  try {
-    if (typeof topReason !== 'string') return '<span style="color:var(--text-tertiary)">—</span>';
-    const parts = topReason.replace(/\s*[·]\s*/g, ' · ').split(' · ').filter(p => p.trim()).slice(0, 4);
-    return parts.map(p => {
-      const neg = /⛔|과열|AVOID|SELL|적자/.test(p);
-      const pos = /신고가|돌파|주도주|EPS|ROE|과매도/.test(p);
-      const cls = neg ? ' negative' : pos ? ' positive' : '';
-      const sh = _reasonShorthand(p);
-      if (sh) return `<span class="reason-tag${cls}" title="${esc(p)}">${sh.ico}${esc(sh.short)}</span>`;
-      return `<span class="reason-tag${cls}" title="${esc(p)}">${esc(p)}</span>`;
-    }).join('');
-  } catch (_) { return '<span style="color:var(--text-tertiary)">—</span>'; }
-}
-
 // ── 테이블 정렬 ─────────────────────────────────────────────────────
 
 function initFilterChips() {
@@ -5186,15 +5145,8 @@ function initIndexBar() {
     chip.addEventListener('click', () => {
       _activeIndex = chip.dataset.index || 'all';
       _syncIndexBarUI();
-      _toggleMidcapCol(_activeIndex === 'SP400');
       if (_searchBaseStocks().length) _refreshFilteredView();
     });
-  });
-}
-
-function _toggleMidcapCol(show) {
-  document.querySelectorAll('.midcap-col-hdr').forEach(el => {
-    el.style.display = show ? '' : 'none';
   });
 }
 

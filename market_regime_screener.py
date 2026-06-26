@@ -230,9 +230,16 @@ class MarketRegimeScreener:
                     covariance_type="diag",
                     n_iter=150,
                     tol=1e-4,
+                    min_covar=1e-3,
                     random_state=int(seed),
                 )
-                m.fit(Xfit)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        category=RuntimeWarning,
+                        message="divide by zero encountered in log",
+                    )
+                    m.fit(Xfit)
                 if not getattr(m.monitor_, "converged", True):
                     continue
                 sc = m.score(Xfit)

@@ -16,6 +16,7 @@ import datetime as dt
 import json
 import logging
 import os
+import warnings
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict, Optional
 
@@ -245,7 +246,13 @@ def _fit_hmm(X: np.ndarray, n_states: int, config: dict, seeds) -> Optional[Any]
                     model.means_ = km.cluster_centers_
                 except Exception:
                     pass
-            model.fit(X)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    category=RuntimeWarning,
+                    message="divide by zero encountered in log",
+                )
+                model.fit(X)
             if not getattr(model.monitor_, "converged", True):
                 continue
             sc = model.score(X)
