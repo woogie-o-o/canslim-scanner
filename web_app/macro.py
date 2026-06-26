@@ -453,10 +453,11 @@ def get_fear_greed(force: bool = False) -> dict:
             except Exception:
                 continue
         rating = str(fg.get("rating") or "")
+        rating_key = rating.replace("_", " ").strip().title()
         result = {
             "score": round(float(fg.get("score") or 0), 1),
             "rating": rating,
-            "rating_ko": _FG_RATING_KO.get(rating, rating),
+            "rating_ko": _FG_RATING_KO.get(rating_key, rating),
             "prev_week": round(float(fg.get("previous_1_week") or 0), 1),
             "prev_month": round(float(fg.get("previous_1_month") or 0), 1),
             "prev_year": round(float(fg.get("previous_1_year") or 0), 1),

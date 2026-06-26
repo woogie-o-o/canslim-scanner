@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import unittest
+from io import BytesIO
 from unittest.mock import patch
 
 
@@ -424,6 +425,38 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(data["target"], 460000.0)
         self.assertEqual(data["source"], "네이버증권 리서치 목표가 평균")
         self.assertEqual(data["count"], 2)
+
+    def test_fetch_kr_consensus_reports_html_ignores_unfiltered_naver_list(self) -> None:
+        html = """
+        <table>
+          <tr>
+            <td><a href="/item/main.naver?code=000660">SK하이닉스</a></td>
+            <td>실적과 멀티플 둘 다 열려 있다</td>
+            <td>하나증권</td>
+            <td class="date">26.06.26</td>
+            <td class="date">2701000</td>
+          </tr>
+          <tr>
+            <td><a href="/item/main.naver?code=005930">삼성전자</a></td>
+            <td>분석 리포트</td>
+            <td>미래에셋증권</td>
+            <td class="date">26.06.26</td>
+            <td class="date">334000</td>
+          </tr>
+        </table>
+        """.encode("cp949")
+
+        class _Resp(BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        with patch("app.urllib.request.urlopen", return_value=_Resp(html)):
+            reports = app._fetch_kr_consensus_reports_html("005930")
+
+        self.assertEqual(reports, [])
 
     def test_broker_target_scan_limit_keeps_scan_refresh_light_by_default(self) -> None:
         with patch.dict(os.environ, {}, clear=False):

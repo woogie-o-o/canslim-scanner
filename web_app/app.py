@@ -951,7 +951,12 @@ def _broker_target_scan_limit() -> int | None:
 
 
 def _fetch_kr_consensus_reports_html(symbol: str, *, timeout: int = 8) -> list[dict]:
-    """PC 네이버 리서치 HTML에서 목표가 리포트 후보를 파싱한다."""
+    """PC 네이버 리서치 HTML에서 목표가 리포트 후보를 파싱한다.
+
+    finance.naver.com/research/company_list.naver 는 itemcode 파라미터를 무시하고
+    전체 최신 리포트 목록을 반환하는 경우가 있다. 그래서 종목코드가 행 내부에
+    명시적으로 있고, 목표가 컬럼/문맥이 확인될 때만 보수적으로 사용한다.
+    """
     if not symbol:
         return []
     import re as _re
@@ -965,6 +970,10 @@ def _fetch_kr_consensus_reports_html(symbol: str, *, timeout: int = 8) -> list[d
         page = resp.read().decode("cp949", errors="replace")
     rows = _re.findall(r"<tr[^>]*>(.*?)</tr>", page, _re.DOTALL | _re.IGNORECASE)
     for row_html in rows:
+        if f"code={symbol}" not in row_html:
+            continue
+        if not _re.search(r"(목표가|목표주가|priceTarget|targetPrice)", row_html, _re.IGNORECASE):
+            continue
         tds = _re.findall(r"<td[^>]*>(.*?)</td>", row_html, _re.DOTALL | _re.IGNORECASE)
         cells = [_re.sub(r"<[^>]+>", "", td).strip() for td in tds]
         cells = [c.replace("\xa0", " ").strip() for c in cells if c and c.strip()]
