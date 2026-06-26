@@ -410,10 +410,10 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(rows[0]["BrokerTargetSource"], "네이버증권 컨센서스 평균 (2026-06-25)")
         self.assertGreater(rows[0]["BrokerTargetFetchedAt"], 0)
 
-    def test_broker_target_scan_limit_covers_full_kr_scan_by_default(self) -> None:
+    def test_broker_target_scan_limit_keeps_scan_refresh_light_by_default(self) -> None:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("BROKER_TARGET_SCAN_LIMIT", None)
-            self.assertEqual(app._broker_target_scan_limit(), 1000)
+            self.assertEqual(app._broker_target_scan_limit(), 30)
 
         with patch.dict(os.environ, {"BROKER_TARGET_SCAN_LIMIT": "0"}):
             self.assertIsNone(app._broker_target_scan_limit())

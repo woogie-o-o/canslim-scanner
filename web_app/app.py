@@ -942,7 +942,7 @@ def _parse_int_value(value) -> int:
 
 
 def _broker_target_scan_limit() -> int | None:
-    raw = os.environ.get("BROKER_TARGET_SCAN_LIMIT", "1000")
+    raw = os.environ.get("BROKER_TARGET_SCAN_LIMIT", "30")
     try:
         limit = int(raw)
     except (TypeError, ValueError):

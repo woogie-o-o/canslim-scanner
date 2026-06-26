@@ -1758,7 +1758,9 @@ td.score-col {
   font-size: 14px;
 }
 
-.load-more-btn { text-align: center; padding: 12px; }
+.stock-load-more,
+.load-more-btn { text-align: center; padding: 14px 0 4px; }
+.stock-load-more[hidden] { display: none; }
 .load-more-btn button, .load-more-btn-inner {
   background: var(--surface-subtle); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 24px; font-size: 13px; color: var(--text-secondary);

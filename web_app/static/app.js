@@ -1383,6 +1383,7 @@ function renderStockTable(stocks) {
   const renderToken = ++_renderToken;
   const tbody = document.getElementById('stock-list');
   if (!tbody) return;
+  _clearStockLoadMore();
   _currentResults = Array.isArray(stocks) ? stocks : [];
 
   // 워치리스트 카운트 (전체 기준)
@@ -1451,30 +1452,31 @@ function renderStockTable(stocks) {
     tbody.innerHTML = '';
     _updateMobileList(capped, null, renderToken);
     if (remaining > 0) {
-      const mEl = document.getElementById('mobile-stock-list');
-      if (mEl) {
-        const btn = document.createElement('div');
-        btn.className = 'load-more-btn';
-        btn.innerHTML = `<button onclick="this.parentElement.remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>`;
-        mEl.appendChild(btn);
-      }
+      _setStockLoadMore(remaining, renderToken);
     }
   } else {
     _renderHtmlInBatches(tbody, view.slice(0, _INITIAL_CAP), renderStockRow, 30, 50, renderToken);
     if (remaining > 0) {
-      _scheduleDeferredRender(() => {
-        if (renderToken !== _renderToken) return;
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td colspan="${_colCount()}" class="center" style="padding:12px;">
-          <button class="load-more-btn-inner" onclick="this.closest('tr').remove(); _renderAllStocks()">나머지 ${remaining}개 더 보기</button>
-        </td>`;
-        tbody.appendChild(tr);
-      });
+      _setStockLoadMore(remaining, renderToken);
     }
   }
   // 전체 뷰 저장 (더 보기 클릭 시 사용)
   window._pendingFullView = remaining > 0 ? view : null;
   window._pendingRenderToken = renderToken;
+}
+
+function _clearStockLoadMore() {
+  const el = document.getElementById('stock-load-more');
+  if (!el) return;
+  el.hidden = true;
+  el.innerHTML = '';
+}
+
+function _setStockLoadMore(remaining, renderToken) {
+  const el = document.getElementById('stock-load-more');
+  if (!el || renderToken !== _renderToken) return;
+  el.hidden = false;
+  el.innerHTML = `<button class="load-more-btn-inner" type="button" onclick="_renderAllStocks()">나머지 ${remaining}개 더 보기</button>`;
 }
 
 // "더 보기" 클릭 시 나머지 종목 렌더링
@@ -1483,6 +1485,7 @@ function _renderAllStocks() {
   const token = window._pendingRenderToken;
   if (!view || token !== _renderToken) return;
   window._pendingFullView = null;
+  _clearStockLoadMore();
   const _CAP = 100;
   const rest = view.slice(_CAP);
   if (window.innerWidth <= 768) {
