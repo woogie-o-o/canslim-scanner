@@ -410,6 +410,21 @@ class TestKrRealtimeOverlay(unittest.TestCase):
         self.assertEqual(rows[0]["BrokerTargetSource"], "네이버증권 컨센서스 평균 (2026-06-25)")
         self.assertGreater(rows[0]["BrokerTargetFetchedAt"], 0)
 
+    def test_fetch_kr_consensus_target_uses_html_reports_when_integration_fails(self) -> None:
+        with app._broker_target_cache_lock:
+            app._broker_target_cache.clear()
+
+        with patch("app.urllib.request.urlopen", side_effect=OSError("integration down")), patch(
+            "app._fetch_kr_consensus_reports_html",
+            return_value=[{"target": 450000}, {"target": 470000}],
+        ) as html_reports:
+            data = app._fetch_kr_consensus_target("005930.KS", force=True)
+
+        html_reports.assert_called_once_with("005930")
+        self.assertEqual(data["target"], 460000.0)
+        self.assertEqual(data["source"], "네이버증권 리서치 목표가 평균")
+        self.assertEqual(data["count"], 2)
+
     def test_broker_target_scan_limit_keeps_scan_refresh_light_by_default(self) -> None:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("BROKER_TARGET_SCAN_LIMIT", None)

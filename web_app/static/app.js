@@ -5471,10 +5471,12 @@ document.addEventListener('DOMContentLoaded', () => {
     runScan().then(() => {
       loadWatchlist();
       loadMacro();
+      loadFearGreed();
       loadScoreEval();
       if (typeof _loadMacroStrip === 'function') _loadMacroStrip(currentMarket);
     });
     setInterval(loadMacro, 15 * 60 * 1000);
+    setInterval(loadFearGreed, 15 * 60 * 1000);
     // 장중에만 3분 갱신, 장 외에는 30분 간격 — 불필요한 네트워크/서버 부하 방지
     setInterval(() => {
       if (document.hidden) return;
@@ -5544,6 +5546,54 @@ async function loadMacro() {
   } catch (e) {
     console.warn('loadMacro failed', e);
   }
+}
+
+async function loadFearGreed() {
+  const widget = document.getElementById('fg-widget');
+  if (!widget) return;
+  try {
+    const res = await fetch('/api/fear-greed');
+    const d = await res.json();
+    renderFearGreed(d);
+  } catch (e) {
+    console.warn('loadFearGreed failed', e);
+  }
+}
+
+function _fgColor(score) {
+  if (score <= 25) return '#e03131';
+  if (score <= 44) return '#f08c00';
+  if (score <= 55) return '#c77700';
+  if (score <= 74) return '#00a862';
+  return '#008f7a';
+}
+
+function renderFearGreed(d) {
+  const widget = document.getElementById('fg-widget');
+  if (!widget) return;
+  if (!d || d.score == null) {
+    widget.hidden = true;
+    widget.innerHTML = '';
+    return;
+  }
+  const score = Number(d.score);
+  const zones = [
+    { lbl: '극공포', clr: '#e03131' },
+    { lbl: '공포',   clr: '#f08c00' },
+    { lbl: '중립',   clr: '#c77700' },
+    { lbl: '탐욕',   clr: '#00a862' },
+    { lbl: '극탐욕', clr: '#008f7a' },
+  ];
+  const zoneIdx = score > 75 ? 4 : score > 55 ? 3 : score > 45 ? 2 : score > 25 ? 1 : 0;
+  const segs = zones.map((z, i) =>
+    `<span class="fg-zone${i === zoneIdx ? ' active' : ''}" style="background:${z.clr};">${z.lbl}</span>`
+  ).join('');
+  widget.hidden = false;
+  widget.title = `CNN 공포탐욕지수 ${score.toFixed(1)} · ${d.rating_ko || d.rating || ''}`;
+  widget.innerHTML =
+    `<span class="fg-label">CNN 공탐</span>` +
+    `<span class="fg-score" style="color:${_fgColor(score)}">${Math.round(score)}</span>` +
+    `<span class="fg-zones">${segs}</span>`;
 }
 
 function renderMacro(d) {

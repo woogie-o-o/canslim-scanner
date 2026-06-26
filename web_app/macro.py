@@ -400,6 +400,78 @@ def _build() -> dict:
     }
 
 
+# ── CNN Fear & Greed ─────────────────────────────────────────────────
+_FG_CACHE: dict | None = None
+_FG_CACHE_TS: float = 0.0
+_FG_LOCK = threading.Lock()
+
+_FG_RATING_KO = {
+    "Extreme Fear": "극도의 공포",
+    "Fear": "공포",
+    "Neutral": "중립",
+    "Greed": "탐욕",
+    "Extreme Greed": "극도의 탐욕",
+}
+
+
+def get_fear_greed(force: bool = False) -> dict:
+    """CNN Fear & Greed Index와 최근 히스토리. 실패 시 stale 캐시 또는 빈 값."""
+    global _FG_CACHE, _FG_CACHE_TS
+    import json as _json
+
+    now = time.time()
+    with _FG_LOCK:
+        if _FG_CACHE and not force and now - _FG_CACHE_TS < 15 * 60:
+            return dict(_FG_CACHE)
+
+    empty = {
+        "score": None,
+        "rating": "",
+        "rating_ko": "",
+        "prev_week": None,
+        "prev_month": None,
+        "prev_year": None,
+        "history": [],
+    }
+    try:
+        req = urllib.request.Request(
+            "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) scanner-macro",
+                "Accept": "application/json",
+                "Referer": "https://www.cnn.com/markets/fear-and-greed",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+        fg = data.get("fear_and_greed") or {}
+        raw_history = (data.get("fear_and_greed_historical") or {}).get("data") or []
+        history = []
+        for item in raw_history[-90:]:
+            try:
+                history.append({"x": int(item["x"]), "y": round(float(item["y"]), 1)})
+            except Exception:
+                continue
+        rating = str(fg.get("rating") or "")
+        result = {
+            "score": round(float(fg.get("score") or 0), 1),
+            "rating": rating,
+            "rating_ko": _FG_RATING_KO.get(rating, rating),
+            "prev_week": round(float(fg.get("previous_1_week") or 0), 1),
+            "prev_month": round(float(fg.get("previous_1_month") or 0), 1),
+            "prev_year": round(float(fg.get("previous_1_year") or 0), 1),
+            "history": history,
+        }
+        with _FG_LOCK:
+            _FG_CACHE = dict(result)
+            _FG_CACHE_TS = time.time()
+        return result
+    except Exception as e:
+        _LOG.warning("fear_greed fetch failed: %s", e)
+        with _FG_LOCK:
+            return dict(_FG_CACHE) if _FG_CACHE else empty
+
+
 def get_macro(force: bool = False) -> dict:
     """
     매크로 지표 반환. TTL 캐시 + stale-while-error.

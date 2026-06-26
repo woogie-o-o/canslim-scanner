@@ -84,6 +84,44 @@ html, body {
 .macro-leading.safe    { background: rgba(0,192,115,0.10);  color: #00A862; }
 .macro-leading.caution { background: rgba(255,176,32,0.13); color: #C77700; }
 .macro-leading.danger  { background: rgba(245,63,63,0.11);  color: #E03131; }
+.fg-widget {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-page);
+  flex: none;
+}
+.fg-widget[hidden] { display: none; }
+.fg-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+.fg-score {
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.fg-zones {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.fg-zone {
+  height: 16px;
+  min-width: 30px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 16px;
+  opacity: 0.22;
+}
+.fg-zone.active { opacity: 1; }
 .macro-item {
   display: inline-flex;
   align-items: baseline;

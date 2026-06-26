@@ -946,8 +946,42 @@ def _broker_target_scan_limit() -> int | None:
     try:
         limit = int(raw)
     except (TypeError, ValueError):
-        limit = 1000
+        limit = 30
     return None if limit <= 0 else max(1, limit)
+
+
+def _fetch_kr_consensus_reports_html(symbol: str, *, timeout: int = 8) -> list[dict]:
+    """PC 네이버 리서치 HTML에서 목표가 리포트 후보를 파싱한다."""
+    if not symbol:
+        return []
+    import re as _re
+    reports: list[dict] = []
+    html_url = (
+        "https://finance.naver.com/research/company_list.naver"
+        f"?search_type=itemCode&itemcode={symbol}&page=1"
+    )
+    req = urllib.request.Request(html_url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        page = resp.read().decode("cp949", errors="replace")
+    rows = _re.findall(r"<tr[^>]*>(.*?)</tr>", page, _re.DOTALL | _re.IGNORECASE)
+    for row_html in rows:
+        tds = _re.findall(r"<td[^>]*>(.*?)</td>", row_html, _re.DOTALL | _re.IGNORECASE)
+        cells = [_re.sub(r"<[^>]+>", "", td).strip() for td in tds]
+        cells = [c.replace("\xa0", " ").strip() for c in cells if c and c.strip()]
+        firm, target, date, opinion = "", 0, "", ""
+        for cell in cells:
+            clean = cell.replace(",", "").strip()
+            if _re.match(r"^\d+$", clean):
+                val = int(clean)
+                if 10000 < val < 10000000:
+                    target = val
+            elif _re.match(r"^\d{4}\.\d{2}\.\d{2}$", cell):
+                date = cell
+            elif not firm and not _re.match(r"^\d", cell):
+                firm = cell[:30]
+        if target:
+            reports.append({"firm": firm or "—", "target": target, "date": date, "opinion": opinion})
+    return reports
 
 
 def _fetch_kr_consensus_target(ticker: str, *, force: bool = False) -> dict:
@@ -982,6 +1016,19 @@ def _fetch_kr_consensus_target(ticker: str, *, force: bool = False) -> dict:
             }
     except Exception as _e:
         logging.debug("KR consensus target fetch failed for %s: %s", symbol, _e)
+
+    if not out:
+        try:
+            reports = _fetch_kr_consensus_reports_html(symbol)
+            targets = [int(r["target"]) for r in reports if r.get("target") and int(r["target"]) > 0]
+            if targets:
+                out = {
+                    "target": float(round(sum(targets) / len(targets))),
+                    "source": "네이버증권 리서치 목표가 평균",
+                    "count": len(targets),
+                }
+        except Exception as _e:
+            logging.debug("KR consensus HTML target fallback failed for %s: %s", symbol, _e)
 
     with _broker_target_cache_lock:
         _broker_target_cache[symbol] = {"_ts": now, "data": dict(out)}
@@ -2320,6 +2367,18 @@ def api_macro():
         })
 
 
+@app.route("/api/fear-greed")
+def api_fear_greed():
+    """GET /api/fear-greed → CNN 공포탐욕지수 + 최근 히스토리."""
+    try:
+        import macro
+        force = request.args.get("force") in ("1", "true", "yes")
+        return jsonify(macro.get_fear_greed(force=force))
+    except Exception as e:
+        logging.warning("api_fear_greed failed: %s", e)
+        return jsonify({"score": None, "rating": "", "rating_ko": "", "history": []})
+
+
 @app.route("/api/index-meta")
 def api_index_meta():
     """GET /api/index-meta → 지수 명단 기준일·신선도. UI '명단 기준일' 표시용."""
@@ -3463,14 +3522,26 @@ def api_consensus(ticker: str):
                     break
             except Exception:
                 continue
-        if result["reports"] and not result["summary"].get("high"):
-            tgts = [
-                int(r["target"]) for r in result["reports"]
-                if r.get("target") and int(r["target"]) > 0
-            ]
+
+        # 3) PC 네이버 리서치 HTML 폴백: 모바일 JSON research API가 비거나 404일 때 보조한다.
+        if not result["reports"]:
+            try:
+                result["reports"].extend(_fetch_kr_consensus_reports_html(code))
+            except Exception as he:
+                logging.debug("naver html consensus fallback failed: %s", he)
+
+        if result["reports"]:
+            tgts = [int(r["target"]) for r in result["reports"] if r.get("target") and int(r["target"]) > 0]
             if tgts:
-                result["summary"]["high"] = max(tgts)
-                result["summary"]["low"] = min(tgts)
+                if not result["summary"].get("high"):
+                    result["summary"]["high"] = max(tgts)
+                if not result["summary"].get("low"):
+                    result["summary"]["low"] = min(tgts)
+                if not result["summary"].get("count"):
+                    result["summary"]["count"] = len(tgts)
+                computed_mean = round(sum(tgts) / len(tgts))
+                if not result["summary"].get("mean") or result["summary"]["mean"] > computed_mean * 5:
+                    result["summary"]["mean"] = computed_mean
 
     else:  # US ? yfinance ??? (?? broker ???? ??)
         try:
