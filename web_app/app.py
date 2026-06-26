@@ -334,11 +334,23 @@ def _normalize_kr_scan_cache_rows(rows: list) -> bool:
     return changed
 
 
+def _kr_broker_target_is_stale(row: dict, now: int | None = None) -> bool:
+    current = _as_float(row.get("BrokerTarget"), 0.0) or 0.0
+    if current <= 0:
+        return True
+    fetched_at = _parse_int_value(row.get("BrokerTargetFetchedAt"))
+    if fetched_at <= 0:
+        return True
+    now = int(time.time()) if now is None else int(now)
+    return now - fetched_at >= _BROKER_TARGET_TTL_SEC
+
+
 def _kr_scan_rows_need_broker_target(rows: list) -> bool:
+    now = int(time.time())
     for row in rows or []:
         if not isinstance(row, dict) or not _kr_quote_symbol(str(row.get("Ticker") or "")):
             continue
-        if (_as_float(row.get("BrokerTarget"), 0.0) or 0.0) <= 0:
+        if _kr_broker_target_is_stale(row, now):
             return True
     return False
 
@@ -938,14 +950,14 @@ def _broker_target_scan_limit() -> int | None:
     return None if limit <= 0 else max(1, limit)
 
 
-def _fetch_kr_consensus_target(ticker: str) -> dict:
+def _fetch_kr_consensus_target(ticker: str, *, force: bool = False) -> dict:
     symbol = _kr_quote_symbol(ticker)
     if not symbol:
         return {}
     now = int(time.time())
     with _broker_target_cache_lock:
         cached = _broker_target_cache.get(symbol)
-        if cached and now - cached.get("_ts", 0) < _BROKER_TARGET_TTL_SEC:
+        if not force and cached and now - cached.get("_ts", 0) < _BROKER_TARGET_TTL_SEC:
             return dict(cached.get("data") or {})
 
     out: dict = {}
@@ -978,16 +990,21 @@ def _fetch_kr_consensus_target(ticker: str) -> dict:
     return out
 
 
-def _apply_kr_broker_target_fallback(results: list, *, limit=120) -> bool:
-    """BrokerTarget이 비어 있으면 상세 컨센서스 평균값으로 채운다."""
+def _apply_kr_broker_target_fallback(results: list, *, limit=120, refresh_existing: bool = False) -> bool:
+    """BrokerTarget을 네이버 통합 컨센서스 평균으로 채운다.
+
+    기본은 빈 값만 보정한다. refresh_existing=True면 6시간 TTL 기준으로
+    기존 값도 갱신해 리스트/상세의 증권사 목표가가 갈리지 않게 한다.
+    """
     if not results:
         return False
     candidates = []
+    now = int(time.time())
     for row in results:
         if not isinstance(row, dict) or not _kr_quote_symbol(str(row.get("Ticker") or "")):
             continue
         current = _as_float(row.get("BrokerTarget"), 0.0) or 0.0
-        if current <= 0:
+        if current <= 0 or (refresh_existing and _kr_broker_target_is_stale(row, now)):
             candidates.append(row)
     if limit is not None:
         candidates = candidates[: max(0, int(limit))]
@@ -997,7 +1014,7 @@ def _apply_kr_broker_target_fallback(results: list, *, limit=120) -> bool:
     changed = False
 
     def _fetch(row):
-        return row, _fetch_kr_consensus_target(str(row.get("Ticker") or ""))
+        return row, _fetch_kr_consensus_target(str(row.get("Ticker") or ""), force=refresh_existing)
 
     try:
         from concurrent.futures import ThreadPoolExecutor
@@ -1011,12 +1028,16 @@ def _apply_kr_broker_target_fallback(results: list, *, limit=120) -> bool:
         target = _as_float((data or {}).get("target"), 0.0) or 0.0
         if target <= 0:
             continue
+        old_target = _as_float(row.get("BrokerTarget"), 0.0) or 0.0
+        old_source = row.get("BrokerTargetSource")
+        old_fetched_at = row.get("BrokerTargetFetchedAt")
         row["BrokerTarget"] = target
         row["BrokerTargetSource"] = data.get("source") or "네이버증권 컨센서스 평균"
+        row["BrokerTargetFetchedAt"] = now
         count = _parse_int_value((data or {}).get("count"))
         if count:
             row["BrokerAnalystCount"] = count
-        changed = True
+        changed = changed or old_target != target or old_source != row.get("BrokerTargetSource") or old_fetched_at != now
     return changed
 
 
@@ -1125,7 +1146,7 @@ def _override_kr_day_chg(results: list, *, warm_toss_basis: bool = True) -> list
     with ThreadPoolExecutor(max_workers=8) as ex:
         list(ex.map(_fetch, kr_items))
     _apply_kr_toss_stock_names(results)
-    _apply_kr_broker_target_fallback(results, limit=_broker_target_scan_limit())
+    _apply_kr_broker_target_fallback(results, limit=_broker_target_scan_limit(), refresh_existing=True)
     if warm_toss_basis and len(toss_previous_closes) < len(kr_items):
         _schedule_kr_toss_basis_warm(results)
     return results
@@ -2166,6 +2187,7 @@ def api_scan():
                         if _apply_kr_broker_target_fallback(
                             _cached_rows,
                             limit=_broker_target_scan_limit(),
+                            refresh_existing=True,
                         ):
                             _cached_dirty = True
                     except Exception as be:
@@ -2227,7 +2249,11 @@ def api_scan():
             _normalize_kr_scan_cache_rows(results)
             if _kr_scan_rows_need_broker_target(results):
                 try:
-                    _apply_kr_broker_target_fallback(results, limit=_broker_target_scan_limit())
+                    _apply_kr_broker_target_fallback(
+                        results,
+                        limit=_broker_target_scan_limit(),
+                        refresh_existing=True,
+                    )
                 except Exception as be:
                     logging.warning("KR broker target fallback failed: %s", be)
         # 촌철살인 한줄평 추가 (이미 채워진 경우 스킵)
@@ -2511,7 +2537,7 @@ def api_ticker(ticker: str):
                 if market_arg == "KR":
                     _apply_kr_toss_stock_names([fresh])
                     _apply_curated_detail_sector(fresh, market_arg)
-                    _apply_kr_broker_target_fallback([fresh], limit=None)
+                    _apply_kr_broker_target_fallback([fresh], limit=None, refresh_existing=True)
                     _overlay_kr_realtime_quote(fresh, sync_new_high=True)
                     _sync_detail_score_from_scan_cache(fresh, market_arg, strategy_arg)
                     _sync_detail_rs_from_scan_cache(fresh, market_arg, strategy_arg)
@@ -2530,7 +2556,7 @@ def api_ticker(ticker: str):
         if market == "KR":
             _apply_kr_toss_stock_names([result])
             _apply_curated_detail_sector(result, market)
-            _apply_kr_broker_target_fallback([result], limit=None)
+            _apply_kr_broker_target_fallback([result], limit=None, refresh_existing=True)
             code6 = _strip_kr_suffix(ticker).zfill(6)
             name_now = str(result.get("Name") or "").strip()
             if not name_now or name_now in {ticker, code6, f"{code6}.KS", f"{code6}.KQ"}:

@@ -609,13 +609,16 @@ const _WARMING_MAX_RETRY = 12;            // 12회 × 5초 = 약 60초
 let _scanToken = 0;
 let _lastAutoScanTs = 0;
 
-async function runScan() {
+async function runScan(options = {}) {
+  const silent = !!(options && options.silent);
   const btn = document.getElementById('btn-scan');
-  if (btn) { btn.disabled = true; }
+  if (btn && !silent) { btn.disabled = true; }
 
-  setStatHTML('stat-total',  '…<span class="unit">개</span>');
-  setStatHTML('stat-strong', '…<span class="unit">개</span>');
-  showScanLoading();
+  if (!silent || allStocks.length === 0) {
+    setStatHTML('stat-total',  '…<span class="unit">개</span>');
+    setStatHTML('stat-strong', '…<span class="unit">개</span>');
+    showScanLoading();
+  }
 
   const myToken = ++_scanToken;
   const reqSector = currentSector;
@@ -668,11 +671,11 @@ async function runScan() {
     if (allStocks.length === 0 && res.headers.get('X-Warming-In-Progress') === 'true') {
       if (_warmingRetries < _WARMING_MAX_RETRY) {
         _warmingRetries += 1;
-        setStockListMsg(`데이터 준비 중… 자동으로 불러옵니다 (${_warmingRetries}/${_WARMING_MAX_RETRY})`);
-        setTimeout(() => { if (!document.hidden) runScan(); }, 5000);
+        if (!silent) setStockListMsg(`데이터 준비 중… 자동으로 불러옵니다 (${_warmingRetries}/${_WARMING_MAX_RETRY})`);
+        setTimeout(() => { if (!document.hidden) runScan({ silent }); }, 5000);
       } else {
         // 캡 도달 — 명시적 실패 안내, 카운터 리셋(사용자가 직접 다시 시도하면 재개).
-        setStockListMsg('서버 준비 지연 중임. 잠시 후 새로고침 ㄱㄱ');
+        if (!silent) setStockListMsg('서버 준비 지연 중임. 잠시 후 새로고침 ㄱㄱ');
         _warmingRetries = 0;
       }
       return;
@@ -684,6 +687,7 @@ async function runScan() {
     _refreshFilteredView();
   } catch (e) {
     console.error('runScan 실패:', e);
+    if (silent) return;
     // 콜드 스타트 / 네트워크 흔들림 — 백오프하며 자동 재시도.
     if (_runScanAttempt < _RUN_SCAN_MAX_RETRY) {
       const delay = _RUN_SCAN_BACKOFF_MS[_runScanAttempt] || 12000;
@@ -699,8 +703,8 @@ async function runScan() {
   } finally {
     // stale 요청이 최신 요청의 로딩 UI를 끄지 못하게 가드
     if (myToken === _scanToken) {
-      stopScanLoading();
-      if (btn) btn.disabled = false;
+      if (!silent || allStocks.length === 0) stopScanLoading();
+      if (btn && !silent) btn.disabled = false;
     }
   }
 }
@@ -5477,7 +5481,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const interval = (isKrOpen || isUsOpen) ? 3 : 30;
       if ((Date.now() - (_lastAutoScanTs || 0)) >= interval * 60 * 1000) {
         _lastAutoScanTs = Date.now();
-        runScan();
+        runScan({ silent: true });
       }
     }, 60 * 1000);  // 1분마다 체크, 실제 갱신은 조건부
   }

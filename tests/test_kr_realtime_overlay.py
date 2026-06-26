@@ -232,6 +232,7 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "TotalScore": 76.0,
                 "ScoreDelta": 1.0,
                 "BrokerTarget": 455833.0,
+                "BrokerTargetFetchedAt": int(__import__("time").time()),
                 "EntryConsecutive": 0,
             }
         ]
@@ -269,6 +270,7 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 "TotalScore": 76.0,
                 "ScoreDelta": 1.0,
                 "BrokerTarget": 455833.0,
+                "BrokerTargetFetchedAt": int(__import__("time").time()),
                 "Price": 340500.0,
                 "DayChg": -0.01,
                 "EntryConsecutive": 0,
@@ -323,7 +325,7 @@ class TestKrRealtimeOverlay(unittest.TestCase):
                 return_value=False,
             ), patch(
                 "app._apply_kr_broker_target_fallback",
-                side_effect=lambda rows, limit=None: rows[0].update({"BrokerTarget": 455833.0}) or True,
+                side_effect=lambda rows, limit=None, refresh_existing=False: rows[0].update({"BrokerTarget": 455833.0}) or True,
             ) as targets:
                 resp = client.get("/api/scan?market=KR&strategy=BALANCED")
         finally:
@@ -368,20 +370,45 @@ class TestKrRealtimeOverlay(unittest.TestCase):
             changed = app._apply_kr_broker_target_fallback(rows, limit=None)
 
         self.assertTrue(changed)
-        fetch_target.assert_called_once_with("005930.KS")
+        fetch_target.assert_called_once_with("005930.KS", force=False)
         self.assertEqual(rows[0]["BrokerTarget"], 455833.0)
         self.assertEqual(rows[0]["BrokerTargetSource"], "네이버증권 컨센서스 평균 (2026-06-17)")
         self.assertEqual(rows[0]["BrokerAnalystCount"], 12)
 
-    def test_apply_kr_broker_target_fallback_keeps_existing_target(self) -> None:
-        rows = [{"Ticker": "005930.KS", "BrokerTarget": 420000.0}]
+    def test_apply_kr_broker_target_fallback_keeps_fresh_existing_target(self) -> None:
+        rows = [
+            {
+                "Ticker": "005930.KS",
+                "BrokerTarget": 420000.0,
+                "BrokerTargetFetchedAt": int(__import__("time").time()),
+            }
+        ]
 
         with patch("app._fetch_kr_consensus_target") as fetch_target:
-            changed = app._apply_kr_broker_target_fallback(rows, limit=None)
+            changed = app._apply_kr_broker_target_fallback(rows, limit=None, refresh_existing=True)
 
         self.assertFalse(changed)
         fetch_target.assert_not_called()
         self.assertEqual(rows[0]["BrokerTarget"], 420000.0)
+
+    def test_apply_kr_broker_target_fallback_refreshes_stale_existing_target(self) -> None:
+        rows = [{"Ticker": "005930.KS", "BrokerTarget": 420000.0}]
+
+        with patch(
+            "app._fetch_kr_consensus_target",
+            return_value={
+                "target": 467708.0,
+                "source": "네이버증권 컨센서스 평균 (2026-06-25)",
+                "count": 12,
+            },
+        ) as fetch_target:
+            changed = app._apply_kr_broker_target_fallback(rows, limit=None, refresh_existing=True)
+
+        self.assertTrue(changed)
+        fetch_target.assert_called_once_with("005930.KS", force=True)
+        self.assertEqual(rows[0]["BrokerTarget"], 467708.0)
+        self.assertEqual(rows[0]["BrokerTargetSource"], "네이버증권 컨센서스 평균 (2026-06-25)")
+        self.assertGreater(rows[0]["BrokerTargetFetchedAt"], 0)
 
     def test_broker_target_scan_limit_covers_full_kr_scan_by_default(self) -> None:
         with patch.dict(os.environ, {}, clear=False):
