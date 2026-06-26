@@ -3164,6 +3164,7 @@ function _populatePanelDetail(d, skipFourAxis, skipVerdict) {
 
   // 투자자 동향 카드
   _renderInvestorCard(d);
+  _renderNomuraScoreCard(d.Ticker);
 
   // CAN SLIM 탭으로 초기화
   switchDpTab('canslim');
@@ -3247,6 +3248,91 @@ function _renderInvestorCard(d) {
       <span style="font-size:16px; font-weight:700; letter-spacing:-0.015em; font-variant-numeric:tabular-nums; text-align:right; color:${it.color};">${esc(it.value)}${it.sub ? `<small style="display:block; font-size:10.5px; color:var(--text-tertiary); font-weight:600; margin-top:2px; text-align:right;">${it.subIsHtml ? it.sub : esc(it.sub)}</small>` : ''}</span>
     </div>
   `).join('');
+}
+
+// ── 노무라式 정량 스코어 카드 ──────────────────────────────────────────
+async function _renderNomuraScoreCard(ticker) {
+  const wrap = document.getElementById('nomura-score-wrap');
+  if (!wrap) return;
+  const tk = String(ticker || '').trim();
+  if (!tk) { wrap.style.display = 'none'; return; }
+
+  const seq = (_renderNomuraScoreCard._seq || 0) + 1;
+  _renderNomuraScoreCard._seq = seq;
+  wrap.style.display = 'none';
+  wrap.innerHTML = '';
+
+  try {
+    const res = await _fetchWithTimeout(`/api/nomura-score/${encodeURIComponent(tk)}`, {}, 9000);
+    if (seq !== _renderNomuraScoreCard._seq) return;
+    if (!res.ok) return;
+    const body = await res.json();
+    const data = body && body.data;
+    if (!data) return;
+
+    const score = Number(data.quantitative_score || 0);
+    const grade = data.grade || '—';
+    const rating = data.nomura_rating || '—';
+    const bd = data.score_breakdown || {};
+    const rev1m = bd.rev_1m;
+    const detail = data.piotroski_detail || {};
+    const warn = data.beneish_warning ? '주의' : '정상';
+
+    const metric = (label, value, sub = '') => `
+      <div class="nomura-metric">
+        <span>${esc(label)}</span>
+        <b>${value}</b>
+        ${sub ? `<small>${sub}</small>` : ''}
+      </div>`;
+    const contrib = [
+      ['Piotroski', bd.piotroski_contribution],
+      ['Altman Z', bd.altman_z_contribution],
+      ['Beneish', bd.beneish_contribution],
+      ['1개월', bd.momentum_1m_contribution],
+      ['수급', bd.inst_contribution],
+    ].filter(([, v]) => v !== null && v !== undefined);
+    const pioBits = Object.entries(detail)
+      .filter(([, ok]) => ok === true)
+      .slice(0, 5)
+      .map(([k]) => `<span>${esc(k)}</span>`)
+      .join('');
+
+    wrap.innerHTML = `
+      <div class="nomura-card">
+        <div class="nomura-head">
+          <div>
+            <div class="nomura-title">노무라式 정량 스코어</div>
+            <div class="nomura-sub">재무 건전성, 회계 품질, 모멘텀, 수급을 합산한 보조 점수</div>
+          </div>
+          <div class="nomura-score">
+            <strong>${Math.round(score)}</strong>
+            <span>${esc(grade)} · ${esc(rating)}</span>
+          </div>
+        </div>
+        <div class="nomura-grid">
+          ${metric('Piotroski F-Score', data.piotroski != null ? `${fmt(data.piotroski, 0)}/9` : '—')}
+          ${metric('Altman Z-Score', data.altman_z != null ? fmt(data.altman_z, 2) : '—')}
+          ${metric('Beneish M-Score', data.beneish_m != null ? fmt(data.beneish_m, 2) : '—', warn)}
+          ${metric('1개월 수익률', rev1m != null ? `${rev1m >= 0 ? '+' : ''}${fmt(rev1m, 2)}%` : '—')}
+        </div>
+        ${contrib.length ? `
+          <div class="nomura-contrib">
+            ${contrib.map(([k, v]) => `
+              <div>
+                <span>${esc(k)}</span>
+                <b>${Number(v || 0) > 0 ? '+' : ''}${fmt(v || 0, 0)}</b>
+              </div>`).join('')}
+          </div>` : ''}
+        ${pioBits ? `<div class="nomura-pio">${pioBits}</div>` : ''}
+      </div>
+    `;
+    wrap.style.display = '';
+  } catch (e) {
+    if (seq === _renderNomuraScoreCard._seq) {
+      wrap.style.display = 'none';
+      wrap.innerHTML = '';
+    }
+  }
 }
 
 // ── 영어 → 한국어 번역 테이블 ────────────────────────────────────────────

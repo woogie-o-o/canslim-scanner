@@ -3745,9 +3745,27 @@ def _compute_four_axis_payload(ticker: str, market: str, want_chart: bool = True
         chart_title = chart_title or ticker
 
         if want_chart:
+            _sr_data = None
+            _nomura_data = None
+            if market == "US":
+                try:
+                    from tradingkey_api import get_support_resistance
+                    _sr_data = get_support_resistance(ticker)
+                except Exception as _e:
+                    logging.debug("TradingKey S/R unavailable for %s: %s", ticker, _e)
+            try:
+                from nomura_score import get_nomura_score
+                _nomura_data = get_nomura_score(ticker)
+            except Exception as _e:
+                logging.debug("Nomura score unavailable for %s: %s", ticker, _e)
             renderer = HandDrawnChartRenderer(
                 hist, result, ticker=chart_title,
                 width_px=1140, height_px=532, dpi=100,
+                support=_sr_data[0] if _sr_data else None,
+                resistance=_sr_data[1] if _sr_data else None,
+                show_fib=True,
+                show_sr=_sr_data is not None,
+                nomura_score_data=_nomura_data,
             )
             img = renderer.render()
 
@@ -4131,6 +4149,23 @@ def api_four_axis(ticker: str):
             _four_axis_cache.popitem(last=False)  # LRU eviction
         _four_axis_cache[cache_key] = {"data": payload, "_ts": int(time.time())}
     return jsonify(payload)
+
+
+@app.route("/api/nomura-score/<ticker>")
+def api_nomura_score(ticker: str):
+    """노무라式 정량 스코어 JSON."""
+    safe = _validate_ticker(ticker)
+    if not safe:
+        return jsonify({"status": "error", "message": "invalid ticker"}), 400
+    try:
+        from nomura_score import get_nomura_score
+        result = get_nomura_score(safe.upper())
+        if result is None:
+            return jsonify({"status": "error", "message": "ticker not supported or data unavailable"}), 404
+        return jsonify({"status": "ok", "data": result})
+    except Exception as e:
+        logging.warning("api_nomura_score %s: %s", safe, e)
+        return jsonify({"status": "error", "message": "internal error"}), 500
 
 
 # ── 공시·뉴스 API (DART + Naver News) ─────────────────────────────────

@@ -134,7 +134,8 @@ class HandDrawnChartRenderer:
                  support: float | None = None,
                  resistance: float | None = None,
                  show_fib: bool = True,
-                 show_sr: bool = True):
+                 show_sr: bool = True,
+                 nomura_score_data: dict | None = None):
         from four_axis_analyzer import _ema, _bb
         h = hist.copy()
         self._gz_zone = None
@@ -165,6 +166,38 @@ class HandDrawnChartRenderer:
         self._resistance = resistance
         self._show_fib = show_fib
         self._show_sr = show_sr
+        self._nomura_score_data = nomura_score_data
+
+    # ---------------------------------------------------------------
+    def _draw_nomura_badge(self, ax, score: int, rating: str, lw_scale: float):
+        """우상단에 노무라式 정량 스코어 배지를 작게 표시한다."""
+        from matplotlib.patches import Arc
+
+        rating_colors = {
+            "최우량": "#3b82f6",
+            "우량": "#22c55e",
+            "양호": "#eab308",
+            "불량": "#f97316",
+            "최하": "#ef4444",
+        }
+        color = rating_colors.get(rating, "#94a3b8")
+
+        ax_inset = ax.inset_axes([0.80, 0.76, 0.18, 0.22])
+        ax_inset.set_xlim(0, 1)
+        ax_inset.set_ylim(0, 1)
+        ax_inset.axis("off")
+
+        ax_inset.add_patch(plt.Circle((0.5, 0.5), 0.42, color="#1e293b", zorder=1))
+        angle = max(0, min(100, score)) / 100 * 360
+        ax_inset.add_patch(Arc((0.5, 0.5), 0.80, 0.80, angle=90,
+                               theta1=-angle, theta2=0,
+                               color=color, linewidth=3 * lw_scale, zorder=2))
+        ax_inset.text(0.5, 0.68, "노무라式", ha="center", va="center",
+                      fontsize=5, color="#94a3b8", fontweight="bold", zorder=3)
+        ax_inset.text(0.5, 0.50, rating or "—", ha="center", va="center",
+                      fontsize=7, color=color, fontweight="black", zorder=3)
+        ax_inset.text(0.5, 0.30, f"{score}", ha="center", va="center",
+                      fontsize=6, color="#cbd5e1", zorder=3)
 
     # ---------------------------------------------------------------
     def render(self) -> Image.Image:
@@ -305,6 +338,14 @@ class HandDrawnChartRenderer:
                         )
                 except Exception:
                     pass
+
+            if self._nomura_score_data:
+                try:
+                    _score = int(self._nomura_score_data.get("quantitative_score") or 0)
+                    _rating = self._nomura_score_data.get("nomura_rating") or ""
+                    self._draw_nomura_badge(ax_price, _score, _rating, lw_scale)
+                except Exception as _badge_err:
+                    logging.debug("nomura badge draw failed: %s", _badge_err)
 
             # ── ② 거래량 + OBV 패널 ──────────────────────────────────
             vol = self.hist["Volume"].values

@@ -248,6 +248,35 @@ def get_investor_flow(ticker: str) -> dict[str, Any]:
     return out
 
 
+def get_price_return_1m(ticker: str) -> float | None:
+    """최근 1개월(약 21거래일) 수익률(%). 네이버 일별시세를 보수적으로 파싱."""
+    code = _normalize_code(ticker)
+    if not code:
+        return None
+    prices: list[float] = []
+    for page in range(1, 4):
+        try:
+            html = _fetch(f"https://finance.naver.com/item/sise_day.naver?code={code}&page={page}")
+        except Exception:
+            break
+        rows = re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S)
+        for row in rows:
+            cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)
+            vals = [_strip(c) for c in cells]
+            if len(vals) < 2 or not re.match(r"\d{4}\.\d{2}\.\d{2}", vals[0]):
+                continue
+            price = _to_float(vals[1])
+            if price and price > 0:
+                prices.append(price)
+        if len(prices) >= 22:
+            break
+    if len(prices) < 2:
+        return None
+    current = prices[0]
+    base = prices[min(21, len(prices) - 1)]
+    return round((current / base - 1) * 100, 2) if base else None
+
+
 def build_summary_text(q: dict[str, Any]) -> str:
     if q.get("error"):
         return f"네이버 금융 조회 실패: {q['error']}"
